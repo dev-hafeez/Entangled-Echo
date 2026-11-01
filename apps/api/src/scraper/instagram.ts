@@ -48,12 +48,14 @@ export class InstagramScraper {
     const rawCaptures: RawCaptureRecord[] = [];
     const normalized = normalizeTarget(targetInput);
 
-    if (!this.lock.acquire()) {
+    const lockAcquired = await this.lock.acquire(30000, 1000);
+    if (!lockAcquired) {
       return {
         result: {
           success: false,
           failureReason: 'unknown',
-          error: 'Could not acquire browser profile lock: another worker is currently using it.',
+          error:
+            'Could not acquire browser profile lock after waiting 30s: another worker is currently using it.',
           postsFound: 0,
           postsDetailed: 0,
           postsFailed: 0,
