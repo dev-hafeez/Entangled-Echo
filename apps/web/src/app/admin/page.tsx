@@ -23,6 +23,26 @@ export default function AdminPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
+  // Queue filtering, search & pagination for scaling to 2,000+ jobs
+  const [jobStatusFilter, setJobStatusFilter] = useState<string>('all');
+  const [jobSearch, setJobSearch] = useState<string>('');
+  const [jobPage, setJobPage] = useState<number>(1);
+  const [jobLimit, setJobLimit] = useState<number>(100);
+  const [jobSummary, setJobSummary] = useState<any>({
+    total: 0,
+    queued: 0,
+    running: 0,
+    done: 0,
+    failed: 0,
+    cancelled: 0,
+  });
+  const [jobPagination, setJobPagination] = useState<any>({
+    page: 1,
+    limit: 100,
+    total: 0,
+    totalPages: 1,
+  });
+
   const showNotice = (msg: string) => {
     setActionNotice(msg);
     setTimeout(() => {
@@ -50,18 +70,29 @@ export default function AdminPage() {
     setIsAuthenticated(isAuth);
   }, []);
 
-  // Fetch data
-  const loadData = async () => {
+  // Fetch data with active filters and pagination
+  const loadData = async (
+    filter: string = jobStatusFilter,
+    search: string = jobSearch,
+    page: number = jobPage,
+    limit: number = jobLimit
+  ) => {
     try {
       const [jRes, aRes, mRes] = await Promise.allSettled([
-        api.getJobs(),
+        api.getJobs({ status: filter, search, page, limit }),
         api.getAccounts(),
         api.getModels(),
       ]);
 
       if (jRes.status === 'fulfilled') {
         setJobs(jRes.value.jobs || []);
-        setTotalJobs(jRes.value.total ?? (jRes.value.jobs?.length || 0));
+        if (jRes.value.pagination) setJobPagination(jRes.value.pagination);
+        if (jRes.value.summary) {
+          setJobSummary(jRes.value.summary);
+          setTotalJobs(jRes.value.summary.total);
+        } else {
+          setTotalJobs(jRes.value.total ?? (jRes.value.jobs?.length || 0));
+        }
       }
       if (aRes.status === 'fulfilled') setAccounts(aRes.value.accounts || []);
       if (mRes.status === 'fulfilled') setModels(mRes.value.models || []);
@@ -72,11 +103,14 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      loadData();
-      const interval = setInterval(loadData, 5000); // Polling every 5s for job updates
+      loadData(jobStatusFilter, jobSearch, jobPage, jobLimit);
+      const interval = setInterval(
+        () => loadData(jobStatusFilter, jobSearch, jobPage, jobLimit),
+        5000
+      );
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, jobStatusFilter, jobSearch, jobPage, jobLimit]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -351,7 +385,7 @@ export default function AdminPage() {
           <p className="text-sm text-slate-500">Instagram Scraper, Job Queue, and ML Engine</p>
         </div>
         <button
-          onClick={loadData}
+          onClick={() => loadData()}
           className="text-xs bg-slate-100 hover:bg-slate-200 border border-slate-300 px-3 py-1.5 rounded font-medium"
         >
           ↻ Refresh Data
@@ -426,11 +460,12 @@ export default function AdminPage() {
           <div>
             <h2 className="text-lg font-semibold text-slate-800">2. Scrape Jobs Queue</h2>
             <span className="text-xs text-slate-500">
-              Total {totalJobs} jobs in database {totalJobs > 100 ? `(showing 100 latest, ${jobs.length} loaded)` : ''}
+              Total {jobSummary.total || totalJobs} jobs in database (unlimited queue capacity)
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {jobs.some((j) => ['done', 'failed', 'cancelled'].includes(j.status)) && (
+            {(jobSummary.done + jobSummary.failed + jobSummary.cancelled > 0 ||
+              jobs.some((j) => ['done', 'failed', 'cancelled'].includes(j.status))) && (
               <button
                 onClick={() => handleClearJobs('completed')}
                 disabled={deletingId === 'clear-completed'}
@@ -439,7 +474,7 @@ export default function AdminPage() {
                 {deletingId === 'clear-completed' ? 'Clearing...' : 'Clear Finished'}
               </button>
             )}
-            {jobs.some((j) => j.status === 'queued') && (
+            {(jobSummary.queued > 0 || jobs.some((j) => j.status === 'queued')) && (
               <button
                 onClick={() => handleClearJobs('queued')}
                 disabled={deletingId === 'clear-queued'}
@@ -448,7 +483,7 @@ export default function AdminPage() {
                 {deletingId === 'clear-queued' ? 'Clearing...' : 'Clear Queued'}
               </button>
             )}
-            {jobs.length > 0 && (
+            {(jobSummary.total > 0 || jobs.length > 0) && (
               <button
                 onClick={() => handleClearJobs('all')}
                 disabled={deletingId === 'clear-all'}
@@ -457,6 +492,64 @@ export default function AdminPage() {
                 {deletingId === 'clear-all' ? 'Purging...' : 'Purge All Jobs'}
               </button>
             )}
+          </div>
+        </div>
+
+        {/* Filter Badges & Search Toolbar */}
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-slate-100">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            {[
+              { key: 'all', label: 'All', count: jobSummary.total },
+              { key: 'running', label: 'Running', count: jobSummary.running },
+              { key: 'queued', label: 'Queued', count: jobSummary.queued },
+              { key: 'done', label: 'Done', count: jobSummary.done },
+              { key: 'failed', label: 'Failed', count: jobSummary.failed },
+              { key: 'cancelled', label: 'Cancelled', count: jobSummary.cancelled },
+            ].map((tab) => {
+              const active = jobStatusFilter === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => {
+                    setJobStatusFilter(tab.key);
+                    setJobPage(1);
+                  }}
+                  className={`px-2.5 py-1 rounded-full font-medium transition-colors ${
+                    active
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                  }`}
+                >
+                  {tab.label} <span className="opacity-75 font-mono ml-0.5">({tab.count ?? 0})</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              value={jobSearch}
+              onChange={(e) => {
+                setJobSearch(e.target.value);
+                setJobPage(1);
+              }}
+              placeholder="Search handle or URL..."
+              className="px-2.5 py-1 text-xs border border-slate-300 rounded w-44 font-mono focus:outline-none focus:ring-1 focus:ring-slate-800"
+            />
+            <select
+              value={jobLimit}
+              onChange={(e) => {
+                setJobLimit(parseInt(e.target.value, 10));
+                setJobPage(1);
+              }}
+              className="px-2 py-1 text-xs border border-slate-300 rounded bg-white text-slate-700"
+            >
+              <option value={50}>50 / page</option>
+              <option value={100}>100 / page</option>
+              <option value={250}>250 / page</option>
+              <option value={500}>500 / page</option>
+            </select>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -546,6 +639,32 @@ export default function AdminPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Bottom Pagination Controls */}
+        <div className="flex flex-wrap items-center justify-between text-xs text-slate-600 pt-3 border-t">
+          <div>
+            Showing {jobs.length} of {jobPagination.total} jobs (Page {jobPagination.page} of {jobPagination.totalPages})
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setJobPage((p) => Math.max(1, p - 1))}
+              disabled={jobPage <= 1}
+              className="px-3 py-1 bg-slate-100 hover:bg-slate-200 border rounded disabled:opacity-40 font-medium transition-colors"
+            >
+              ← Previous
+            </button>
+            <span className="font-mono text-slate-700">
+              {jobPagination.page} / {jobPagination.totalPages}
+            </span>
+            <button
+              onClick={() => setJobPage((p) => Math.min(jobPagination.totalPages, p + 1))}
+              disabled={jobPage >= jobPagination.totalPages}
+              className="px-3 py-1 bg-slate-100 hover:bg-slate-200 border rounded disabled:opacity-40 font-medium transition-colors"
+            >
+              Next →
+            </button>
+          </div>
         </div>
       </section>
 

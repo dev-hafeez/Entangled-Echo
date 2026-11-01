@@ -4,23 +4,72 @@ import { getSupabaseAdmin } from '../lib/supabase.js';
 
 export const jobsRouter = Router();
 
-// GET /api/jobs - List all jobs
+// GET /api/jobs - List jobs with filtering, pagination, and status summaries
 jobsRouter.get('/', async (req: Request, res: Response) => {
   const supabase = getSupabaseAdmin();
-  const [{ count: totalCount }, { data, error }] = await Promise.all([
+
+  const status = (req.query.status as string) || 'all';
+  const search = ((req.query.search as string) || '').trim();
+  const page = Math.max(1, parseInt((req.query.page as string) || '1', 10));
+  const limit = Math.min(500, Math.max(10, parseInt((req.query.limit as string) || '100', 10)));
+  const offset = (page - 1) * limit;
+
+  // 1. Fetch live queue summary counts across all statuses
+  const [totalRes, queuedRes, runningRes, doneRes, failedRes, cancelledRes] = await Promise.all([
     supabase.from('jobs').select('*', { count: 'exact', head: true }),
-    supabase
-      .from('jobs')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(100),
+    supabase.from('jobs').select('*', { count: 'exact', head: true }).eq('status', 'queued'),
+    supabase.from('jobs').select('*', { count: 'exact', head: true }).eq('status', 'running'),
+    supabase.from('jobs').select('*', { count: 'exact', head: true }).eq('status', 'done'),
+    supabase.from('jobs').select('*', { count: 'exact', head: true }).in('status', ['failed', 'partial']),
+    supabase.from('jobs').select('*', { count: 'exact', head: true }).eq('status', 'cancelled'),
   ]);
+
+  // 2. Build filtered and paginated jobs query
+  let query = supabase.from('jobs').select('*', { count: 'exact' });
+
+  if (status && status !== 'all') {
+    if (status === 'failed') {
+      query = query.in('status', ['failed', 'partial']);
+    } else {
+      query = query.eq('status', status);
+    }
+  }
+
+  if (search.length > 0) {
+    const term = `%${search}%`;
+    query = query.or(`target_input.ilike.${term},normalized_handle.ilike.${term}`);
+  }
+
+  query = query
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  const { data, error, count: filteredCount } = await query;
 
   if (error) {
     return res.status(500).json({ error: error.message });
   }
 
-  return res.json({ jobs: data || [], total: totalCount ?? data?.length ?? 0 });
+  const total = filteredCount ?? data?.length ?? 0;
+  const totalPages = Math.ceil(total / limit);
+
+  return res.json({
+    jobs: data || [],
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: totalPages > 0 ? totalPages : 1,
+    },
+    summary: {
+      total: totalRes.count ?? 0,
+      queued: queuedRes.count ?? 0,
+      running: runningRes.count ?? 0,
+      done: doneRes.count ?? 0,
+      failed: failedRes.count ?? 0,
+      cancelled: cancelledRes.count ?? 0,
+    },
+  });
 });
 
 // POST /api/jobs/:id/retry - Retry a failed or cancelled job

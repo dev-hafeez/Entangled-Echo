@@ -24,7 +24,15 @@ export const api = {
       body: JSON.stringify({ inputs, maxPosts, headless }),
     }),
 
-  getJobs: () => fetchFromApi('/api/jobs'),
+  getJobs: (params?: { status?: string; search?: string; page?: number; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.status && params.status !== 'all') q.set('status', params.status);
+    if (params?.search) q.set('search', params.search);
+    if (params?.page) q.set('page', params.page.toString());
+    if (params?.limit) q.set('limit', params.limit.toString());
+    const queryStr = q.toString();
+    return fetchFromApi(`/api/jobs${queryStr ? `?${queryStr}` : ''}`);
+  },
 
   retryJob: (id: string) =>
     fetchFromApi(`/api/jobs/${id}/retry`, { method: 'POST' }),

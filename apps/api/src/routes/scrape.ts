@@ -35,17 +35,20 @@ scrapeRouter.post('/', async (req: Request, res: Response) => {
     };
   });
 
-  const { data: createdJobs, error } = await supabase
-    .from('jobs')
-    .insert(jobsToInsert)
-    .select();
+  const chunkSize = 500;
+  let totalInserted = 0;
 
-  if (error) {
-    return res.status(500).json({ error: error.message });
+  for (let i = 0; i < jobsToInsert.length; i += chunkSize) {
+    const chunk = jobsToInsert.slice(i, i + chunkSize);
+    const { error } = await supabase.from('jobs').insert(chunk);
+    if (error) {
+      return res.status(500).json({ error: `Failed to insert job batch: ${error.message}` });
+    }
+    totalInserted += chunk.length;
   }
 
   return res.status(201).json({
-    message: `Enqueued ${createdJobs.length} scrape job(s).`,
-    jobs: createdJobs,
+    message: `Enqueued ${totalInserted} scrape job(s) successfully.`,
+    count: totalInserted,
   });
 });
