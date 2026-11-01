@@ -4,6 +4,18 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+function getThumbnailSrc(post: any): string | null {
+  if (post.storage_paths && post.storage_paths.length > 0) {
+    return `${API_BASE}/api/media/image?path=${encodeURIComponent(post.storage_paths[0])}`;
+  }
+  if (post.media_urls && post.media_urls.length > 0) {
+    return post.media_urls[0];
+  }
+  return null;
+}
+
 export default function AccountDetailPage() {
   const params = useParams();
   const handle = params.handle as string;
@@ -137,7 +149,7 @@ export default function AccountDetailPage() {
             Collected Posts ({posts.length})
           </h2>
           <span className="text-xs text-slate-500">
-            Showing all scraped posts with explicit companion sources
+            Showing all scraped posts with visual thumbnails and explicit companion sources
           </span>
         </div>
 
@@ -147,97 +159,138 @@ export default function AccountDetailPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {posts.map((post) => (
-              <div
-                key={post.id}
-                className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm flex flex-col justify-between"
-              >
-                <div className="p-4 space-y-3">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-mono font-medium text-slate-700">
+            {posts.map((post) => {
+              const thumbnail = getThumbnailSrc(post);
+              return (
+                <div
+                  key={post.id}
+                  className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
+                >
+                  {/* Visual Image / Thumbnail Preview */}
+                  <div className="relative aspect-square w-full bg-slate-100 overflow-hidden border-b flex items-center justify-center">
+                    {thumbnail ? (
                       <a
                         href={post.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-blue-600 hover:underline"
+                        className="w-full h-full block group"
                       >
-                        #{post.shortcode} ↗
+                        <img
+                          src={thumbnail}
+                          alt={`Post #${post.shortcode}`}
+                          loading="lazy"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          onError={(e) => {
+                            if (post.media_urls?.[0] && e.currentTarget.src !== post.media_urls[0]) {
+                              e.currentTarget.src = post.media_urls[0];
+                            } else {
+                              e.currentTarget.style.display = 'none';
+                            }
+                          }}
+                        />
                       </a>
-                    </span>
-                    <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[11px] uppercase font-mono">
-                      {post.media_type || 'unknown'}
-                    </span>
-                  </div>
+                    ) : (
+                      <div className="text-slate-400 text-xs font-mono flex flex-col items-center">
+                        <span>No image cached</span>
+                      </div>
+                    )}
 
-                  {/* Caption */}
-                  <p className="text-xs text-slate-700 line-clamp-4 whitespace-pre-line font-sans">
-                    {post.caption || <span className="text-slate-400 italic font-mono">NULL (no caption)</span>}
-                  </p>
-
-                  {/* Hashtags */}
-                  {post.hashtags && post.hashtags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 text-[11px] text-blue-600 font-mono">
-                      {post.hashtags.map((h: string) => (
-                        <span key={h}>#{h}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Metrics Breakdown with Companion Sources */}
-                <div className="bg-slate-50 p-4 border-t text-xs font-mono space-y-1.5">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Likes:</span>
-                    <div className="text-right">
-                      <span className="font-bold text-slate-800">
-                        {post.likes_count !== null ? post.likes_count.toLocaleString() : 'NULL'}
-                      </span>
-                      <span className="ml-1 text-[10px] text-slate-400">
-                        [{post.likes_source || 'NULL'}]
+                    {/* Media Type & Carousel Badge */}
+                    <div className="absolute top-2 right-2 pointer-events-none">
+                      <span className="bg-black/75 backdrop-blur-xs text-white px-2 py-0.5 rounded text-[10px] font-semibold uppercase font-mono tracking-wider shadow">
+                        {post.media_type || 'image'}
+                        {post.carousel_size ? ` (${post.carousel_size})` : ''}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Comments:</span>
-                    <div className="text-right">
-                      <span className="font-bold text-slate-800">
-                        {post.comments_count !== null ? post.comments_count.toLocaleString() : 'NULL'}
+                  <div className="p-4 space-y-3">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-mono font-medium text-slate-700">
+                        <a
+                          href={post.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          #{post.shortcode} ↗
+                        </a>
                       </span>
-                      <span className="ml-1 text-[10px] text-slate-400">
-                        [{post.comments_source || 'NULL'}]
+                      <span className="text-[11px] text-slate-400 font-mono">
+                        {post.posted_at ? new Date(post.posted_at).toLocaleDateString() : 'NULL date'}
                       </span>
                     </div>
+
+                    {/* Caption */}
+                    <p className="text-xs text-slate-700 line-clamp-3 whitespace-pre-line font-sans">
+                      {post.caption || <span className="text-slate-400 italic font-mono">NULL (no caption)</span>}
+                    </p>
+
+                    {/* Hashtags */}
+                    {post.hashtags && post.hashtags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 text-[11px] text-blue-600 font-mono">
+                        {post.hashtags.map((h: string) => (
+                          <span key={h}>#{h}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  {post.views_count !== null && (
+                  {/* Metrics Breakdown with Companion Sources */}
+                  <div className="bg-slate-50 p-4 border-t text-xs font-mono space-y-1.5">
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-500">Views (Reels):</span>
+                      <span className="text-slate-500">Likes:</span>
                       <div className="text-right">
                         <span className="font-bold text-slate-800">
-                          {post.views_count.toLocaleString()}
+                          {post.likes_count !== null ? post.likes_count.toLocaleString() : 'NULL'}
                         </span>
                         <span className="ml-1 text-[10px] text-slate-400">
-                          [{post.views_source || 'NULL'}]
+                          [{post.likes_source || 'NULL'}]
                         </span>
                       </div>
                     </div>
-                  )}
 
-                  <div className="flex justify-between items-center border-t pt-1">
-                    <span className="text-slate-500">Upload Date:</span>
-                    <div className="text-right">
-                      <span className="text-slate-700">
-                        {post.posted_at ? new Date(post.posted_at).toLocaleDateString() : 'NULL'}
-                      </span>
-                      <span className="ml-1 text-[10px] text-slate-400">
-                        [{post.posted_at_source || 'NULL'}]
-                      </span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Comments:</span>
+                      <div className="text-right">
+                        <span className="font-bold text-slate-800">
+                          {post.comments_count !== null ? post.comments_count.toLocaleString() : 'NULL'}
+                        </span>
+                        <span className="ml-1 text-[10px] text-slate-400">
+                          [{post.comments_source || 'NULL'}]
+                        </span>
+                      </div>
+                    </div>
+
+                    {post.views_count !== null && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Views (Reels):</span>
+                        <div className="text-right">
+                          <span className="font-bold text-slate-800">
+                            {post.views_count.toLocaleString()}
+                          </span>
+                          <span className="ml-1 text-[10px] text-slate-400">
+                            [{post.views_source || 'NULL'}]
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center border-t pt-1">
+                      <span className="text-slate-500">Upload Date:</span>
+                      <div className="text-right">
+                        <span className="text-slate-700">
+                          {post.posted_at ? new Date(post.posted_at).toLocaleDateString() : 'NULL'}
+                        </span>
+                        <span className="ml-1 text-[10px] text-slate-400">
+                          [{post.posted_at_source || 'NULL'}]
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

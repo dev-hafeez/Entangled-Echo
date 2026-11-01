@@ -21,3 +21,24 @@ mediaRouter.get('/signed-url', async (req: Request, res: Response) => {
 
   return res.json({ signedUrl: data.signedUrl });
 });
+
+// GET /api/media/image?path=...
+// Streams media file directly from the private post-media bucket
+mediaRouter.get('/image', async (req: Request, res: Response) => {
+  const filePath = req.query.path as string;
+  if (!filePath) {
+    return res.status(400).send('Query parameter "path" is required');
+  }
+
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase.storage.from('post-media').download(filePath);
+
+  if (error || !data) {
+    return res.status(404).send('Image not found in post-media storage');
+  }
+
+  const buffer = Buffer.from(await data.arrayBuffer());
+  res.setHeader('Content-Type', data.type || 'image/jpeg');
+  res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+  return res.send(buffer);
+});
