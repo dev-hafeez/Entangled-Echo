@@ -82,6 +82,15 @@ export class InstagramScraper {
         ],
       });
 
+      await context.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', {
+          get: () => undefined,
+        });
+        Object.defineProperty(navigator, 'languages', {
+          get: () => ['en-US', 'en'],
+        });
+      });
+
       let handle = normalized.handle;
       if (normalized.type === 'post') {
         const resolution = await this.resolveAuthorFromPost(
@@ -373,14 +382,47 @@ export class InstagramScraper {
     return { handle: detectedHandle };
   }
 
+  private async dismissModals(page: Page): Promise<void> {
+    try {
+      // 1. Try Escape key to dismiss standard Instagram modal popups
+      await page.keyboard.press('Escape');
+
+      // 2. Click any explicit close buttons inside dialogs
+      const closeButtons = await page.$$(
+        'div[role="dialog"] [aria-label="Close"], div[role="dialog"] svg[aria-label="Close"], svg[aria-label="Close"], div[role="dialog"] button:has-text("Close"), button:has-text("Not Now"), [role="dialog"] [role="button"]'
+      );
+      for (const btn of closeButtons) {
+        await btn.click().catch(() => {});
+      }
+
+      // 3. Remove blocking modal overlays if still attached to the DOM
+      await page
+        .evaluate(() => {
+          const dialogs = document.querySelectorAll('div[role="dialog"], div[role="presentation"]');
+          for (const d of dialogs) {
+            const text = d.textContent || '';
+            if (
+              text.includes('Sign up') ||
+              text.includes('Log In') ||
+              text.includes('See photos') ||
+              text.includes('never miss a post')
+            ) {
+              (d as HTMLElement).style.display = 'none';
+            }
+          }
+          document.body.style.overflow = 'auto';
+        })
+        .catch(() => {});
+    } catch {}
+  }
+
   private async detectPageStatus(
     page: Page,
     httpStatus?: number
   ): Promise<'ok' | 'not_found' | 'private' | 'login_wall' | 'restricted' | 'rate_limit'> {
     const currentUrl = page.url();
 
-    if (httpStatus === 404 || currentUrl.includes('/accounts/login/?next=')) {
-      if (currentUrl.includes('/accounts/login/')) return 'login_wall';
+    if (httpStatus === 404) {
       return 'not_found';
     }
 
@@ -417,6 +459,27 @@ export class InstagramScraper {
       return 'rate_limit';
     }
 
+    // Dismiss any non-blocking modal dialogs
+    await this.dismissModals(page);
+
+    // If redirected to login page, check if profile/relay data was still delivered
+    if (currentUrl.includes('/accounts/login/')) {
+      const hasRelay = await page
+        .$$eval('script', (els) =>
+          els.some(
+            (e) =>
+              (e.textContent || '').includes('RelayPrefetchedStreamCache') ||
+              (e.textContent || '').includes('xig_user_by_username')
+          )
+        )
+        .catch(() => false);
+
+      if (!hasRelay) {
+        return 'login_wall';
+      }
+    }
+
+    // Check if dialog is genuinely a blocking login wall
     const isLoginModal = await page
       .$eval(
         'div[role="dialog"]',
@@ -424,8 +487,27 @@ export class InstagramScraper {
       )
       .catch(() => false);
 
-    if (isLoginModal && !bodyText.includes('Followers')) {
-      return 'login_wall';
+    if (isLoginModal) {
+      const lowerBody = bodyText.toLowerCase();
+      const hasFollowers = lowerBody.includes('followers') || lowerBody.includes('following');
+      const hasPostsInDom = await page
+        .$('a[href*="/p/"], a[href*="/reel/"]')
+        .then((el) => !!el)
+        .catch(() => false);
+      const hasRelay = await page
+        .$$eval('script', (els) =>
+          els.some(
+            (e) =>
+              (e.textContent || '').includes('RelayPrefetchedStreamCache') ||
+              (e.textContent || '').includes('xig_user_by_username')
+          )
+        )
+        .catch(() => false);
+
+      // Only mark as login wall if it completely blocks access to profile info, posts, and relay scripts
+      if (!hasFollowers && !hasPostsInDom && !hasRelay) {
+        return 'login_wall';
+      }
     }
 
     return 'ok';
@@ -557,6 +639,8 @@ export class InstagramScraper {
       shortcodeSet.add(sc);
     }
 
+    await this.dismissModals(page);
+
     const extractDomShortcodes = async () => {
       const links = await page
         .$$eval('a[href*="/p/"], a[href*="/reel/"]', (anchors) =>
@@ -583,6 +667,7 @@ export class InstagramScraper {
       }
 
       const beforeCount = shortcodeSet.size;
+      await this.dismissModals(page);
       await page.evaluate(() => window.scrollBy(0, window.innerHeight * 1.5));
 
       try {
