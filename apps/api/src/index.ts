@@ -1,0 +1,83 @@
+import express, { Request, Response, NextFunction } from 'express';
+import cors from 'cors';
+import { pino } from 'pino';
+import { config } from './config.js';
+import { scrapeRouter } from './routes/scrape.js';
+import { jobsRouter } from './routes/jobs.js';
+import { accountsRouter } from './routes/accounts.js';
+import { modelsRouter } from './routes/models.js';
+import { mediaRouter } from './routes/media.js';
+import { JobWorker } from './lib/queue.js';
+
+const logger = pino({
+  transport: {
+    target: 'pino-pretty',
+    options: { colorize: true },
+  },
+});
+
+const app = express();
+
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+
+// Request logging middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    logger.info(`${req.method} ${req.originalUrl} ${res.statusCode} (${duration}ms)`);
+  });
+  next();
+});
+
+// Health check
+app.get('/health', (req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    service: 'entangled-echo-api',
+  });
+});
+
+// API Routes
+app.use('/api/scrape', scrapeRouter);
+app.use('/api/jobs', jobsRouter);
+app.use('/api/accounts', accountsRouter);
+app.use('/api/models', modelsRouter);
+app.use('/api/media', mediaRouter);
+
+// Centralized error handler
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  logger.error(err, 'Unhandled request error');
+  const status = err.status || 500;
+  res.status(status).json({
+    error: err.message || 'Internal Server Error',
+    ...(process.env.NODE_ENV !== 'production' ? { stack: err.stack } : {}),
+  });
+});
+
+const server = app.listen(config.port, () => {
+  logger.info(`EntangledEcho API server running on port ${config.port}`);
+});
+
+// Start background JobWorker inside the API process
+const worker = new JobWorker();
+worker.start().catch((err) => {
+  logger.error(err, 'JobWorker crashed');
+});
+
+// Graceful shutdown
+const shutdown = () => {
+  logger.info('Shutting down server and worker...');
+  worker.stop();
+  server.close(() => {
+    logger.info('Server closed');
+    process.exit(0);
+  });
+};
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+
+export default app;
