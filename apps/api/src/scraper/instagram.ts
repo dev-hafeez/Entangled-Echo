@@ -224,15 +224,27 @@ export class InstagramScraper {
                 }
               }
             }
+            if (match.key === 'polaris_ordered_timeline_connection') {
+              const timelineEdges = match.value?.edges;
+              if (Array.isArray(timelineEdges)) {
+                for (const edge of timelineEdges) {
+                  const sc = edge.node?.code || edge.node?.shortcode;
+                  if (sc) networkPostsMap.set(sc, edge.node);
+                }
+              }
+            }
           }
         } catch {}
       }
 
+      // Wait for profile post grid to be rendered in the DOM
+      await page.waitForSelector('a[href*="/p/"], a[href*="/reel/"]', { timeout: 8000 }).catch(() => {});
+
       // Extract Profile Data
       const profile = await this.extractProfileData(page, handle, profileNetworkData);
 
-      // Grid scrolling: collect post shortcodes
-      const maxPosts = options?.maxPosts ?? null;
+      // Grid scrolling: collect post shortcodes (all 12 visible posts on profile by default)
+      const maxPosts = options?.maxPosts ?? 12;
       const discoveredShortcodes = await this.scrollAndCollectGrid(
         page,
         maxPosts,
@@ -657,6 +669,13 @@ export class InstagramScraper {
     };
 
     await extractDomShortcodes();
+
+    // If fewer than 12 posts found initially on the page, perform a small scroll to trigger grid hydration
+    if (shortcodeSet.size < (maxPosts ? Math.min(12, maxPosts) : 12)) {
+      await page.evaluate(() => window.scrollBy(0, 800));
+      await page.waitForTimeout(1200);
+      await extractDomShortcodes();
+    }
 
     let attemptsWithoutNew = 0;
     const maxScrolls = maxPosts ? Math.ceil(maxPosts / 12) + 2 : 15;

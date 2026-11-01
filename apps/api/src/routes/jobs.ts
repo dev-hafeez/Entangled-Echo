@@ -68,3 +68,36 @@ jobsRouter.post('/:id/cancel', async (req: Request, res: Response) => {
 
   return res.json({ success: true, job: data });
 });
+
+// DELETE /api/jobs/:id - Delete a single job from the queue
+jobsRouter.delete('/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const supabase = getSupabaseAdmin();
+
+  const { error } = await supabase
+    .from('jobs')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  return res.json({ success: true, message: `Job ${id} deleted.` });
+});
+
+// DELETE /api/jobs - Clear all finished, failed, or cancelled jobs
+jobsRouter.delete('/', async (req: Request, res: Response) => {
+  const supabase = getSupabaseAdmin();
+
+  const { error } = await supabase
+    .from('jobs')
+    .delete()
+    .in('status', ['done', 'failed', 'cancelled']);
+
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  return res.json({ success: true, message: 'Cleared completed jobs.' });
+});

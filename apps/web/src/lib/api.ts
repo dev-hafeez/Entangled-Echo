@@ -32,16 +32,28 @@ export const api = {
   cancelJob: (id: string) =>
     fetchFromApi(`/api/jobs/${id}/cancel`, { method: 'POST' }),
 
+  deleteJob: (id: string) =>
+    fetchFromApi(`/api/jobs/${id}`, { method: 'DELETE' }),
+
+  clearCompletedJobs: () =>
+    fetchFromApi('/api/jobs', { method: 'DELETE' }),
+
   // Accounts
   getAccounts: () => fetchFromApi('/api/accounts'),
 
   getAccount: (handle: string) => fetchFromApi(`/api/accounts/${encodeURIComponent(handle)}`),
+
+  deleteAccount: (idOrHandle: string) =>
+    fetchFromApi(`/api/accounts/${encodeURIComponent(idOrHandle)}`, { method: 'DELETE' }),
 
   getAccountPosts: (handle: string) =>
     fetchFromApi(`/api/accounts/${encodeURIComponent(handle)}/posts`),
 
   // Models
   getModels: () => fetchFromApi('/api/models'),
+
+  deleteModel: (id: string) =>
+    fetchFromApi(`/api/models/${id}`, { method: 'DELETE' }),
 
   trainGlobalModel: () =>
     fetchFromApi('/api/models/train-global', { method: 'POST' }),

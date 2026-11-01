@@ -128,6 +128,52 @@ export default function AdminPage() {
     }
   };
 
+  const handleDeleteJob = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this job from the queue?')) return;
+    try {
+      await api.deleteJob(id);
+      await loadData();
+    } catch (err: any) {
+      alert(`Delete failed: ${err.message}`);
+    }
+  };
+
+  const handleClearCompletedJobs = async () => {
+    if (!confirm('Clear all completed, failed, and cancelled jobs?')) return;
+    try {
+      await api.clearCompletedJobs();
+      await loadData();
+    } catch (err: any) {
+      alert(`Clear completed jobs failed: ${err.message}`);
+    }
+  };
+
+  const handleDeleteAccount = async (id: string, handle: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to delete @${handle} and all its posts, metrics, and media? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    try {
+      await api.deleteAccount(id);
+      await loadData();
+    } catch (err: any) {
+      alert(`Delete account failed: ${err.message}`);
+    }
+  };
+
+  const handleDeleteModel = async (id: string, version: string) => {
+    if (!confirm(`Are you sure you want to delete model version ${version}?`)) return;
+    try {
+      await api.deleteModel(id);
+      await loadData();
+    } catch (err: any) {
+      alert(`Delete model failed: ${err.message}`);
+    }
+  };
+
   const handleTrainGlobal = async () => {
     setTrainingGlobal(true);
     setModelMsg('');
@@ -303,8 +349,18 @@ export default function AdminPage() {
       {/* 2. JOBS QUEUE TABLE */}
       <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-4">
         <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-slate-800">2. Scrape Jobs Queue</h2>
-          <span className="text-xs text-slate-500">{jobs.length} jobs in queue</span>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-800">2. Scrape Jobs Queue</h2>
+            <span className="text-xs text-slate-500">{jobs.length} jobs in queue</span>
+          </div>
+          {jobs.some((j) => ['done', 'failed', 'cancelled'].includes(j.status)) && (
+            <button
+              onClick={handleClearCompletedJobs}
+              className="px-2.5 py-1 text-xs text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded font-medium transition-colors"
+            >
+              Clear Completed Jobs
+            </button>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
@@ -375,11 +431,17 @@ export default function AdminPage() {
                       {(j.status === 'queued' || j.status === 'running') && (
                         <button
                           onClick={() => handleCancelJob(j.id)}
-                          className="px-2 py-1 text-xs text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded font-medium"
+                          className="px-2 py-1 text-xs text-amber-600 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded font-medium"
                         >
                           Cancel
                         </button>
                       )}
+                      <button
+                        onClick={() => handleDeleteJob(j.id)}
+                        className="px-2 py-1 text-xs text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded font-medium transition-colors"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -405,7 +467,7 @@ export default function AdminPage() {
                 <th className="p-3">Posts Collected</th>
                 <th className="p-3">Data Completeness Rate</th>
                 <th className="p-3">Last Scraped</th>
-                <th className="p-3 text-right">View</th>
+                <th className="p-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -456,13 +518,19 @@ export default function AdminPage() {
                         ? new Date(acc.last_scraped_at).toLocaleString()
                         : 'Never'}
                     </td>
-                    <td className="p-3 text-right">
+                    <td className="p-3 text-right space-x-2">
                       <a
                         href={`/admin/accounts/${acc.handle}`}
                         className="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 border rounded font-medium"
                       >
-                        View Posts Grid →
+                        View Posts →
                       </a>
+                      <button
+                        onClick={() => handleDeleteAccount(acc.id, acc.handle)}
+                        className="px-2 py-1 text-xs text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded font-medium transition-colors"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -537,12 +605,13 @@ export default function AdminPage() {
                 <th className="p-3">Rows Used</th>
                 <th className="p-3">Metrics (MAE / R² / Spearman)</th>
                 <th className="p-3">Trained At</th>
+                <th className="p-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {models.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-4 text-center text-slate-400">
+                  <td colSpan={8} className="p-4 text-center text-slate-400">
                     No models trained yet. Click "Train Global Model" once enough data is ingested.
                   </td>
                 </tr>
@@ -571,6 +640,14 @@ export default function AdminPage() {
                     </td>
                     <td className="p-3 text-xs text-slate-500">
                       {new Date(m.trained_at).toLocaleString()}
+                    </td>
+                    <td className="p-3 text-right">
+                      <button
+                        onClick={() => handleDeleteModel(m.id, m.version)}
+                        className="px-2 py-1 text-xs text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded font-medium transition-colors"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))

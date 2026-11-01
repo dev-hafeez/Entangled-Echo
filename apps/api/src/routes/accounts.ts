@@ -175,3 +175,68 @@ accountsRouter.get('/:handle/posts', async (req: Request, res: Response) => {
 
   return res.json({ posts: enrichedPosts });
 });
+
+// DELETE /api/accounts/:idOrHandle - Delete an account and its posts, snapshots, and media
+accountsRouter.delete('/:idOrHandle', async (req: Request, res: Response) => {
+  const { idOrHandle } = req.params;
+  const clean = idOrHandle.toLowerCase().replace(/^@/, '');
+  const supabase = getSupabaseAdmin();
+
+  // Find account by ID or handle
+  let query = supabase.from('accounts').select('id, handle');
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clean);
+  if (isUuid) {
+    query = query.eq('id', clean);
+  } else {
+    query = query.eq('handle', clean);
+  }
+
+  const { data: account, error: findErr } = await query.single();
+  if (findErr || !account) {
+    return res.status(404).json({ error: 'Account not found' });
+  }
+
+  const accountId = account.id;
+  const handle = account.handle;
+
+  // 1. Delete media files in post-media bucket under handle/
+  try {
+    const { data: fileList } = await supabase.storage.from('post-media').list(handle);
+    if (fileList && fileList.length > 0) {
+      // Each item in list could be folder or file
+      for (const item of fileList) {
+        if (item.name) {
+          const subfolder = `${handle}/${item.name}`;
+          const { data: subFiles } = await supabase.storage.from('post-media').list(subfolder);
+          if (subFiles && subFiles.length > 0) {
+            const pathsToRemove = subFiles.map((sf) => `${subfolder}/${sf.name}`);
+            await supabase.storage.from('post-media').remove(pathsToRemove);
+          }
+          await supabase.storage.from('post-media').remove([subfolder]);
+        }
+      }
+    }
+  } catch (err: any) {
+    console.warn(`[storage] Could not clean storage files for ${handle}: ${err.message}`);
+  }
+
+  // 2. Clean dependent records
+  await supabase.from('predictions').delete().eq('account_id', accountId);
+  await supabase.from('models').delete().eq('account_id', accountId);
+  await supabase.from('raw_captures').delete().eq('account_id', accountId);
+
+  // 3. Delete account (cascades account_snapshots, posts, post_snapshots, comments)
+  const { error: delErr } = await supabase
+    .from('accounts')
+    .delete()
+    .eq('id', accountId);
+
+  if (delErr) {
+    return res.status(500).json({ error: delErr.message });
+  }
+
+  return res.json({
+    success: true,
+    message: `Account @${handle} and all associated data deleted successfully.`,
+  });
+});

@@ -146,3 +146,44 @@ modelsRouter.post('/predict', async (req: Request, res: Response) => {
     });
   }
 });
+
+// DELETE /api/models/:id - Delete a model record and its stored artifact
+modelsRouter.delete('/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const supabase = getSupabaseAdmin();
+
+  // Find model
+  const { data: model, error: findErr } = await supabase
+    .from('models')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (findErr || !model) {
+    return res.status(404).json({ error: 'Model not found' });
+  }
+
+  // Delete artifact from Supabase Storage
+  if (model.artifact_path) {
+    try {
+      await supabase.storage.from('model-artifacts').remove([model.artifact_path]);
+    } catch (err: any) {
+      console.warn(`[storage] Could not delete model artifact: ${err.message}`);
+    }
+  }
+
+  // Delete model record from models table
+  const { error: delErr } = await supabase
+    .from('models')
+    .delete()
+    .eq('id', id);
+
+  if (delErr) {
+    return res.status(500).json({ error: delErr.message });
+  }
+
+  return res.json({
+    success: true,
+    message: `Model ${model.version} (${model.model_type}) deleted successfully.`,
+  });
+});

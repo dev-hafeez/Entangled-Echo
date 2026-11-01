@@ -29,7 +29,7 @@ scrapeRouter.post('/', async (req: Request, res: Response) => {
       target_type: normalized.type,
       target_input: input.trim(),
       normalized_handle: normalized.handle,
-      max_posts: maxPosts || null,
+      max_posts: maxPosts ? maxPosts : 12,
       headless: headless !== undefined ? headless : true,
       status: 'queued',
     };
