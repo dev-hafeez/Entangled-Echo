@@ -7,17 +7,20 @@ export const jobsRouter = Router();
 // GET /api/jobs - List all jobs
 jobsRouter.get('/', async (req: Request, res: Response) => {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from('jobs')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(100);
+  const [{ count: totalCount }, { data, error }] = await Promise.all([
+    supabase.from('jobs').select('*', { count: 'exact', head: true }),
+    supabase
+      .from('jobs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100),
+  ]);
 
   if (error) {
     return res.status(500).json({ error: error.message });
   }
 
-  return res.json({ jobs: data });
+  return res.json({ jobs: data || [], total: totalCount ?? data?.length ?? 0 });
 });
 
 // POST /api/jobs/:id/retry - Retry a failed or cancelled job
@@ -86,18 +89,43 @@ jobsRouter.delete('/:id', async (req: Request, res: Response) => {
   return res.json({ success: true, message: `Job ${id} deleted.` });
 });
 
-// DELETE /api/jobs - Clear all finished, failed, or cancelled jobs
+// DELETE /api/jobs - Clear jobs (supports type=completed | queued | all)
 jobsRouter.delete('/', async (req: Request, res: Response) => {
+  const type = ((req.query.type as string) || 'completed').toLowerCase();
   const supabase = getSupabaseAdmin();
 
-  const { error } = await supabase
-    .from('jobs')
-    .delete()
-    .in('status', ['done', 'failed', 'cancelled']);
-
-  if (error) {
-    return res.status(500).json({ error: error.message });
+  let statuses: string[] = ['done', 'failed', 'cancelled'];
+  if (type === 'queued') {
+    statuses = ['queued'];
+  } else if (type === 'all') {
+    statuses = ['queued', 'running', 'done', 'failed', 'partial', 'cancelled'];
   }
 
-  return res.json({ success: true, message: 'Cleared completed jobs.' });
+  try {
+    let deletedCount = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from('jobs')
+        .delete()
+        .in('status', statuses)
+        .select('id')
+        .limit(1000);
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      const count = data?.length || 0;
+      deletedCount += count;
+      if (count === 0 || count < 1000) break;
+    }
+
+    return res.json({
+      success: true,
+      message: `Cleared ${deletedCount} job(s) (${type}).`,
+      deletedCount,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
 });

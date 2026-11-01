@@ -17,8 +17,18 @@ export default function AdminPage() {
 
   // Data
   const [jobs, setJobs] = useState<any[]>([]);
+  const [totalJobs, setTotalJobs] = useState<number>(0);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [models, setModels] = useState<any[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
+
+  const showNotice = (msg: string) => {
+    setActionNotice(msg);
+    setTimeout(() => {
+      setActionNotice((prev) => (prev === msg ? null : prev));
+    }, 4000);
+  };
 
   // Training
   const [trainingGlobal, setTrainingGlobal] = useState(false);
@@ -49,7 +59,10 @@ export default function AdminPage() {
         api.getModels(),
       ]);
 
-      if (jRes.status === 'fulfilled') setJobs(jRes.value.jobs || []);
+      if (jRes.status === 'fulfilled') {
+        setJobs(jRes.value.jobs || []);
+        setTotalJobs(jRes.value.total ?? (jRes.value.jobs?.length || 0));
+      }
       if (aRes.status === 'fulfilled') setAccounts(aRes.value.accounts || []);
       if (mRes.status === 'fulfilled') setModels(mRes.value.models || []);
     } catch (e) {
@@ -130,21 +143,52 @@ export default function AdminPage() {
 
   const handleDeleteJob = async (id: string) => {
     if (!confirm('Are you sure you want to delete this job from the queue?')) return;
+    setDeletingId(id);
+    // Optimistic removal
+    setJobs((prev) => prev.filter((j) => j.id !== id));
+    setTotalJobs((prev) => Math.max(0, prev - 1));
+
     try {
       await api.deleteJob(id);
+      showNotice('Job deleted successfully.');
       await loadData();
     } catch (err: any) {
       alert(`Delete failed: ${err.message}`);
+      await loadData();
+    } finally {
+      setDeletingId(null);
     }
   };
 
-  const handleClearCompletedJobs = async () => {
-    if (!confirm('Clear all completed, failed, and cancelled jobs?')) return;
+  const handleClearJobs = async (type: 'completed' | 'queued' | 'all') => {
+    const label =
+      type === 'completed'
+        ? 'completed, failed, and cancelled'
+        : type === 'queued'
+        ? 'all queued'
+        : 'ALL (entire queue)';
+    if (!confirm(`Are you sure you want to clear ${label} jobs?`)) return;
+
+    setDeletingId(`clear-${type}`);
+    // Optimistic removal
+    if (type === 'completed') {
+      setJobs((prev) => prev.filter((j) => !['done', 'failed', 'cancelled'].includes(j.status)));
+    } else if (type === 'queued') {
+      setJobs((prev) => prev.filter((j) => j.status !== 'queued'));
+    } else if (type === 'all') {
+      setJobs([]);
+      setTotalJobs(0);
+    }
+
     try {
-      await api.clearCompletedJobs();
+      const res = await api.clearJobs(type);
+      showNotice(res.message || `Cleared ${label} jobs.`);
       await loadData();
     } catch (err: any) {
-      alert(`Clear completed jobs failed: ${err.message}`);
+      alert(`Clear failed: ${err.message}`);
+      await loadData();
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -156,21 +200,39 @@ export default function AdminPage() {
     ) {
       return;
     }
+
+    setDeletingId(id);
+    // Optimistic removal
+    setAccounts((prev) => prev.filter((a) => a.id !== id && a.handle !== handle));
+
     try {
       await api.deleteAccount(id);
+      showNotice(`Account @${handle} and all associated data deleted successfully.`);
       await loadData();
     } catch (err: any) {
       alert(`Delete account failed: ${err.message}`);
+      await loadData();
+    } finally {
+      setDeletingId(null);
     }
   };
 
   const handleDeleteModel = async (id: string, version: string) => {
     if (!confirm(`Are you sure you want to delete model version ${version}?`)) return;
+
+    setDeletingId(id);
+    // Optimistic removal
+    setModels((prev) => prev.filter((m) => m.id !== id));
+
     try {
       await api.deleteModel(id);
+      showNotice(`Model ${version} deleted successfully.`);
       await loadData();
     } catch (err: any) {
       alert(`Delete model failed: ${err.message}`);
+      await loadData();
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -271,6 +333,18 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-10">
+      {actionNotice && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-4 py-3 rounded-md flex items-center justify-between shadow-sm animate-in fade-in">
+          <span>✓ {actionNotice}</span>
+          <button
+            onClick={() => setActionNotice(null)}
+            className="text-emerald-600 hover:text-emerald-900 font-bold ml-4"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <div className="flex justify-between items-center border-b pb-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">EntangledEcho Admin Console</h1>
@@ -348,19 +422,42 @@ export default function AdminPage() {
 
       {/* 2. JOBS QUEUE TABLE */}
       <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-4">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap justify-between items-center gap-4">
           <div>
             <h2 className="text-lg font-semibold text-slate-800">2. Scrape Jobs Queue</h2>
-            <span className="text-xs text-slate-500">{jobs.length} jobs in queue</span>
+            <span className="text-xs text-slate-500">
+              Total {totalJobs} jobs in database {totalJobs > 100 ? `(showing 100 latest, ${jobs.length} loaded)` : ''}
+            </span>
           </div>
-          {jobs.some((j) => ['done', 'failed', 'cancelled'].includes(j.status)) && (
-            <button
-              onClick={handleClearCompletedJobs}
-              className="px-2.5 py-1 text-xs text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded font-medium transition-colors"
-            >
-              Clear Completed Jobs
-            </button>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {jobs.some((j) => ['done', 'failed', 'cancelled'].includes(j.status)) && (
+              <button
+                onClick={() => handleClearJobs('completed')}
+                disabled={deletingId === 'clear-completed'}
+                className="px-2.5 py-1 text-xs text-slate-700 hover:text-white hover:bg-slate-800 border border-slate-300 rounded font-medium transition-colors disabled:opacity-50"
+              >
+                {deletingId === 'clear-completed' ? 'Clearing...' : 'Clear Finished'}
+              </button>
+            )}
+            {jobs.some((j) => j.status === 'queued') && (
+              <button
+                onClick={() => handleClearJobs('queued')}
+                disabled={deletingId === 'clear-queued'}
+                className="px-2.5 py-1 text-xs text-amber-700 hover:text-white hover:bg-amber-600 border border-amber-300 rounded font-medium transition-colors disabled:opacity-50"
+              >
+                {deletingId === 'clear-queued' ? 'Clearing...' : 'Clear Queued'}
+              </button>
+            )}
+            {jobs.length > 0 && (
+              <button
+                onClick={() => handleClearJobs('all')}
+                disabled={deletingId === 'clear-all'}
+                className="px-2.5 py-1 text-xs text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded font-medium transition-colors disabled:opacity-50"
+              >
+                {deletingId === 'clear-all' ? 'Purging...' : 'Purge All Jobs'}
+              </button>
+            )}
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
@@ -438,9 +535,10 @@ export default function AdminPage() {
                       )}
                       <button
                         onClick={() => handleDeleteJob(j.id)}
-                        className="px-2 py-1 text-xs text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded font-medium transition-colors"
+                        disabled={deletingId === j.id}
+                        className="px-2 py-1 text-xs text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded font-medium transition-colors disabled:opacity-50"
                       >
-                        Delete
+                        {deletingId === j.id ? 'Deleting...' : 'Delete'}
                       </button>
                     </td>
                   </tr>
@@ -527,9 +625,10 @@ export default function AdminPage() {
                       </a>
                       <button
                         onClick={() => handleDeleteAccount(acc.id, acc.handle)}
-                        className="px-2 py-1 text-xs text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded font-medium transition-colors"
+                        disabled={deletingId === acc.id}
+                        className="px-2 py-1 text-xs text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded font-medium transition-colors disabled:opacity-50"
                       >
-                        Delete
+                        {deletingId === acc.id ? 'Deleting...' : 'Delete'}
                       </button>
                     </td>
                   </tr>
@@ -644,9 +743,10 @@ export default function AdminPage() {
                     <td className="p-3 text-right">
                       <button
                         onClick={() => handleDeleteModel(m.id, m.version)}
-                        className="px-2 py-1 text-xs text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded font-medium transition-colors"
+                        disabled={deletingId === m.id}
+                        className="px-2 py-1 text-xs text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded font-medium transition-colors disabled:opacity-50"
                       >
-                        Delete
+                        {deletingId === m.id ? 'Deleting...' : 'Delete'}
                       </button>
                     </td>
                   </tr>

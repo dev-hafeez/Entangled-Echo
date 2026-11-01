@@ -35,8 +35,17 @@ export const api = {
   deleteJob: (id: string) =>
     fetchFromApi(`/api/jobs/${id}`, { method: 'DELETE' }),
 
+  clearJobs: (type: 'completed' | 'queued' | 'all' = 'completed') =>
+    fetchFromApi(`/api/jobs?type=${type}`, { method: 'DELETE' }),
+
   clearCompletedJobs: () =>
-    fetchFromApi('/api/jobs', { method: 'DELETE' }),
+    fetchFromApi('/api/jobs?type=completed', { method: 'DELETE' }),
+
+  clearQueuedJobs: () =>
+    fetchFromApi('/api/jobs?type=queued', { method: 'DELETE' }),
+
+  clearAllJobs: () =>
+    fetchFromApi('/api/jobs?type=all', { method: 'DELETE' }),
 
   // Accounts
   getAccounts: () => fetchFromApi('/api/accounts'),

@@ -201,19 +201,24 @@ accountsRouter.delete('/:idOrHandle', async (req: Request, res: Response) => {
 
   // 1. Delete media files in post-media bucket under handle/
   try {
-    const { data: fileList } = await supabase.storage.from('post-media').list(handle);
-    if (fileList && fileList.length > 0) {
-      // Each item in list could be folder or file
-      for (const item of fileList) {
-        if (item.name) {
-          const subfolder = `${handle}/${item.name}`;
-          const { data: subFiles } = await supabase.storage.from('post-media').list(subfolder);
-          if (subFiles && subFiles.length > 0) {
-            const pathsToRemove = subFiles.map((sf) => `${subfolder}/${sf.name}`);
-            await supabase.storage.from('post-media').remove(pathsToRemove);
-          }
-          await supabase.storage.from('post-media').remove([subfolder]);
+    const { data: postRows } = await supabase
+      .from('posts')
+      .select('storage_paths')
+      .eq('account_id', accountId);
+
+    const allPaths: string[] = [];
+    if (postRows) {
+      for (const p of postRows) {
+        if (Array.isArray(p.storage_paths)) {
+          allPaths.push(...p.storage_paths);
         }
+      }
+    }
+
+    if (allPaths.length > 0) {
+      for (let i = 0; i < allPaths.length; i += 100) {
+        const batch = allPaths.slice(i, i + 100);
+        await supabase.storage.from('post-media').remove(batch);
       }
     }
   } catch (err: any) {
