@@ -67,6 +67,18 @@ export async function persistScrapeData(params: {
 
   // 3. Upsert Posts & Post Snapshots
   for (const p of posts) {
+    // Check if post already exists to preserve existing storage_paths if new scrape didn't re-download
+    const { data: existingPost } = await supabase
+      .from('posts')
+      .select('id, storage_paths')
+      .eq('shortcode', p.shortcode)
+      .maybeSingle();
+
+    const storagePaths =
+      p.storagePaths && p.storagePaths.length > 0
+        ? p.storagePaths
+        : existingPost?.storage_paths || [];
+
     const postPayload = {
       account_id: accountId,
       shortcode: p.shortcode,
@@ -84,7 +96,7 @@ export async function persistScrapeData(params: {
       audio_name: p.audioName,
       audio_name_source: p.audioNameSource,
       media_urls: p.mediaUrls,
-      storage_paths: p.storagePaths,
+      storage_paths: storagePaths,
       carousel_size: p.carouselSize,
       updated_at: new Date().toISOString(),
     };
@@ -116,8 +128,10 @@ export async function persistScrapeData(params: {
       views_raw_str: p.viewsRawStr,
     });
 
-    // Insert Comments
+    // Insert Comments (clean up existing comments for this post first to prevent duplicates on re-scrape)
     if (p.topComments && p.topComments.length > 0) {
+      await supabase.from('comments').delete().eq('post_id', postId);
+
       const commentsData = p.topComments.map((c) => ({
         post_id: postId,
         comment_id: c.commentId,
