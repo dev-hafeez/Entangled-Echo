@@ -1,0 +1,39 @@
+{
+  "test1_history_strict_precedence": {
+    "pass": true,
+    "checked_history_rows": 5039,
+    "leak_violations": 0,
+    "detail": "Confirmed that all trailing history features (prev_10, prev_3, days_since) draw exclusively from strictly prior timestamps."
+  },
+  "test2_post_age_maturity_control": {
+    "pass": true,
+    "total_posts_100k": 5258,
+    "mature_posts_ge_30d_100k": 2507,
+    "all_carousel_coeff": 0.297899553023643,
+    "all_video_coeff": -0.1092776097765832,
+    "mature_carousel_coeff": 0.1339365983579386,
+    "mature_video_coeff": -0.2746402605214635,
+    "detail": "Carousel advantage persists in mature posts (+0.1339) vs all (+0.2979); video penalty persists (-0.2746 vs -0.1093)."
+  },
+  "test3_cross_creator_overlap_and_leakage": {
+    "pass": true,
+    "fold_creator_overlap": 0,
+    "long_captions_shared_across_creators": 11,
+    "detail": "Verified zero creator leakage across GroupKFold splits. Documented cross-creator promo copy deduplication."
+  },
+  "test4_follower_rounding_cancellation": {
+    "pass": true,
+    "max_algebraic_discrepancy": 4.884981308350689e-15,
+    "detail": "Exact mathematical cancellation: creator demeaning strictly eliminates follower-count scale and rounding errors."
+  },
+  "test5_timestamp_gate_and_timing_validity": {
+    "pass": true,
+    "real_timestamp_posts": 5812,
+    "real_timestamp_share": 1.0,
+    "timing_model_mae": 0.740463413867915,
+    "zero_deviation_baseline_mae": 0.7399188076961822,
+    "timing_mae_improvement": -0.0005446061717327977,
+    "timing_signal_validated": false,
+    "detail": "Real timestamp coverage is 100.0%. However, timing features provide negligible predictive gain (-0.00054 MAE). Per Phase 3 rule, scheduler must fall back to generic prior rather than claiming validated timing signal."
+  }
+}
