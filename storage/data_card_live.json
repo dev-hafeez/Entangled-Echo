@@ -1,0 +1,52 @@
+{
+  "dataset_name": "Live storage",
+  "base_directory": "storage",
+  "generated_at": "2026-11-11T07:37:41.985374+00:00",
+  "n_creators": 1176,
+  "total_posts": 14053,
+  "posts_per_creator": {
+    "min": 0,
+    "median": 12.0,
+    "p90": 12.0,
+    "max": 60,
+    "creators_ge_5": 1149,
+    "creators_ge_10": 1136,
+    "creators_ge_20": 8
+  },
+  "shares": {
+    "real_publish_timestamps": {
+      "count": 14052,
+      "total": 14053,
+      "fraction": 0.9999288408169075
+    },
+    "positive_likes_comments": {
+      "count": 14010,
+      "total": 14053,
+      "fraction": 0.9969401551270192
+    },
+    "post_author_matches_true": {
+      "count": 0,
+      "checked": 0,
+      "fraction": null,
+      "note": "Field post_author_matches was not instrumented by scraper during ingestion"
+    }
+  },
+  "follower_precision_breakdown": {
+    "approximate_m": 882,
+    "approximate_k": 227,
+    "exact": 65,
+    "unknown": 2
+  },
+  "creators_by_tier": {
+    "<100K": 106,
+    "100K-1M": 234,
+    ">1M": 833,
+    "unknown": 3
+  },
+  "post_age_at_scrape_days": {
+    "min": 0.001631099537037037,
+    "median": 15.443254658564815,
+    "p90": 290.8548553425923,
+    "max": 5311.770047499999
+  }
+}

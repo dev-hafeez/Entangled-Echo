@@ -1,0 +1,51 @@
+{
+  "dataset_name": "Snapshot 2026-11-03-clean-v2",
+  "base_directory": "storage/snapshots/2026-11-03-clean-v2",
+  "generated_at": "2026-11-11T07:37:41.000231+00:00",
+  "n_creators": 778,
+  "total_posts": 5863,
+  "posts_per_creator": {
+    "min": 1,
+    "median": 8.0,
+    "p90": 11.0,
+    "max": 12,
+    "creators_ge_5": 627,
+    "creators_ge_10": 260,
+    "creators_ge_20": 0
+  },
+  "shares": {
+    "real_publish_timestamps": {
+      "count": 5863,
+      "total": 5863,
+      "fraction": 1.0
+    },
+    "positive_likes_comments": {
+      "count": 5862,
+      "total": 5863,
+      "fraction": 0.9998294388538291
+    },
+    "post_author_matches_true": {
+      "count": 0,
+      "checked": 0,
+      "fraction": null,
+      "note": "Field post_author_matches was not instrumented by scraper during ingestion"
+    }
+  },
+  "follower_precision_breakdown": {
+    "approximate_k": 163,
+    "approximate_m": 567,
+    "exact": 48
+  },
+  "creators_by_tier": {
+    "<100K": 80,
+    "100K-1M": 166,
+    ">1M": 532,
+    "unknown": 0
+  },
+  "post_age_at_scrape_days": {
+    "min": 5.80501181712963,
+    "median": 30.464713935185184,
+    "p90": 411.7122145925928,
+    "max": 5311.770047499999
+  }
+}
