@@ -43,6 +43,7 @@ export class InstagramScraper {
     options?: {
       maxPosts?: number | null;
       onProgress?: (progress: { found: number; detailed: number; failed: number }) => void;
+      onPostScraped?: (post: ScrapedPost, profile: ScrapedProfile, count: number) => Promise<void> | void;
     }
   ): Promise<{ result: ScrapeResult; rawCaptures: RawCaptureRecord[] }> {
     const rawCaptures: RawCaptureRecord[] = [];
@@ -122,6 +123,22 @@ export class InstagramScraper {
             success: false,
             failureReason: 'not_found',
             error: `Invalid handle or URL: ${targetInput}`,
+            postsFound: 0,
+            postsDetailed: 0,
+            postsFailed: 0,
+          },
+          rawCaptures,
+        };
+      }
+
+      // Check active authentication session before scraping
+      const authStatus = await this.verifySessionAuthentication(context);
+      if (!authStatus.authenticated) {
+        return {
+          result: {
+            success: false,
+            failureReason: 'auth_missing',
+            error: `Profile scrape halted: ${authStatus.reason}. Run scripts/login_instagram.mjs to log in.`,
             postsFound: 0,
             postsDetailed: 0,
             postsFailed: 0,
@@ -245,11 +262,18 @@ export class InstagramScraper {
       // Extract Profile Data
       const profile = await this.extractProfileData(page, handle, profileNetworkData);
 
-      // Grid scrolling: collect post shortcodes (all 12 visible posts on profile by default)
-      const maxPosts = options?.maxPosts ?? 12;
+      // Determine target post limit: if profile has fewer than 60 posts, scrape exactly that number (or at most 60)
+      const requestedMax = options?.maxPosts ?? 60;
+      const actualProfilePostsCount = profile?.postsCount?.count;
+      let effectiveMaxPosts = requestedMax;
+      if (typeof actualProfilePostsCount === 'number' && actualProfilePostsCount > 0) {
+        effectiveMaxPosts = Math.min(requestedMax, actualProfilePostsCount);
+      }
+
+      // Grid scrolling: collect post shortcodes up to effectiveMaxPosts
       const discoveredShortcodes = await this.scrollAndCollectGrid(
         page,
-        maxPosts,
+        effectiveMaxPosts,
         networkPostsMap
       );
 
@@ -263,10 +287,10 @@ export class InstagramScraper {
         options.onProgress({ found: postsFound, detailed: postsDetailed, failed: postsFailed });
       }
 
-      // Fetch detail for EVERY post discovered
+      // Fetch detail for discovered posts up to effectiveMaxPosts
       const scrapedPosts: ScrapedPost[] = [];
-      const shortcodesToFetch = maxPosts
-        ? discoveredShortcodes.slice(0, maxPosts)
+      const shortcodesToFetch = effectiveMaxPosts
+        ? discoveredShortcodes.slice(0, effectiveMaxPosts)
         : discoveredShortcodes;
 
       const concurrency = 2;
@@ -285,6 +309,13 @@ export class InstagramScraper {
             if (postDetail) {
               postsDetailed++;
               scrapedPosts.push(postDetail);
+              if (options?.onPostScraped && profile) {
+                try {
+                  await options.onPostScraped(postDetail, profile, postsDetailed);
+                } catch (e: any) {
+                  console.warn(`[scraper] onPostScraped error: ${e.message}`);
+                }
+              }
             } else {
               postsFailed++;
             }
@@ -424,10 +455,65 @@ export class InstagramScraper {
               (d as HTMLElement).style.display = 'none';
             }
           }
-          document.body.style.overflow = 'auto';
         })
         .catch(() => {});
     } catch {}
+  }
+
+  private async verifySessionAuthentication(
+    context: BrowserContext
+  ): Promise<{ authenticated: boolean; reason: string }> {
+    try {
+      const cookies = await context.cookies('https://www.instagram.com');
+      const hasSession = cookies.some((c) => c.name === 'sessionid' && !!c.value);
+      const hasDsUserId = cookies.some((c) => c.name === 'ds_user_id' && !!c.value);
+
+      if (!hasSession || !hasDsUserId) {
+        return {
+          authenticated: false,
+          reason: `Missing essential session cookies (sessionid: ${hasSession}, ds_user_id: ${hasDsUserId})`,
+        };
+      }
+
+      // Lightweight authenticated page load check with retry on transient network errors
+      const checkPage = await context.newPage();
+      try {
+        let ok = false;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            await checkPage.goto('https://www.instagram.com/', {
+              waitUntil: 'domcontentloaded',
+              timeout: 15000,
+            });
+            ok = true;
+            break;
+          } catch (netErr: any) {
+            if (attempt === 0) {
+              await new Promise((r) => setTimeout(r, 2000));
+            } else {
+              // If transient network change happens but cookies are valid, proceed
+              if (netErr.message.includes('ERR_NETWORK_CHANGED') || netErr.message.includes('timeout')) {
+                await checkPage.close().catch(() => {});
+                return { authenticated: true, reason: 'Session active (cookie verified)' };
+              }
+              throw netErr;
+            }
+          }
+        }
+        const finalUrl = checkPage.url();
+        if (finalUrl.includes('/accounts/login') || finalUrl.includes('/challenge')) {
+          await checkPage.close();
+          return { authenticated: false, reason: 'Redirected to login or challenge checkpoint' };
+        }
+        await checkPage.close();
+        return { authenticated: true, reason: 'Session active' };
+      } catch (err: any) {
+        await checkPage.close().catch(() => {});
+        return { authenticated: false, reason: `Lightweight verification check failed: ${err.message}` };
+      }
+    } catch (e: any) {
+      return { authenticated: false, reason: e.message };
+    }
   }
 
   private async detectPageStatus(
@@ -680,7 +766,7 @@ export class InstagramScraper {
     }
 
     let attemptsWithoutNew = 0;
-    const maxScrolls = maxPosts ? Math.ceil(maxPosts / 12) + 2 : 15;
+    const maxScrolls = maxPosts ? Math.ceil(maxPosts / 6) + 4 : 20;
 
     for (let scroll = 0; scroll < maxScrolls; scroll++) {
       if (maxPosts && shortcodeSet.size >= maxPosts) {
@@ -689,29 +775,29 @@ export class InstagramScraper {
 
       const beforeCount = shortcodeSet.size;
       await this.dismissModals(page);
-      await page.evaluate(() => window.scrollBy(0, window.innerHeight * 1.5));
 
-      try {
-        await page.waitForFunction(
-          (initialCount) => {
-            const els = document.querySelectorAll('a[href*="/p/"], a[href*="/reel/"]');
-            return els.length > initialCount;
-          },
-          beforeCount,
-          { timeout: 3500 }
-        );
-      } catch {}
+      // Scroll to bottom of documentElement to trigger infinite scrolling
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      // Give Instagram's Relay/GraphQL timeline query time to fetch and hydrate
+      await page.waitForTimeout(2500 + Math.random() * 1000);
 
       await extractDomShortcodes();
 
       if (shortcodeSet.size === beforeCount) {
-        attemptsWithoutNew++;
-        if (attemptsWithoutNew >= 3) break;
+        // Try a mouse wheel scroll as secondary trigger
+        await page.mouse.wheel(0, 3000).catch(() => {});
+        await page.waitForTimeout(1500);
+        await extractDomShortcodes();
+
+        if (shortcodeSet.size === beforeCount) {
+          attemptsWithoutNew++;
+          if (attemptsWithoutNew >= 3) break;
+        } else {
+          attemptsWithoutNew = 0;
+        }
       } else {
         attemptsWithoutNew = 0;
       }
-
-      await page.waitForTimeout(1000 + Math.random() * 1000);
     }
 
     return Array.from(shortcodeSet);
@@ -806,9 +892,18 @@ export class InstagramScraper {
               endpointUrl: postUrl,
               payload: m.value,
             });
-            const sc = m.value.code || m.value.shortcode;
-            if (sc === shortcode || m.key === 'xdt_shortcode_media') {
-              postNetworkData = { ...postNetworkData, ...m.value };
+            if (m.key === 'xdt_api__v1__media__shortcode__web_info' && m.value?.items?.[0]) {
+              const item = m.value.items[0];
+              if (item.code === shortcode) {
+                postNetworkData = { ...postNetworkData, ...item };
+              }
+            } else if (m.key === 'items' && Array.isArray(m.value) && m.value[0]?.code === shortcode) {
+              postNetworkData = { ...postNetworkData, ...m.value[0] };
+            } else {
+              const sc = m.value.code || m.value.shortcode;
+              if (sc === shortcode || m.key === 'xdt_shortcode_media') {
+                postNetworkData = { ...postNetworkData, ...m.value };
+              }
             }
           }
         } catch {}
@@ -939,7 +1034,10 @@ export class InstagramScraper {
           audioNameSource = 'network_json';
         }
 
-        const display = postNetworkData.display_uri || postNetworkData.display_url;
+        const display =
+          postNetworkData.display_uri ||
+          postNetworkData.display_url ||
+          postNetworkData.image_versions2?.candidates?.[0]?.url;
         if (display) mediaUrls.push(display);
       }
 
@@ -964,6 +1062,34 @@ export class InstagramScraper {
         if (domCaption) {
           caption = domCaption;
           captionSource = 'dom';
+        } else {
+          // Fallback: parse caption from page text lines under author header
+          const bodyText = await page.$eval('body', (el) => el.innerText).catch(() => '');
+          const lines = bodyText.split('\n').map((l) => l.trim()).filter(Boolean);
+          // Find the author mention that appears in the comment/caption feed (usually 2nd occurrence)
+          const authorIndices = lines
+            .map((l, idx) => (l.toLowerCase() === handle.toLowerCase() ? idx : -1))
+            .filter((idx) => idx !== -1);
+          
+          for (const idx of authorIndices) {
+            for (let j = idx + 1; j < Math.min(lines.length, idx + 8); j++) {
+              const candidate = lines[j];
+              if (
+                candidate.toLowerCase() !== handle.toLowerCase() &&
+                !candidate.includes('•') &&
+                !candidate.includes('Follow') &&
+                !candidate.match(/^\d+[smhdwy]$/) &&
+                !candidate.includes('likes') &&
+                !candidate.includes('Reply') &&
+                !candidate.includes('View all')
+              ) {
+                caption = candidate;
+                captionSource = 'dom';
+                break;
+              }
+            }
+            if (caption) break;
+          }
         }
       }
 

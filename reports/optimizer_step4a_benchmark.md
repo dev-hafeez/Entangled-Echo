@@ -1,0 +1,9 @@
+> [!WARNING] SUPERSEDED
+> The findings and metrics in this document (e.g. historical +0.0774 lift claims, unadjusted carousel gains, or unvalidated timing claims) are superseded by `docs/EVAL_PROTOCOL.md` and the canonical evaluation results in `reports/canonical_results.md`. Do NOT cite or use numbers from this legacy report.
+
+|   N | SA_Energy            | Greedy_Energy        | Random_Energy           | Delta_SA_vs_Greedy      | SA_Optimality_Gap       | Greedy_Optimality_Gap   | SA_Time_ms   | Greedy_Time_ms   | SA_Feasible_Rate   |
+|----:|:---------------------|:---------------------|:------------------------|:------------------------|:------------------------|:------------------------|:-------------|:-----------------|:-------------------|
+|  10 | 1.737 [1.044, 2.684] | 2.203 [1.264, 3.239] | 13.874 [10.563, 17.328] | -0.466 [-1.221, -0.071] | -0.000 [-0.000, -0.000] | 0.466 [0.044, 1.167]    | 6.3 ms       | 3.7 ms           | 100%               |
+|  20 | 0.964 [0.964, 0.964] | 1.421 [1.017, 2.132] | 19.746 [14.482, 25.478] | -0.457 [-1.222, -0.053] | -0.000 [-0.000, -0.000] | 0.457 [0.053, 1.151]    | 13.9 ms      | 11.1 ms          | 100%               |
+|  40 | 0.964 [0.964, 0.964] | 0.964 [0.964, 0.964] | 17.583 [13.346, 21.616] | -0.000 [-0.000, -0.000] | N/A (>20)               | N/A (>20)               | 37.8 ms      | 38.0 ms          | 100%               |
+|  80 | 0.964 [0.964, 0.964] | 0.990 [0.964, 1.044] | 16.557 [12.634, 20.883] | -0.027 [-0.080, +0.000] | N/A (>20)               | N/A (>20)               | 105.5 ms     | 121.6 ms         | 100%               |

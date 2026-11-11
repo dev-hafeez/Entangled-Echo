@@ -1,0 +1,480 @@
+[
+  {
+    "id": "model-v_personal_20261107_111435",
+    "model_type": "personal",
+    "version": "v_personal_20261107_111435",
+    "algorithm": "stacked_ridge",
+    "artifact_path": "personal/cristiano/v_personal_20261107_111435/model.joblib",
+    "metrics": {
+      "mae": 0.010230267978216193,
+      "r2": 0.07460772813262417,
+      "spearman": 0.3846153846153847
+    },
+    "feature_importances": {
+      "global_prediction_weight": 1
+    },
+    "training_rows_count": 60,
+    "trained_at": "2026-11-07T11:14:35.299Z",
+    "account_handle": "cristiano",
+    "accounts": {
+      "handle": "cristiano"
+    }
+  },
+  {
+    "id": "model-v_personal_20261107_102520",
+    "model_type": "personal",
+    "version": "v_personal_20261107_102520",
+    "algorithm": "stacked_ridge",
+    "artifact_path": "personal/cristiano/v_personal_20261107_102520/model.joblib",
+    "metrics": {
+      "mae": 0.00481848450182038,
+      "r2": 0.3716562513703189,
+      "spearman": 0.5
+    },
+    "feature_importances": {
+      "global_prediction_weight": 0.1
+    },
+    "training_rows_count": 12,
+    "trained_at": "2026-11-07T10:25:20.034Z",
+    "account_handle": "cristiano",
+    "accounts": {
+      "handle": "cristiano"
+    }
+  },
+  {
+    "id": "model-v_personal_20261103_164715",
+    "model_type": "personal",
+    "version": "v_personal_20261103_164715",
+    "algorithm": "stacked_ridge",
+    "artifact_path": "personal/cristiano/v_personal_20261103_164715/model.joblib",
+    "metrics": {
+      "mae": 0.00481848450182038,
+      "r2": 0.3716562513703189,
+      "spearman": 0.5
+    },
+    "feature_importances": {
+      "global_prediction_weight": 0.1
+    },
+    "training_rows_count": 12,
+    "trained_at": "2026-11-03T16:47:15.350Z",
+    "account_handle": "cristiano",
+    "accounts": {
+      "handle": "cristiano"
+    }
+  },
+  {
+    "id": "model-v_20261103_154805",
+    "model_type": "global",
+    "account_id": null,
+    "version": "v_20261103_154805",
+    "algorithm": "lightgbm",
+    "metrics": {
+      "mae": 0.11647859921929295,
+      "r2": -0.0319419152191156,
+      "spearman": -0.016285614715383007
+    },
+    "feature_importances": {
+      "caption_length": 105,
+      "word_count": 99,
+      "hashtag_count": 11,
+      "mention_count": 7,
+      "emoji_count": 63,
+      "cta_presence": 2,
+      "is_image": 4,
+      "is_video": 3,
+      "is_reel": 0,
+      "is_carousel": 3,
+      "carousel_size": 21,
+      "post_hour": 66,
+      "weekday": 13,
+      "has_timestamp": 0,
+      "days_since_prev_post": 360,
+      "log_followers": 219,
+      "caption_pca_0": 543,
+      "caption_pca_1": 291,
+      "caption_pca_2": 222,
+      "caption_pca_3": 185,
+      "caption_pca_4": 83,
+      "caption_pca_5": 112,
+      "caption_pca_6": 226,
+      "caption_pca_7": 362
+    },
+    "artifact_path": "global/v_20261103_154805/model.joblib",
+    "training_rows_count": 13786,
+    "trained_at": "2026-11-03T15:48:05.189251",
+    "account_handle": null,
+    "accounts": null
+  },
+  {
+    "id": "model-v_personal_20261103_153109",
+    "model_type": "personal",
+    "version": "v_personal_20261103_153109",
+    "algorithm": "stacked_ridge",
+    "artifact_path": "personal/djokernole/v_personal_20261103_153109/model.joblib",
+    "metrics": {
+      "mae": 0.004490678997897356,
+      "r2": 0.6927963996178498,
+      "spearman": 0.5
+    },
+    "feature_importances": {
+      "global_prediction_weight": 0.1
+    },
+    "training_rows_count": 12,
+    "trained_at": "2026-11-03T15:31:09.409Z",
+    "account_handle": "djokernole",
+    "accounts": {
+      "handle": "djokernole"
+    }
+  },
+  {
+    "id": "model-v_20261103_153036",
+    "model_type": "global",
+    "account_id": null,
+    "version": "v_20261103_153036",
+    "algorithm": "lightgbm",
+    "metrics": {
+      "mae": 0.11647859921929295,
+      "r2": -0.0319419152191156,
+      "spearman": -0.016285614715383007
+    },
+    "feature_importances": {
+      "caption_length": 105,
+      "word_count": 99,
+      "hashtag_count": 11,
+      "mention_count": 7,
+      "emoji_count": 63,
+      "cta_presence": 2,
+      "is_image": 4,
+      "is_video": 3,
+      "is_reel": 0,
+      "is_carousel": 3,
+      "carousel_size": 21,
+      "post_hour": 66,
+      "weekday": 13,
+      "has_timestamp": 0,
+      "days_since_prev_post": 360,
+      "log_followers": 219,
+      "caption_pca_0": 543,
+      "caption_pca_1": 291,
+      "caption_pca_2": 222,
+      "caption_pca_3": 185,
+      "caption_pca_4": 83,
+      "caption_pca_5": 112,
+      "caption_pca_6": 226,
+      "caption_pca_7": 362
+    },
+    "artifact_path": "global/v_20261103_153036/model.joblib",
+    "training_rows_count": 13786,
+    "trained_at": "2026-11-03T15:30:36.973299",
+    "account_handle": null,
+    "accounts": null
+  },
+  {
+    "id": "model-v_20261103_174559_deploy",
+    "model_type": "ranking_deployable",
+    "version": "v_20261103_174559_deploy",
+    "algorithm": "ridge_ranking",
+    "status": "experimental",
+    "is_provisional": true,
+    "snapshot_id": "2026-11-03-clean-v2",
+    "output_semantics": "expected log(ER) lift versus this creator's typical post",
+    "artifact_path": "ranking/v_20261103_174559_deploy/model.joblib",
+    "metrics": {
+      "within_creator_spearman": 0.2335,
+      "spearman_ci_95": [
+        0.2005,
+        0.2689
+      ],
+      "paired_delta_vs_media_only": 0.0356,
+      "paired_delta_ci_95": [
+        0.0099,
+        0.0605
+      ],
+      "shuffled_floor_95": 0.0302
+    },
+    "feature_names": [
+      "media_image",
+      "media_reel",
+      "media_video",
+      "media_carousel",
+      "caption_length",
+      "hashtag_count",
+      "caption_pca_0",
+      "caption_pca_1",
+      "caption_pca_2",
+      "caption_pca_3",
+      "caption_pca_4",
+      "caption_pca_5",
+      "caption_pca_6",
+      "caption_pca_7"
+    ],
+    "timing_included": false,
+    "validity_note": {
+      "follower_buckets_validated": [
+        "100K-1M",
+        "over 1M"
+      ],
+      "features_used": [
+        "media_type",
+        "caption_length",
+        "hashtag_count",
+        "caption_embeddings_pca_8dim"
+      ],
+      "unvalidated_signals": [
+        "Under-100K creator predictions are not validated (31 eligible creators, lower CI bound does not beat floor)",
+        "Timing signals (hour sin/cos, relative hour, weekend, 4-hour blocks, post gap) degrade within-creator ranking and are strictly excluded"
+      ]
+    },
+    "trained_at": "2026-11-03T17:45:59.868476",
+    "notes": "Promoted to experimental after H2 (p=0.000) and H3 (p=0.015) passed Holm-Bonferroni at alpha=0.05 on age-adjusted benchmark."
+  },
+  {
+    "id": "model-v_20261103_174559_thumb_opt",
+    "model_type": "ranking_optional_thumbnail",
+    "version": "v_20261103_174559_thumb_opt",
+    "algorithm": "ridge_ranking_with_thumbnail",
+    "status": "provisional",
+    "is_provisional": true,
+    "snapshot_id": "2026-11-03-clean-v2",
+    "output_semantics": "expected log(ER) lift versus this creator's typical post (with image thumbnail supplied)",
+    "artifact_path": "ranking/v_20261103_174559_thumb_opt/model.joblib",
+    "metrics": {
+      "within_creator_spearman": 0.2564,
+      "spearman_ci_95": [
+        0.2217,
+        0.2887
+      ],
+      "paired_delta_vs_deployable": 0.0259,
+      "paired_delta_ci_95": [
+        0.0022,
+        0.0488
+      ]
+    },
+    "feature_names": [
+      "media_image",
+      "media_reel",
+      "media_video",
+      "media_carousel",
+      "caption_length",
+      "hashtag_count",
+      "caption_pca_0",
+      "caption_pca_1",
+      "caption_pca_2",
+      "caption_pca_3",
+      "caption_pca_4",
+      "caption_pca_5",
+      "caption_pca_6",
+      "caption_pca_7",
+      "thumbnail_pca_0",
+      "thumbnail_pca_1",
+      "thumbnail_pca_2",
+      "thumbnail_pca_3",
+      "thumbnail_pca_4",
+      "thumbnail_pca_5",
+      "thumbnail_pca_6",
+      "thumbnail_pca_7"
+    ],
+    "validity_note": {
+      "follower_buckets_validated": [
+        "100K-1M",
+        "over 1M"
+      ],
+      "features_used": [
+        "media_type",
+        "caption_length",
+        "hashtag_count",
+        "caption_pca_8dim",
+        "thumbnail_pca_8dim"
+      ],
+      "unvalidated_signals": [
+        "Under-100K creator predictions are not validated",
+        "Only applicable when a draft image is supplied"
+      ]
+    },
+    "trained_at": "2026-11-03T17:45:59.868495"
+  },
+  {
+    "id": "model-v_20261103_164036",
+    "model_type": "global",
+    "version": "v_20261103_164036",
+    "algorithm": "lightgbm_deviation",
+    "status": "experimental",
+    "is_provisional": false,
+    "snapshot_id": "2026-11-03-clean-v2",
+    "artifact_path": "global/v_20261103_164036/model.joblib",
+    "metrics": {
+      "mae": 1.049038975610495,
+      "mae_prev10": 1.1001437704060577,
+      "mae_delta": 0.05854694193553958,
+      "mae_delta_ci_95": [
+        0.04787460005034356,
+        0.07067048608108452
+      ],
+      "content_only_within_creator_spearman": 0.12374607100558715,
+      "content_only_spearman_ci_95": [
+        0.09079349394446473,
+        0.15864299496769801
+      ],
+      "content_only_shuff_floor_95": 0.019578777376783207
+    },
+    "feature_names": [
+      "media_image",
+      "media_reel",
+      "media_video",
+      "media_carousel",
+      "hour_sin",
+      "hour_cos",
+      "post_weekday",
+      "caption_length",
+      "hashtag_count",
+      "prev_10_std",
+      "prev_3_mean",
+      "num_prior_posts",
+      "days_since_prev",
+      "has_history"
+    ],
+    "training_rows_count": 5812,
+    "creators_count": 773,
+    "personal_models_count": 0,
+    "trained_at": "2026-11-03T16:40:36.861355",
+    "account_handle": null,
+    "validity_note": {
+      "follower_buckets_validated": [
+        "100K-1M",
+        "over 1M"
+      ],
+      "features_used": [
+        "media_image",
+        "media_reel",
+        "media_video",
+        "media_carousel",
+        "hour_sin",
+        "hour_cos",
+        "post_weekday",
+        "caption_length",
+        "hashtag_count",
+        "prev_10_std",
+        "prev_3_mean",
+        "num_prior_posts",
+        "days_since_prev",
+        "has_history"
+      ],
+      "unvalidated_signals": [
+        "Level predictions for under-100K accounts carry wide uncertainty intervals and are unvalidated",
+        "Content signals explain incremental deviation from trailing history (-0.0266 MAE paired delta)"
+      ]
+    },
+    "notes": "Demoted from production to experimental: failed protocol validation against best-format baseline."
+  },
+  {
+    "id": "model-v_20261103_154510",
+    "model_type": "global",
+    "version": "v_20261103_154510",
+    "algorithm": "lightgbm_deviation",
+    "snapshot_id": "2026-11-03-clean",
+    "artifact_path": "global/v_20261103_154510/model.joblib",
+    "metrics": {
+      "mae": 1.0928172940241574,
+      "r2": 0.41935292686668435,
+      "pooled_spearman": 0.6532773367188208,
+      "mean_creator_spearman": -0.03031420473528642,
+      "spearman_ci_95": [
+        -0.061068223056497555,
+        0.0012106040463785801
+      ]
+    },
+    "feature_importances": {
+      "media_image": 6,
+      "media_reel": 0,
+      "media_video": 20,
+      "media_carousel": 33,
+      "hour_sin": 1,
+      "hour_cos": 0,
+      "post_weekday": 3,
+      "caption_length": 65,
+      "hashtag_count": 3,
+      "prev_10_std": 56,
+      "prev_3_mean": 90,
+      "num_prior_posts": 20,
+      "days_since_prev": 40,
+      "has_history": 3
+    },
+    "feature_names": [
+      "media_image",
+      "media_reel",
+      "media_video",
+      "media_carousel",
+      "hour_sin",
+      "hour_cos",
+      "post_weekday",
+      "caption_length",
+      "hashtag_count",
+      "prev_10_std",
+      "prev_3_mean",
+      "num_prior_posts",
+      "days_since_prev",
+      "has_history"
+    ],
+    "training_rows_count": 5957,
+    "creators_count": 782,
+    "personal_models_count": 0,
+    "trained_at": "2026-11-03T15:45:10.602454",
+    "account_handle": null,
+    "status": "provisional",
+    "is_provisional": true
+  },
+  {
+    "id": "model-v_20261101_201729",
+    "model_type": "global",
+    "version": "v_20261101_201729",
+    "algorithm": "ridge",
+    "artifact_path": "global/v_20261101_201729/model.joblib",
+    "metrics": {
+      "mae": 0.01330322882047876,
+      "r2": -16.499322242490685,
+      "spearman": 0
+    },
+    "feature_importances": {},
+    "training_rows_count": 12,
+    "trained_at": "2026-11-01T20:20:00.000Z",
+    "account_handle": null,
+    "status": "provisional",
+    "is_provisional": true
+  },
+  {
+    "id": "model-v_20261101_201603",
+    "model_type": "global",
+    "version": "v_20261101_201603",
+    "algorithm": "ridge",
+    "artifact_path": "global/v_20261101_201603/model.joblib",
+    "metrics": {
+      "mae": 0.014273925323760315,
+      "r2": -10.199182150956016,
+      "spearman": 0.261904761904762
+    },
+    "feature_importances": {},
+    "training_rows_count": 8,
+    "trained_at": "2026-11-01T20:20:00.000Z",
+    "account_handle": null,
+    "status": "provisional",
+    "is_provisional": true
+  },
+  {
+    "id": "model-v_20261101_202959",
+    "model_type": "global",
+    "version": "v_20261101_202959",
+    "algorithm": "ridge",
+    "artifact_path": "global/v_20261101_202959/model.joblib",
+    "metrics": {
+      "mae": 0.01330322882047876,
+      "r2": -16.499322242490685,
+      "spearman": 0
+    },
+    "feature_importances": {},
+    "training_rows_count": 12,
+    "trained_at": "2026-11-01T20:20:00.000Z",
+    "account_handle": null,
+    "status": "provisional",
+    "is_provisional": true
+  }
+]

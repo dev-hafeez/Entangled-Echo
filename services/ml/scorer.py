@@ -51,6 +51,9 @@ class ScorerInterface:
         lift = fmt_info["mean_lift"] if fmt_info else 0.0
         ci_95 = fmt_info.get("ci_95", [-0.2, 0.2]) if fmt_info else [-0.2, 0.2]
 
+        # Plain language description of uncertainty: typical posts vary ~3x either way
+        typical_variation_str = "typical post varies about 3x either way (80% interval: [0.3x, 3.2x])"
+
         # Explicitly declare generic timing prior since timing features carry zero predictive validation
         notes.append("timing signal unvalidated: using generic prior for schedule timing distribution.")
 
@@ -58,6 +61,7 @@ class ScorerInterface:
             "relative_lift": lift,
             "ci_95": ci_95,
             "uncertainty_interval": ci_95,
+            "plain_language_uncertainty": typical_variation_str,
             "unit": "expected log(ER) association versus creator historical baseline",
             "scorer": "format_effects_association",
             "media_type": mtype,

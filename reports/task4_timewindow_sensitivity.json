@@ -1,0 +1,18 @@
+{
+  "n_posts_100k_total": 5258,
+  "n_posts_30_180d": 1898,
+  "n_creators_30_180d": 373,
+  "unrestricted_carousel_coeff": 0.297899553023643,
+  "unrestricted_video_coeff": -0.1092776097765832,
+  "unrestricted_gap": 0.4071771628002262,
+  "window_covariate_carousel_coeff": 0.12474287542936655,
+  "window_covariate_video_coeff": -0.29105796239461906,
+  "window_covariate_log_age_coeff": 0.10768804681343186,
+  "window_covariate_gap": 0.4158008378239856,
+  "creator_clustered_gap_mean": 0.6456991852523103,
+  "creator_clustered_gap_ci_95": [
+    0.4899820062579728,
+    0.8085586064959303
+  ],
+  "effects_survive": true
+}

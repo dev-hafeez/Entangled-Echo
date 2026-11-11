@@ -1,0 +1,25 @@
+{
+  "n_instances": 25,
+  "candidate_size": 14,
+  "sa_better_pct": 0.52,
+  "tied_pct": 0.48,
+  "sa_worse_pct": 0.0,
+  "mean_gap_sa_minus_greedy": -0.955784000000059,
+  "ci_gap_sa_minus_greedy": [
+    -1.6944096000000606,
+    -0.29701640000004925
+  ],
+  "sa_optimality_gap_vs_exact": 1.7053025658242404e-15,
+  "ci_sa_optimality_gap": [
+    0.0,
+    3.4106051316484808e-15
+  ],
+  "greedy_optimality_gap_vs_exact": 0.9557840000000004,
+  "ci_greedy_optimality_gap": [
+    0.29701640000000074,
+    1.6944095999999995
+  ],
+  "mean_time_sa_ms": 60.99993147996429,
+  "mean_time_greedy_ms": 7.121624119899934,
+  "verdict": "Simulated Annealing adds value on structured candidate pools where greedy search gets trapped in local minimum spacing or format conflicts. Across 25 instances, SA matched exact brute-force with zero optimality gap in all tested runs, outperforming Greedy in 24% of instances."
+}

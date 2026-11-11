@@ -1,0 +1,37 @@
+> [!WARNING] SUPERSEDED
+> The findings and metrics in this document (e.g. historical +0.0774 lift claims, unadjusted carousel gains, or unvalidated timing claims) are superseded by `docs/EVAL_PROTOCOL.md` and the canonical evaluation results in `reports/canonical_results.md`. Do NOT cite or use numbers from this legacy report.
+
+================================================================================
+ITEM 7: RIGOROUS SOLVER BENCHMARK (100 INSTANCES PER SIZE)
+================================================================================
+Loaded 225 real captions and 56 hashtag sets.
+
+Evaluating N = 10 candidates over 100 instances...
+Results for N = 10:
+  SA Better: 43.0% | Tied: 56.0% | SA Worse: 1.0%
+  Mean Objective Gap: -1.0378 [-1.5576, -0.6267]
+  SA Optimality Gap vs Exact     : 0.0009 [-0.0000, 0.0025]
+  Greedy Optimality Gap vs Exact : 1.0387 [0.5968, 1.5131]
+  Runtime: SA = 14.2 ms | Greedy = 3.9 ms
+
+Evaluating N = 20 candidates over 100 instances...
+Results for N = 20:
+  SA Better: 19.0% | Tied: 24.0% | SA Worse: 57.0%
+  Mean Objective Gap: +0.0112 [-0.0663, +0.0790]
+  SA Optimality Gap vs Exact     : 0.1368 [0.1127, 0.1629]
+  Greedy Optimality Gap vs Exact : 0.1256 [0.0691, 0.2021]
+  Runtime: SA = 31.0 ms | Greedy = 10.6 ms
+
+Evaluating N = 40 candidates over 100 instances...
+Results for N = 40:
+  SA Better: 2.0% | Tied: 1.0% | SA Worse: 97.0%
+  Mean Objective Gap: +0.4256 [+0.3849, +0.4643]
+  Runtime: SA = 74.0 ms | Greedy = 30.7 ms
+
+Evaluating N = 80 candidates over 100 instances...
+Results for N = 80:
+  SA Better: 0.0% | Tied: 1.0% | SA Worse: 99.0%
+  Mean Objective Gap: +0.7950 [+0.7257, +0.8567]
+  Runtime: SA = 202.1 ms | Greedy = 95.5 ms
+
+Saved benchmark table to reports/optimizer_rigorous_100_benchmark.md

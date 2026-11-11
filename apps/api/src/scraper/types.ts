@@ -48,6 +48,8 @@ export interface ScrapedPost {
   storagePaths: string[];
   carouselSize: number | null;
   topComments: ScrapedComment[];
+  scraper_version?: string;
+  session_authenticated?: boolean;
 }
 
 export interface ScrapedProfile {
@@ -65,6 +67,9 @@ export interface ScrapedProfile {
 }
 
 export type FailureReason =
+  | 'auth_missing'
+  | 'auth_lost'
+  | 'pagination_stalled'
   | 'login_wall'
   | 'private'
   | 'restricted'

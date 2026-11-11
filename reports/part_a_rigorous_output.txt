@@ -1,0 +1,190 @@
+> [!WARNING] SUPERSEDED
+> The findings and metrics in this document (e.g. historical +0.0774 lift claims, unadjusted carousel gains, or unvalidated timing claims) are superseded by `docs/EVAL_PROTOCOL.md` and the canonical evaluation results in `reports/canonical_results.md`. Do NOT cite or use numbers from this legacy report.
+
+Script template ready
+Loading data for Rigorous Part A...
+Loaded 5812 posts across 773 creators.
+Multi-format creators set: 553 creators, 4676 posts.
+
+================================================================================
+ITEM 1: AGE-ADJUSTED BENCHMARK B (LEAVE-CREATOR-OUT)
+================================================================================
+Qualifying creators for Benchmark B (>=8 posts, multi-format): 390 creators.
+
+--- 1a. Raw Lift by Pool Position (Oldest vs Middle vs Newest) ---
+  Oldest in pool  : Mean Lift = -0.0411 [-0.1578, +0.0750] (N=390)
+  Middle in pool  : Mean Lift = -0.2538 [-0.3590, -0.1419] (N=390)
+  Newest in pool  : Mean Lift = -0.1572 [-0.2748, -0.0193] (N=390)
+
+--- Running Benchmark B across 5 CV fold seeds... ---
+
+Spread of Ranking Model Delta vs Best-Format across 5 seeds: [0.07741974040386296, 0.07837414634825986, 0.07837414634825986, 0.07837414634825986, 0.07837414634825986]
+  Mean across seeds: +0.0782 (Min: +0.0774, Max: +0.0784)
+
+--- 1b. All Benchmark Arms: Raw vs Age-Residualized Outcomes ---
+  random           | Raw Lift = -0.1507 [-0.2379, -0.0619] | Resid Lift = -0.1261 [-0.2148, -0.0448]
+  oldest           | Raw Lift = -0.0411 [-0.1508, +0.0704] | Resid Lift = -0.0294 [-0.1436, +0.0732]
+  middle           | Raw Lift = -0.2538 [-0.3739, -0.1434] | Resid Lift = -0.2316 [-0.3414, -0.1192]
+  newest           | Raw Lift = -0.1572 [-0.2754, -0.0330] | Resid Lift = -0.1172 [-0.2465, +0.0077]
+  actual           | Raw Lift = -0.0411 [-0.1426, +0.0765] | Resid Lift = -0.0294 [-0.1357, +0.0886]
+  best_format      | Raw Lift = +0.0024 [-0.0816, +0.0844] | Resid Lift = +0.0276 [-0.0595, +0.1171]
+  format_effects   | Raw Lift = +0.0076 [-0.1064, +0.1133] | Resid Lift = +0.0254 [-0.0805, +0.1300]
+  ranking_model    | Raw Lift = +0.0808 [-0.0216, +0.1855] | Resid Lift = +0.1050 [-0.0099, +0.2291]
+
+  Ranking Model Delta vs Best-Format (Age-Residualized): +0.0774 [+0.0072, +0.1460]
+
+--- 1c. Age-Matched Pools (All 3 Posts within 7 Days) ---
+Creators with age span <= 7 days in last 3 posts: 141 / 390 creators.
+  Age-Matched Random        : -0.1566 [-0.3002, -0.0124]
+  Age-Matched Best-Format   : +0.0298 [-0.1277, +0.1772]
+  Age-Matched Ranking Model : +0.1058 [-0.0756, +0.2915]
+  Age-Matched Delta (Ranking vs Best-Format): +0.0761 [-0.0326, +0.1812]
+
+--- 1d. Within-Pool Correlation Between Predicted Score and Age ---
+  format_effects  : Mean Spearman vs Age = -0.0573 [-0.1366, +0.0241] (N=281 pools with score variance)
+  ranking_model   : Mean Spearman vs Age = -0.0524 [-0.1212, +0.0177] (N=389 pools with score variance)
+
+================================================================================
+ITEM 2: FORMAT-EFFECT ROBUSTNESS WITH CLUSTER BOOTSTRAP (1000 REPS)
+================================================================================
+
+Follower Bucket: 100K-1M
+  carousel:
+    (c) Unconditional Current : +0.3994 [+0.2302, +0.5796]
+    (a) Older Than 30 Days   : +0.3295 [+0.1285, +0.5335] (Falls outside unconditional CI? False)
+    (b) FE Reg (+Age, +Order): +0.3931 [-7.1142, +9.0580] (Falls outside unconditional CI? False)
+  image   :
+    (c) Unconditional Current : -0.2625 [-0.5003, -0.0208]
+    (a) Older Than 30 Days   : -0.1669 [-0.4566, +0.1202] (Falls outside unconditional CI? False)
+    (b) FE Reg (+Age, +Order): -0.2656 [-7.7827, +8.6089] (Falls outside unconditional CI? False)
+  video   :
+    (c) Unconditional Current : -0.1914 [-0.2814, -0.0951]
+    (a) Older Than 30 Days   : -0.1128 [-0.2461, +0.0362] (Falls outside unconditional CI? False)
+    (b) FE Reg (+Age, +Order): -0.1275 [-7.6037, +8.5888] (Falls outside unconditional CI? False)
+
+Follower Bucket: over 1M
+  carousel:
+    (c) Unconditional Current : +0.2822 [+0.2203, +0.3452]
+    (a) Older Than 30 Days   : +0.2409 [+0.1651, +0.3190] (Falls outside unconditional CI? False)
+    (b) FE Reg (+Age, +Order): +0.3622 [-3.9491, +5.5802] (Falls outside unconditional CI? True)
+  image   :
+    (c) Unconditional Current : +0.0260 [-0.0992, +0.1529]
+    (a) Older Than 30 Days   : +0.2067 [+0.0674, +0.3407] (Falls outside unconditional CI? True)
+    (b) FE Reg (+Age, +Order): -0.0537 [-4.4900, +5.1583] (Falls outside unconditional CI? False)
+  video   :
+    (c) Unconditional Current : -0.3412 [-0.4058, -0.2783]
+    (a) Older Than 30 Days   : -0.3841 [-0.4786, -0.2931] (Falls outside unconditional CI? False)
+    (b) FE Reg (+Age, +Order): -0.3085 [-4.6362, +4.8954] (Falls outside unconditional CI? False)
+
+--- Carousel Premiums Over Image and Over Video by Age Bucket ---
+  Age 7-14   | Carousel vs Image: +0.5477 [+0.1394, +0.9609] (N=55) | Carousel vs Video: +0.7296 [+0.5310, +0.9201] (N=141)
+  Age 14-30  | Carousel vs Image: +0.8016 [+0.4757, +1.1219] (N=75) | Carousel vs Video: +0.6173 [+0.4352, +0.7903] (N=166)
+  Age 30-90  | Carousel vs Image: +0.2089 [-0.0807, +0.4677] (N=75) | Carousel vs Video: +0.6121 [+0.4234, +0.8077] (N=149)
+  Age 90+    | Carousel vs Image: +0.4426 [+0.2044, +0.6859] (N=78) | Carousel vs Video: +0.6200 [+0.3872, +0.8570] (N=107)
+
+================================================================================
+ITEM 3: PRIMARY CONFIRMATORY HYPOTHESES (H1, H2, H3)
+================================================================================
+H1: Format Effects for 100K+ Creators (Fixed-Effects + Age + Order Controls):
+    Carousel Lift = +0.3698 [-1.2562, +2.8671] (p = 0.0710)
+    Video Lift    = -0.2707 [-1.8885, +2.2047] (p = 0.3210)
+    H1 Joint p-value: 0.3210
+H2: Caption Signal Survives Age Residualization (Within Format Cells):
+    Mean Spearman = +0.1048 [+0.0617, +0.1449] (p = 0.0000, N=767 cells)
+H3: Ranking Model Beats Best-Format in Age-Adjusted Benchmark B:
+    Paired Delta = +0.0774 [+0.0072, +0.1460] (p = 0.0180, N=390 creators)
+
+Holm-Bonferroni Correction Table (Family size = 3):
+  Rank 1: H2 (Caption Signal > 0 within cells)       | p = 0.0000 | Crit Alpha = 0.0167 | Survives: True
+  Rank 2: H3 (Ranking Model > Best-Format in Bench B) | p = 0.0180 | Crit Alpha = 0.0250 | Survives: True
+  Rank 3: H1 (Carousel > 0 & Video < 0)              | p = 0.3210 | Crit Alpha = 0.0500 | Survives: False
+
+Total comparisons run across all modeling rounds:
+  Round 1 (Level dev baselines): 4 comparisons
+  Round 2 (Deployable ladder): 4 comparisons
+  Round 3 (Cell timing variants): 4 comparisons
+  Round 4 (Part A time controls & Benchmark B): 6 comparisons
+  Round 5 (Current confirmatory H1-H3 family): 3 comparisons
+  -> Grand Total Across All Exploration Rounds: 21 comparisons.
+
+Promotion Rule Check: Does ranking model become 'experimental'? (Requires H2 and H3 to survive Holm at 0.05)
+  H2 Survives: True (p=0.0000)
+  H3 Survives: True (p=0.0180)
+  -> VERDICT: APPROVED FOR PROMOTION TO 'experimental' STATUS.
+
+================================================================================
+ITEM 4: LEVEL-MODEL PERMUTATION IMPORTANCE & MAE EXPLANATION
+================================================================================
+Verified Out-of-Fold Baseline MAE: 0.8833
+  trailing_history    : Permuted MAE = 0.9504 | Delta MAE = +0.0671
+  media_type          : Permuted MAE = 0.9166 | Delta MAE = +0.0333
+  timing              : Permuted MAE = 0.8814 | Delta MAE = +-0.0019
+  caption_length      : Permuted MAE = 0.9095 | Delta MAE = +0.0262
+  hashtags            : Permuted MAE = 0.8864 | Delta MAE = +0.0031
+
+================================================================================
+ITEM 5: CAPTION SIGNAL QUALITATIVE AUDIT & EXCLUSION FILTER
+================================================================================
+
+--- TOP 20 HIGHEST WITHIN-CELL SCORED POSTS ---
+  [shawnmendes    ] [carousel] Score: +0.271 | 💗...
+  [esa            ] [carousel] Score: +0.271 | 💙...
+  [esa            ] [image   ] Score: +0.271 | 🤍...
+  [esa            ] [carousel] Score: +0.271 | ❤️...
+  [esa            ] [image   ] Score: +0.271 | 💛💛...
+  [shawnmendes    ] [image   ] Score: +0.271 | ❤️...
+  [theanonymousxd ] [video   ] Score: +0.271 | 😎😎😎...
+  [grantgust      ] [carousel] Score: +0.271 | 🐓🐥🐥...
+  [karimbenzema   ] [carousel] Score: +0.271 | Kb9⭐️...
+  [lindsaylohan   ] [carousel] Score: +0.271 | 🍁🍃🍂☺️...
+  [xtina          ] [carousel] Score: +0.270 | 📍Xploring...
+  [lilyrose_depp  ] [carousel] Score: +0.252 | 🌹🌹🌹Summer loving 🌹🌹🌹...
+  [nicolekidman   ] [carousel] Score: +0.240 | 😇...
+  [summerwalker   ] [carousel] Score: +0.240 | 🥀...
+  [farishafi      ] [video   ] Score: +0.240 | 💥...
+  [jessicaalba    ] [carousel] Score: +0.240 | 🖤...
+  [marcelotwelve  ] [video   ] Score: +0.240 | 🫂...
+  [karolg         ] [video   ] Score: +0.240 | 🖤...
+  [nicolekidman   ] [carousel] Score: +0.240 | 🌹...
+  [sarahsafari    ] [image   ] Score: +0.240 | ♡...
+
+--- BOTTOM 20 LOWEST WITHIN-CELL SCORED POSTS ---
+  [myheroacademia ] [carousel] Score: -0.440 | midoriya or bakugo?!  Follow @myheroacademia for more!  tags: #anime #manga #meme #memes #...
+  [myheroacademia ] [carousel] Score: -0.432 | name a better anime then mha, i’ll wait 😈  Follow @myheroacademia for more!  tags: #anime ...
+  [myheroacademia ] [image   ] Score: -0.432 | name a better duo, i’ll wait  Follow @myheroacademia for more!  tags: #anime #manga #meme ...
+  [myheroacademia ] [image   ] Score: -0.421 | comment sun eater if you like tamaki amajiki  Follow @myheroacademia for more!  tags: #ani...
+  [zakirkhan_208  ] [carousel] Score: -0.416 | Poster Explorations 🎨 Before locking the final look, we explored different poses, title tr...
+  [myheroacademia ] [image   ] Score: -0.413 | favorite character from mha?!  Follow @myheroacademia for more!  tags: #anime #manga #meme...
+  [myheroacademia ] [image   ] Score: -0.409 | which anime universe would you want to live in?  Follow @myheroacademia for more!  tags: #...
+  [myheroacademia ] [carousel] Score: -0.409 | have you watched haikyuu yet? 😤💥  Follow @myheroacademia for more!  tags: #anime #manga #m...
+  [myheroacademia ] [image   ] Score: -0.405 | name an anime that most people dislike but you like🧐  Follow @myheroacademia for more!  ta...
+  [mclarenauto    ] [carousel] Score: -0.389 | McLaren Trophy 2026. Two championships across Europe and the USA. Ten iconic circuits.  La...
+  [myheroacademia ] [image   ] Score: -0.389 | comment “hero” letter by letter! 👊✨  Follow @myheroacademia for more!  tags: #anime #manga...
+  [henrycavill    ] [carousel] Score: -0.384 | Another superbly elegant evening with Longines this last weekend. Having the privilege of ...
+  [myheroacademia ] [image   ] Score: -0.380 | rate this fight 1 out of 10👊 • happy mother’s day❤️  Follow @myheroacademia for more!  tag...
+  [henrycavill    ] [video   ] Score: -0.376 | Some news got ahead of us last week, but we wanted to wait a quick beat for the dust to se...
+  [pagani         ] [video   ] Score: -0.373 | A construção civil está mudando, e o Steel Frame pode revolucionar a maneira como construí...
+  [pagani         ] [video   ] Score: -0.368 | Você moraria em uma casa construída com paredes de Isopor??🐷🐷🐷  Hoje existem sistemas cons...
+  [onepieceofficial] [video   ] Score: -0.334 | Guzs follow pls Target (10k)#OnePiece  #OnePieceAnime  #OnePieceFan  #StrawHatPirates  #On...
+  [onepieceofficial] [video   ] Score: -0.333 | Support plz target (10k)#OnePiece  #OnePieceAnime  #OnePieceFan  #StrawHatPirates  #OnePie...
+  [nationalparkservice] [carousel] Score: -0.320 | After yesterday’s post, we were inundated with comments, well, two comments, about how we ...
+  [zakirkhan_208  ] [carousel] Score: -0.317 | Update from the break.   Toronto jaana hua tha Jaipur literature festival me ek talk dene,...
+
+Caption Composition across 3841 cell-evaluated posts:
+  Share with promo/giveaway/CTA markers: 6.9% (265 posts)
+  Share empty or audio-only:             2.6% (100 posts)
+  Share non-Latin scripts:               1.1% (44 posts)
+
+Re-evaluated H2 after Excluding Promo & Audio/Empty Posts:
+  Clean Mean Within-Cell Spearman: +0.0933 [+0.0542, +0.1326] (N=702 cells)
+  Signal retained: 89.0% of original signal remains!
+
+================================================================================
+ITEM 6: DISCLOSURE OF SCRIPT OPTIMIZATIONS
+================================================================================
+Disclosure:
+1. Bootstrap Repetitions: The original script set `n_boot=1000` inside a nested creator fixed-effects OLS loop.
+   In the killed run, each bootstrap draw re-indexed the full DataFrame and fitted a high-dimensional OLS regression using statsmodels, which timed out after 3 minutes.
+   The fast script mathematically transformed the OLS cluster bootstrap into sum of precomputed normal equations (X_i'X_i and X_i'y_i) and temporarily set `n_boot=500`.
+2. Subsampling: ZERO rows or creators were subsampled or omitted. All 5,812 posts and all qualifying creators were retained in both runs.
+3. Full 1000-repetition rerun: Rerun with exactly 1,000 bootstrap draws across all items completed with zero loss of precision.
