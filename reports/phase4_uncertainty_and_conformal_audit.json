@@ -1,0 +1,27 @@
+{
+  "conformal_calibration_creators": 156,
+  "conformal_calibration_posts": 1185,
+  "frozen_holdout_creators": 156,
+  "frozen_holdout_posts": 1212,
+  "coverage_metrics": {
+    "80_pct": {
+      "target_coverage": 0.8,
+      "margin_q": 1.1794268181504384,
+      "empirical_coverage": 0.8036303630363036,
+      "coverage_gap": 0.0036303630363035966
+    },
+    "90_pct": {
+      "target_coverage": 0.9,
+      "margin_q": 1.6226578769136168,
+      "empirical_coverage": 0.8993399339933993,
+      "coverage_gap": -0.0006600660066007347
+    },
+    "95_pct": {
+      "target_coverage": 0.95,
+      "margin_q": 2.0495523218486826,
+      "empirical_coverage": 0.9496699669966997,
+      "coverage_gap": -0.0003300330033002563
+    }
+  },
+  "gating_tests_passed": true
+}
