@@ -157,9 +157,34 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
-  validateGraphToken: (accessToken: string) =>
-    fetchFromApi('/api/graph/validate-token', {
+  // Notifications & Alerts (FR-33, FR-34, FR-35)
+  getNotifications: (userId: string = 'default_user') =>
+    fetchFromApi(`/api/notifications?userId=${encodeURIComponent(userId)}`),
+
+  markNotificationRead: (id: string, userId: string = 'default_user') =>
+    fetchFromApi(`/api/notifications/${encodeURIComponent(id)}/read`, {
+      method: 'PATCH',
+      body: JSON.stringify({ userId }),
+    }),
+
+  markAllNotificationsRead: (userId: string = 'default_user') =>
+    fetchFromApi('/api/notifications/mark-all-read', {
       method: 'POST',
-      body: JSON.stringify({ accessToken }),
+      body: JSON.stringify({ userId }),
+    }),
+
+  getNotificationPreferences: (userId: string = 'default_user') =>
+    fetchFromApi(`/api/notifications/preferences?userId=${encodeURIComponent(userId)}`),
+
+  updateNotificationPreferences: (userId: string, prefs: any) =>
+    fetchFromApi('/api/notifications/preferences', {
+      method: 'PUT',
+      body: JSON.stringify({ userId, ...prefs }),
+    }),
+
+  triggerWeeklyDigest: (userId: string, handle: string, email: string) =>
+    fetchFromApi('/api/notifications/digest/trigger', {
+      method: 'POST',
+      body: JSON.stringify({ userId, handle, email }),
     }),
 };

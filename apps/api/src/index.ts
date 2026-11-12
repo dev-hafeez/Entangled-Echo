@@ -11,6 +11,7 @@ import { sessionRouter } from './routes/session.js';
 import { onboardingRouter } from './routes/onboarding.js';
 import { recommendationsRouter } from './routes/recommendations.js';
 import { graphApiRouter } from './routes/graph.js';
+import { notificationsRouter } from './routes/notifications.js';
 import { JobWorker } from './lib/queue.js';
 
 const logger = pino({
@@ -54,6 +55,7 @@ app.use('/api/session', sessionRouter);
 app.use('/api/onboarding', onboardingRouter);
 app.use('/api/recommendations', recommendationsRouter);
 app.use('/api/graph', graphApiRouter);
+app.use('/api/notifications', notificationsRouter);
 
 // Centralized error handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

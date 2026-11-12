@@ -31,6 +31,7 @@ import {
   Heart,
   MessageCircle,
   Users,
+  Bell,
   Download,
   Key,
   Swords,
@@ -82,6 +83,9 @@ export default function DashboardPage() {
   const [graphTokenInput, setGraphTokenInput] = useState('');
   const [graphAccountIdInput, setGraphAccountIdInput] = useState('');
   const [isValidatingToken, setIsValidatingToken] = useState(false);
+
+  // Notification unread count (FR-33)
+  const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0);
 
   // Background auto-refresher when scraping is ongoing
   useEffect(() => {
@@ -223,6 +227,13 @@ export default function DashboardPage() {
       api.getAudience(clean).then((res) => {
         if (res?.audience) setAudience(res.audience);
       }).catch(() => {});
+
+      // Fetch unread notifications count (FR-33)
+      if (user?.id) {
+        api.getNotifications(user.id).then((nRes) => {
+          if (nRes?.unreadCount !== undefined) setUnreadNotifCount(nRes.unreadCount);
+        }).catch(() => {});
+      }
     } catch (e) {
       console.error('Error loading creator dashboard:', e);
     } finally {
@@ -565,6 +576,18 @@ export default function DashboardPage() {
                 <span>Live Scraping: {posts.length} posts ({backgroundCount} detailed)...</span>
               </div>
             )}
+            <Link
+              href="/notifications"
+              className="relative p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition border border-slate-200"
+              title="Notifications & Alerts (FR-33)"
+            >
+              <Bell className="w-4 h-4" />
+              {unreadNotifCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white shadow">
+                  {unreadNotifCount}
+                </span>
+              )}
+            </Link>
             <button
               onClick={() => setShowModal(true)}
               className="text-xs font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded border border-slate-200 hover:bg-slate-50 transition flex items-center gap-1.5"
