@@ -55,6 +55,16 @@ function NavigationHeader() {
             <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
           </a>
           <a
+            href="/calendar"
+            className={`transition px-2.5 py-1 rounded-md flex items-center gap-1.5 ${
+              pathname === '/calendar'
+                ? 'bg-slate-100 text-slate-900 font-bold'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span>Calendar</span>
+          </a>
+          <a
             href="/notifications"
             className={`transition px-2.5 py-1 rounded-md flex items-center gap-1.5 ${
               pathname === '/notifications'

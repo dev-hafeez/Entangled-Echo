@@ -12,6 +12,8 @@ import { onboardingRouter } from './routes/onboarding.js';
 import { recommendationsRouter } from './routes/recommendations.js';
 import { graphApiRouter } from './routes/graph.js';
 import { notificationsRouter } from './routes/notifications.js';
+import { calendarRouter } from './routes/calendar.js';
+import { schedulerService } from './services/scheduler.js';
 import { JobWorker } from './lib/queue.js';
 
 const logger = pino({
@@ -56,6 +58,11 @@ app.use('/api/onboarding', onboardingRouter);
 app.use('/api/recommendations', recommendationsRouter);
 app.use('/api/graph', graphApiRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/calendar', calendarRouter);
+app.use('/internal/tick', async (req: Request, res: Response) => {
+  const result = await schedulerService.runTick();
+  res.json({ success: true, ...result });
+});
 
 // Centralized error handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
@@ -77,9 +84,17 @@ worker.start().catch((err) => {
   logger.error(err, 'JobWorker crashed');
 });
 
+// Start 60-second automated publishing tick (FR-26)
+const tickInterval = setInterval(() => {
+  schedulerService.runTick().catch((err) => {
+    logger.warn({ err }, 'Automated publishing tick encountered an error');
+  });
+}, 60000);
+
 // Graceful shutdown
 const shutdown = () => {
   logger.info('Shutting down server and worker...');
+  clearInterval(tickInterval);
   worker.stop();
   server.close(() => {
     logger.info('Server closed');

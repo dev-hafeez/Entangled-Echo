@@ -187,4 +187,48 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ userId, handle, email }),
     }),
+
+  // Content Calendar & Scheduling (FR-25, FR-26, FR-27, FR-28)
+  getScheduledPosts: (userId: string = 'default_user', handle?: string) =>
+    fetchFromApi(`/api/calendar/posts?userId=${encodeURIComponent(userId)}${handle ? `&handle=${encodeURIComponent(handle)}` : ''}`),
+
+  getScheduledPost: (id: string, userId: string = 'default_user') =>
+    fetchFromApi(`/api/calendar/posts/${encodeURIComponent(id)}?userId=${encodeURIComponent(userId)}`),
+
+  createScheduledPost: (post: any) =>
+    fetchFromApi('/api/calendar/posts', {
+      method: 'POST',
+      body: JSON.stringify(post),
+    }),
+
+  updateScheduledPost: (id: string, updates: any) =>
+    fetchFromApi(`/api/calendar/posts/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    }),
+
+  reschedulePost: (id: string, newScheduledTime: string, userId: string = 'default_user') =>
+    fetchFromApi(`/api/calendar/posts/${encodeURIComponent(id)}/reschedule`, {
+      method: 'PATCH',
+      body: JSON.stringify({ newScheduledTime, userId }),
+    }),
+
+  publishPostNow: (id: string, userId: string = 'default_user', forceError: boolean = false) =>
+    fetchFromApi(`/api/calendar/posts/${encodeURIComponent(id)}/publish`, {
+      method: 'POST',
+      body: JSON.stringify({ userId, forceError }),
+    }),
+
+  deleteScheduledPost: (id: string, userId: string = 'default_user') =>
+    fetchFromApi(`/api/calendar/posts/${encodeURIComponent(id)}?userId=${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+    }),
+
+  getRecommendedSlots: (handle: string) =>
+    fetchFromApi(`/api/calendar/slots/recommended?handle=${encodeURIComponent(handle)}`),
+
+  triggerPublishTick: () =>
+    fetchFromApi('/api/calendar/tick', {
+      method: 'POST',
+    }),
 };

@@ -101,6 +101,63 @@ export class GraphApiClient {
     return data as T;
   }
 
+  private async postJson<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
+    const url = new URL(`${this.baseUrl}${endpoint}`);
+    url.searchParams.set('access_token', this.accessToken);
+    for (const [k, v] of Object.entries(params)) {
+      url.searchParams.set(k, v);
+    }
+
+    const res = await fetch(url.toString(), {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const errDetail = (data as any)?.error?.message || `HTTP ${res.status} ${res.statusText}`;
+      throw new Error(`Graph API POST error: ${errDetail}`);
+    }
+    return data as T;
+  }
+
+  /**
+   * Publish a media post to Instagram (container create -> publish) per Meta Graph API v19
+   */
+  async publishMedia(
+    accountId: string,
+    params: {
+      imageUrl?: string;
+      videoUrl?: string;
+      caption?: string;
+      mediaType?: 'image' | 'video';
+    }
+  ): Promise<{ id: string }> {
+    const isVideo = params.mediaType === 'video' || !!params.videoUrl;
+    const createParams: Record<string, string> = {
+      caption: params.caption || '',
+    };
+    if (isVideo) {
+      createParams.video_url = params.videoUrl || '';
+      createParams.media_type = 'REELS';
+    } else {
+      createParams.image_url = params.imageUrl || '';
+    }
+
+    const containerRes = await this.postJson<{ id: string }>(`/${accountId}/media`, createParams);
+    if (!containerRes.id) {
+      throw new Error('Failed to create Instagram media container');
+    }
+
+    const publishRes = await this.postJson<{ id: string }>(`/${accountId}/media_publish`, {
+      creation_id: containerRes.id,
+    });
+
+    return { id: publishRes.id || containerRes.id };
+  }
+
   /**
    * Find linked Instagram Business Account ID from Page / User token
    */
