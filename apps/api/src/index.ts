@@ -7,6 +7,10 @@ import { jobsRouter } from './routes/jobs.js';
 import { accountsRouter } from './routes/accounts.js';
 import { modelsRouter } from './routes/models.js';
 import { mediaRouter } from './routes/media.js';
+import { sessionRouter } from './routes/session.js';
+import { onboardingRouter } from './routes/onboarding.js';
+import { recommendationsRouter } from './routes/recommendations.js';
+import { graphApiRouter } from './routes/graph.js';
 import { JobWorker } from './lib/queue.js';
 
 const logger = pino({
@@ -46,6 +50,10 @@ app.use('/api/jobs', jobsRouter);
 app.use('/api/accounts', accountsRouter);
 app.use('/api/models', modelsRouter);
 app.use('/api/media', mediaRouter);
+app.use('/api/session', sessionRouter);
+app.use('/api/onboarding', onboardingRouter);
+app.use('/api/recommendations', recommendationsRouter);
+app.use('/api/graph', graphApiRouter);
 
 // Centralized error handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

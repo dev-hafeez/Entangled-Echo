@@ -84,6 +84,82 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
+  // Model Evaluation Harness
+  getLatestEval: () => fetchFromApi('/api/models/eval/latest'),
+  getEvalRuns: () => fetchFromApi('/api/models/eval/runs'),
+  runEval: (snapshot: string = '2026-11-02', minPersonal: number = 30) =>
+    fetchFromApi('/api/models/eval/run', {
+      method: 'POST',
+      body: JSON.stringify({ snapshot, min_personal: minPersonal }),
+    }),
+
+  pauseQueue: () =>
+    fetchFromApi('/api/jobs/pause', { method: 'POST' }),
+
+  resumeQueue: () =>
+    fetchFromApi('/api/jobs/resume', { method: 'POST' }),
+
+  // Onboarding, User Session & Niche AI
+  analyzeNiche: (handle: string, platform: string = 'instagram') =>
+    fetchFromApi('/api/onboarding/analyze-niche', {
+      method: 'POST',
+      body: JSON.stringify({ handle, platform }),
+    }),
+
+  getNiche: (handle: string) =>
+    fetchFromApi(`/api/onboarding/niche/${encodeURIComponent(handle)}`),
+
+  saveUserProfile: (body: { userId: string; handle: string; nicheData?: any; languagePreference?: string }) =>
+    fetchFromApi('/api/onboarding/user-profile', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  getUserProfile: (userId: string) =>
+    fetchFromApi(`/api/onboarding/user-profile/${encodeURIComponent(userId)}`),
+
+  // Session & Deep Scraping
+  getSessionStatus: () =>
+    fetchFromApi('/api/session/status'),
+
+  runCanaryCheck: () =>
+    fetchFromApi('/api/session/canary'),
+
+  getCuratedList: () =>
+    fetchFromApi('/api/session/curated-list'),
+
   getMediaSignedUrl: (path: string) =>
     fetchFromApi(`/api/media/signed-url?path=${encodeURIComponent(path)}`),
+
+  // Trend-Driven Recommendations Engine
+  generateRecommendations: (handle: string, platform: string = 'instagram') =>
+    fetchFromApi('/api/recommendations/generate', {
+      method: 'POST',
+      body: JSON.stringify({ handle, platform }),
+    }),
+
+  // FR-30 Audience Breakdown
+  getAudience: (handle: string) =>
+    fetchFromApi(`/api/accounts/${encodeURIComponent(handle)}/audience`),
+
+  // FR-31 Data Export (CSV)
+  getCsvExportUrl: (handle: string) =>
+    `${API_BASE}/api/accounts/${encodeURIComponent(handle)}/export/csv`,
+
+  // FR-32 Competitive Analysis
+  compareCompetitors: (handles: string[]) =>
+    fetchFromApi(`/api/accounts/competitors/compare?handles=${encodeURIComponent(handles.join(','))}`),
+
+  // Graph API Official Connection
+  connectGraphApi: (body: { accessToken: string; instagramAccountId?: string }) =>
+    fetchFromApi('/api/graph/connect', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  validateGraphToken: (accessToken: string) =>
+    fetchFromApi('/api/graph/validate-token', {
+      method: 'POST',
+      body: JSON.stringify({ accessToken }),
+    }),
 };
