@@ -1,5 +1,8 @@
 import { Router, Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { z } from 'zod';
+import { config } from '../config.js';
 import { notificationStore, NotificationType } from '../services/notifications.js';
 import { renderWeeklyDigestHtml } from '../services/email.js';
 
@@ -83,19 +86,68 @@ notificationsRouter.post('/digest/trigger', async (req: Request, res: Response) 
   });
 });
 
-// GET /api/notifications/digest/preview - Preview the weekly digest email HTML
+// GET /api/notifications/digest/preview - Preview the weekly digest email HTML for an existing ingested account
 notificationsRouter.get('/digest/preview', (req: Request, res: Response) => {
-  const handle = (req.query.handle as string) || 'creator';
+  const handle = (req.query.handle as string)?.toLowerCase().replace(/^@/, '');
+  if (!handle) {
+    res.setHeader('Content-Type', 'text/html');
+    return res.status(400).send('<p style="font-family:sans-serif;padding:24px;color:#64748b;">Specify an account handle: <code>/api/notifications/digest/preview?handle=your_account</code></p>');
+  }
+
+  const profFile = path.join(config.localStorageDir, 'profiles', `${handle}.json`);
+  const postFile = path.join(config.localStorageDir, 'posts', `${handle}.json`);
+
+  if (!fs.existsSync(profFile) && !fs.existsSync(postFile)) {
+    res.setHeader('Content-Type', 'text/html');
+    return res.status(404).send(`<p style="font-family:sans-serif;padding:24px;color:#64748b;">No ingested data found for @${handle}. Ingest posts first to preview a performance digest.</p>`);
+  }
+
+  let followers = 0;
+  let postsCount = 0;
+  let totalLikes = 0;
+  let totalComments = 0;
+  let topPostCaption = '';
+  let topPostLikes = 0;
+
+  if (fs.existsSync(profFile)) {
+    try {
+      const p = JSON.parse(fs.readFileSync(profFile, 'utf-8'));
+      followers = p.followers_count || 0;
+      postsCount = p.posts_count || 0;
+    } catch {}
+  }
+
+  if (fs.existsSync(postFile)) {
+    try {
+      const posts = JSON.parse(fs.readFileSync(postFile, 'utf-8'));
+      if (Array.isArray(posts) && posts.length > 0) {
+        if (!postsCount) postsCount = posts.length;
+        for (const post of posts) {
+          const likes = post.likesCount ?? post.likes_count ?? 0;
+          const comments = post.commentsCount ?? post.comments_count ?? 0;
+          totalLikes += likes;
+          totalComments += comments;
+
+          if (likes > topPostLikes) {
+            topPostLikes = likes;
+            topPostCaption = post.caption || '';
+          }
+        }
+      }
+    } catch {}
+  }
+
+  const avgER = followers > 0 ? (((totalLikes + totalComments) / followers) * 100).toFixed(2) : '0.00';
+
   const html = renderWeeklyDigestHtml({
     handle,
-    followersCount: 142000,
-    totalPosts: 48,
-    totalLikes: 825000,
-    totalComments: 14200,
-    avgEngagementRate: '3.42',
-    topPostCaption: 'Excited to announce our newest visual campaign launching this Friday!',
-    topPostLikes: 42100,
-    milestones: ['Crossed 100K follower milestone (+12.4% reach)!'],
+    followersCount: followers,
+    totalPosts: postsCount,
+    totalLikes,
+    totalComments,
+    avgEngagementRate: avgER,
+    topPostCaption,
+    topPostLikes,
   });
 
   res.setHeader('Content-Type', 'text/html');

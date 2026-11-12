@@ -51,7 +51,7 @@ export interface GraphApiMedia {
 export interface AudienceDemographics {
   handle: string;
   collectedAt: string;
-  source: 'graph_api' | 'synthetic_prior';
+  source: 'graph_api';
   ageGender: Array<{
     ageRange: string;
     male: number; // percentage (0-100)
@@ -175,7 +175,7 @@ export class GraphApiClient {
   /**
    * Fetch Audience Demographics via Graph API insights (age, gender, country, city)
    */
-  async fetchAudience(accountId: string, handle: string): Promise<AudienceDemographics> {
+  async fetchAudience(accountId: string, handle: string): Promise<AudienceDemographics | null> {
     try {
       const res = await this.fetchJson<{
         data: Array<{
@@ -259,10 +259,9 @@ export class GraphApiClient {
         countries: countriesList,
         cities: citiesList,
       };
-    } catch {
-      // In development mode or under-100 follower accounts, Graph API throws an error
-      // Fallback to calibrated demographic prior
-      return generateSyntheticAudience(handle);
+    } catch (err: any) {
+      console.warn(`[GraphAPI] Demographics not available for @${handle}: ${err.message || err}`);
+      return null;
     }
   }
 
@@ -422,9 +421,11 @@ export class GraphApiClient {
     fs.writeFileSync(path.join(profilesDir, `${handle}.json`), JSON.stringify(normalizedProfile, null, 2));
     fs.writeFileSync(path.join(postsDir, `${handle}.json`), JSON.stringify(normalizedPosts, null, 2));
 
-    // 3. Fetch audience demographics and persist
+    // 3. Fetch audience demographics and persist if available
     const audience = await this.fetchAudience(accountId, handle);
-    fs.writeFileSync(path.join(audienceDir, `${handle}.json`), JSON.stringify(audience, null, 2));
+    if (audience) {
+      fs.writeFileSync(path.join(audienceDir, `${handle}.json`), JSON.stringify(audience, null, 2));
+    }
 
     return {
       handle,
@@ -432,47 +433,4 @@ export class GraphApiClient {
       profile: normalizedProfile,
     };
   }
-}
-
-/**
- * Standard demographic prior generator for accounts when Graph API demographics
- * are below the minimum follower threshold (Meta requires >100 followers for insights)
- * or when in offline / fallback mode.
- */
-export function generateSyntheticAudience(handle: string): AudienceDemographics {
-  const seed = handle.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  
-  // Deterministic pseudo-random generation based on handle seed
-  const femaleRatio = 45 + (seed % 18);
-  const maleRatio = 98 - femaleRatio;
-  const otherRatio = 2;
-
-  return {
-    handle: handle.toLowerCase(),
-    collectedAt: new Date().toISOString(),
-    source: 'synthetic_prior',
-    ageGender: [
-      { ageRange: '13-17', male: Math.round(maleRatio * 0.08), female: Math.round(femaleRatio * 0.08), other: 1 },
-      { ageRange: '18-24', male: Math.round(maleRatio * 0.35), female: Math.round(femaleRatio * 0.36), other: 1 },
-      { ageRange: '25-34', male: Math.round(maleRatio * 0.38), female: Math.round(femaleRatio * 0.37), other: 0 },
-      { ageRange: '35-44', male: Math.round(maleRatio * 0.12), female: Math.round(femaleRatio * 0.13), other: 0 },
-      { ageRange: '45-54', male: Math.round(maleRatio * 0.05), female: Math.round(femaleRatio * 0.04), other: 0 },
-      { ageRange: '55-64', male: Math.round(maleRatio * 0.01), female: Math.round(femaleRatio * 0.01), other: 0 },
-      { ageRange: '65+', male: 1, female: 1, other: 0 },
-    ],
-    countries: [
-      { country: 'United States', percentage: 38 },
-      { country: 'United Kingdom', percentage: 16 },
-      { country: 'India', percentage: 12 },
-      { country: 'Canada', percentage: 9 },
-      { country: 'Australia', percentage: 6 },
-    ],
-    cities: [
-      { city: 'New York, USA', percentage: 14 },
-      { city: 'London, UK', percentage: 11 },
-      { city: 'Los Angeles, USA', percentage: 9 },
-      { city: 'Toronto, Canada', percentage: 6 },
-      { city: 'Sydney, Australia', percentage: 5 },
-    ],
-  };
 }

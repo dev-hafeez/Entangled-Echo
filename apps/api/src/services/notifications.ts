@@ -109,32 +109,7 @@ export class NotificationStore {
         if (Array.isArray(list)) return list;
       } catch {}
     }
-
-    // Default seed notifications for fresh users to display clean state
-    const seed: InAppNotification[] = [
-      {
-        id: `notif_${Date.now()}_1`,
-        userId,
-        type: 'ai_insight',
-        title: 'Quantum Schedule Calibrated',
-        message: 'Your posting horizon has been optimized based on historical engagement patterns.',
-        link: '/recommendations',
-        isRead: false,
-        createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-      },
-      {
-        id: `notif_${Date.now()}_2`,
-        userId,
-        type: 'milestone',
-        title: 'Profile Analyzed',
-        message: 'Account metrics and format performance scores are verified and ready on your dashboard.',
-        link: '/dashboard',
-        isRead: true,
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-      },
-    ];
-    fs.writeFileSync(file, JSON.stringify(seed, null, 2));
-    return seed;
+    return [];
   }
 
   /**

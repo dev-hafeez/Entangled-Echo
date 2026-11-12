@@ -1046,27 +1046,29 @@ export default function DashboardPage() {
                       <p className="text-xs text-slate-500">
                         {audience?.source === 'graph_api'
                           ? 'Directly retrieved from Meta Graph API lifetime insights'
-                          : 'Calibrated demographic breakdown based on audience size and interaction patterns'}
+                          : 'Requires an official Meta Graph API connection with >100 followers'}
                       </p>
                     </div>
-                    <span className="text-xs px-2.5 py-1 rounded bg-slate-100 font-mono text-slate-600">
-                      {audience?.source === 'graph_api' ? 'Official Graph API Insights' : 'Demographic Prior'}
-                    </span>
+                    {audience?.source === 'graph_api' && (
+                      <span className="text-xs px-2.5 py-1 rounded bg-slate-100 font-mono text-slate-600">
+                        Official Graph API Insights
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {/* Age & Gender Distribution Chart */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-semibold text-slate-900">Age & Gender Distribution</h4>
-                      <div className="flex items-center gap-4 text-xs">
-                        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Male</span>
-                        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-pink-500" /> Female</span>
+                {audience?.source === 'graph_api' && audience?.ageGender ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Age & Gender Distribution Chart */}
+                    <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-slate-900">Age & Gender Distribution</h4>
+                        <div className="flex items-center gap-4 text-xs">
+                          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Male</span>
+                          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-pink-500" /> Female</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="h-64 w-full pt-2">
-                      {audience?.ageGender ? (
+                      <div className="h-64 w-full pt-2">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={audience.ageGender} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -1080,56 +1082,71 @@ export default function DashboardPage() {
                             <Bar dataKey="female" name="female" fill="#ec4899" radius={[4, 4, 0, 0]} />
                           </BarChart>
                         </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-sm text-slate-400">Loading audience demographics...</div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Top Countries & Cities Geography */}
-                  <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-semibold text-slate-900">Follower Geography</h4>
-                      <Globe className="w-4 h-4 text-slate-400" />
+                      </div>
                     </div>
 
-                    <div className="space-y-4 pt-1">
-                      <div>
-                        <span className="text-xs font-semibold text-slate-700 block mb-2">Top Countries</span>
-                        <div className="space-y-2">
-                          {(audience?.countries || []).map((c: any, i: number) => (
-                            <div key={i} className="flex items-center justify-between text-xs">
-                              <span className="text-slate-600">{c.country}</span>
-                              <div className="flex items-center gap-2">
-                                <div className="w-28 bg-slate-100 rounded-full h-2 overflow-hidden">
-                                  <div className="bg-slate-900 h-2 rounded-full" style={{ width: `${c.percentage}%` }} />
-                                </div>
-                                <span className="font-mono text-slate-700 w-8 text-right font-medium">{c.percentage}%</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                    {/* Top Countries & Cities Geography */}
+                    <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-slate-900">Follower Geography</h4>
+                        <Globe className="w-4 h-4 text-slate-400" />
                       </div>
 
-                      <div className="pt-3 border-t border-slate-100">
-                        <span className="text-xs font-semibold text-slate-700 block mb-2">Top Cities</span>
-                        <div className="space-y-2">
-                          {(audience?.cities || []).map((ct: any, i: number) => (
-                            <div key={i} className="flex items-center justify-between text-xs">
-                              <span className="text-slate-600">{ct.city}</span>
-                              <div className="flex items-center gap-2">
-                                <div className="w-28 bg-slate-100 rounded-full h-2 overflow-hidden">
-                                  <div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${ct.percentage}%` }} />
+                      <div className="space-y-4 pt-1">
+                        <div>
+                          <span className="text-xs font-semibold text-slate-700 block mb-2">Top Countries</span>
+                          <div className="space-y-2">
+                            {(audience?.countries || []).map((c: any, i: number) => (
+                              <div key={i} className="flex items-center justify-between text-xs">
+                                <span className="text-slate-600">{c.country}</span>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-28 bg-slate-100 rounded-full h-2 overflow-hidden">
+                                    <div className="bg-slate-900 h-2 rounded-full" style={{ width: `${c.percentage}%` }} />
+                                  </div>
+                                  <span className="font-mono text-slate-700 w-8 text-right font-medium">{c.percentage}%</span>
                                 </div>
-                                <span className="font-mono text-slate-700 w-8 text-right font-medium">{ct.percentage}%</span>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-100">
+                          <span className="text-xs font-semibold text-slate-700 block mb-2">Top Cities</span>
+                          <div className="space-y-2">
+                            {(audience?.cities || []).map((ct: any, i: number) => (
+                              <div key={i} className="flex items-center justify-between text-xs">
+                                <span className="text-slate-600">{ct.city}</span>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-28 bg-slate-100 rounded-full h-2 overflow-hidden">
+                                    <div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${ct.percentage}%` }} />
+                                  </div>
+                                  <span className="font-mono text-slate-700 w-8 text-right font-medium">{ct.percentage}%</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="p-12 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50 space-y-3">
+                    <Globe className="w-10 h-10 text-slate-300 mx-auto" />
+                    <h4 className="text-sm font-semibold text-slate-800">Demographic Insights Unavailable</h4>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                      Age, gender, and follower geography require an official Meta Graph API connection with an Instagram Creator or Business account having at least 100 followers.
+                    </p>
+                    <div className="pt-2">
+                      <button
+                        onClick={() => setShowModal(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition"
+                      >
+                        <span>Connect Meta Graph API</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

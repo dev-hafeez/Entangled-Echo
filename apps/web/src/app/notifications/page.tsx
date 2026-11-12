@@ -9,7 +9,6 @@ import {
   Check,
   CheckCheck,
   Settings,
-  Mail,
   Sparkles,
   AlertTriangle,
   Clock,
@@ -42,11 +41,6 @@ export default function NotificationsPage() {
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [prefsSavedMessage, setPrefsSavedMessage] = useState(false);
 
-  // Email digest test trigger (FR-34)
-  const [testEmail, setTestEmail] = useState('');
-  const [sendingDigest, setSendingDigest] = useState(false);
-  const [digestStatus, setDigestStatus] = useState<string | null>(null);
-
   const fetchNotifs = async () => {
     try {
       const res = await api.getNotifications(userId);
@@ -76,10 +70,7 @@ export default function NotificationsPage() {
     if (!isLoaded) return;
     fetchNotifs();
     fetchPreferences();
-    if (user?.primaryEmailAddress?.emailAddress) {
-      setTestEmail(user.primaryEmailAddress.emailAddress);
-    }
-  }, [isLoaded, userId, user]);
+  }, [isLoaded, userId]);
 
   const handleMarkAsRead = async (id: string) => {
     try {
@@ -116,22 +107,6 @@ export default function NotificationsPage() {
       console.error('Failed to update preferences:', e);
     } finally {
       setSavingPrefs(false);
-    }
-  };
-
-  const handleSendTestDigest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!testEmail.trim()) return;
-    setSendingDigest(true);
-    setDigestStatus(null);
-    try {
-      const storedHandle = typeof window !== 'undefined' ? localStorage.getItem(`ee_handle_${userId}`) || 'creator' : 'creator';
-      const res = await api.triggerWeeklyDigest(userId, storedHandle, testEmail.trim());
-      setDigestStatus(res.message || 'Digest successfully generated & sent.');
-    } catch (err: any) {
-      setDigestStatus(err.message || 'Failed to send digest.');
-    } finally {
-      setSendingDigest(false);
     }
   };
 
@@ -391,55 +366,6 @@ export default function NotificationsPage() {
                   </button>
                 </div>
               ))}
-            </div>
-
-            {/* Test Email Digest Form */}
-            <div className="mt-4 pt-4 border-t border-slate-100">
-              <h4 className="text-xs font-semibold text-slate-800 mb-1">Send Sample Weekly Digest (FR-34 Test)</h4>
-              <p className="text-[11px] text-slate-500 mb-3">
-                Renders and sends a live digest email using the configured provider (Mock mode logs to disk).
-              </p>
-
-              <form onSubmit={handleSendTestDigest} className="flex flex-col sm:flex-row items-center gap-2">
-                <input
-                  type="email"
-                  placeholder="your.email@example.com"
-                  value={testEmail}
-                  onChange={(e) => setTestEmail(e.target.value)}
-                  className="w-full sm:w-80 px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                />
-                <button
-                  type="submit"
-                  disabled={sendingDigest}
-                  className="w-full sm:w-auto px-4 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition flex items-center justify-center gap-1.5 disabled:opacity-50"
-                >
-                  {sendingDigest ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Sending...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="w-3.5 h-3.5" />
-                      <span>Send Digest</span>
-                    </>
-                  )}
-                </button>
-                <a
-                  href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/notifications/digest/preview`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs text-slate-500 hover:text-slate-800 underline px-2 py-1"
-                >
-                  Preview Template
-                </a>
-              </form>
-
-              {digestStatus && (
-                <div className="mt-2 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 rounded p-2">
-                  ✓ {digestStatus}
-                </div>
-              )}
             </div>
           </div>
         </div>

@@ -356,22 +356,22 @@ accountsRouter.get('/:handle/audience', async (req: Request, res: Response) => {
   const audienceDir = path.join(config.localStorageDir, 'audiences');
   const audiencePath = path.join(audienceDir, `${cleanHandle}.json`);
 
-  // If saved audience exists, return it
+  // If real Graph API audience exists, return it
   if (fs.existsSync(audiencePath)) {
     try {
       const data = JSON.parse(fs.readFileSync(audiencePath, 'utf-8'));
-      return res.json({ success: true, audience: data });
+      if (data && data.source === 'graph_api') {
+        return res.json({ success: true, audience: data });
+      }
     } catch {}
   }
 
-  // Fallback to generating calibrated synthetic audience prior
-  const { generateSyntheticAudience } = await import('../services/graph-api.js');
-  const audience = generateSyntheticAudience(cleanHandle);
-
-  if (!fs.existsSync(audienceDir)) fs.mkdirSync(audienceDir, { recursive: true });
-  fs.writeFileSync(audiencePath, JSON.stringify(audience, null, 2));
-
-  return res.json({ success: true, audience });
+  // Do NOT fabricate synthetic numbers. Return null if no Graph API demographics exist.
+  return res.json({
+    success: true,
+    audience: null,
+    message: 'Audience demographics require an authenticated Meta Graph API connection with an account having >100 followers.',
+  });
 });
 
 // GET /api/accounts/:handle/export/csv - FR-31 Data Export (CSV format)
