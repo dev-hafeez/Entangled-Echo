@@ -74,6 +74,16 @@ function NavigationHeader() {
           >
             <span>Notifications</span>
           </a>
+          <a
+            href="/settings"
+            className={`transition px-2.5 py-1 rounded-md flex items-center gap-1.5 ${
+              pathname === '/settings'
+                ? 'bg-slate-100 text-slate-900 font-bold'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span>Settings</span>
+          </a>
         </nav>
       </div>
       <nav className="flex items-center space-x-4 text-sm font-medium">
