@@ -3,8 +3,12 @@ import fs from 'fs';
 import path from 'path';
 import { config } from '../config.js';
 import { executeNicheAnalysis } from './onboarding.js';
+import { sanitizeAndValidateHandle, createRateLimiter } from '../lib/security.js';
 
 export const recommendationsRouter = Router();
+
+// Rate limiting on AI recommendation engine (FR-33/Security)
+recommendationsRouter.use(createRateLimiter({ windowMs: 60000, maxRequests: 60, message: 'Recommendation generation rate limit exceeded' }));
 
 // ---------------------------------------------------------------------------
 // TREND & RECOMMENDATIONS ENGINE
@@ -140,6 +144,112 @@ function getFormatEffects(): any {
   return {};
 }
 
+// Per-account preference storage for FR-24 Feedback Loop
+export interface RecommendationPreferences {
+  handle: string;
+  formatWeights: Record<string, number>;
+  dislikedTopics: string[];
+  likedTopics: string[];
+  totalFeedbackCount: number;
+  lastUpdated: string;
+}
+
+export function getRecPreferences(handle: string): RecommendationPreferences {
+  const prefDir = path.join(config.localStorageDir, 'preferences');
+  if (!fs.existsSync(prefDir)) fs.mkdirSync(prefDir, { recursive: true });
+  const p = path.join(prefDir, `recs_${handle}.json`);
+  if (fs.existsSync(p)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
+      if (data && data.formatWeights) return data;
+    } catch {}
+  }
+  return {
+    handle,
+    formatWeights: { reel: 1.0, video: 1.0, carousel: 1.0, image: 1.0 },
+    dislikedTopics: [],
+    likedTopics: [],
+    totalFeedbackCount: 0,
+    lastUpdated: new Date().toISOString(),
+  };
+}
+
+export function saveRecPreferences(handle: string, prefs: RecommendationPreferences): void {
+  const prefDir = path.join(config.localStorageDir, 'preferences');
+  if (!fs.existsSync(prefDir)) fs.mkdirSync(prefDir, { recursive: true });
+  const p = path.join(prefDir, `recs_${handle}.json`);
+  fs.writeFileSync(p, JSON.stringify(prefs, null, 2));
+}
+
+// POST /api/recommendations/feedback - FR-24 Accept/Reject Learning Mechanism
+recommendationsRouter.post('/feedback', async (req: Request, res: Response) => {
+  const { handle, recommendationId, accepted, feedback, mediaType, topic } = req.body;
+  if (!handle) {
+    return res.status(400).json({ error: 'handle is required' });
+  }
+
+  let cleanHandle: string;
+  try {
+    cleanHandle = sanitizeAndValidateHandle(handle);
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
+
+  const prefs = getRecPreferences(cleanHandle);
+
+  prefs.totalFeedbackCount++;
+  prefs.lastUpdated = new Date().toISOString();
+
+  const mType = (mediaType || '').toLowerCase();
+  const normalizedMType = mType === 'video' ? 'reel' : mType;
+  if (normalizedMType && prefs.formatWeights[normalizedMType] !== undefined) {
+    if (accepted) {
+      prefs.formatWeights[normalizedMType] = Number((prefs.formatWeights[normalizedMType] + 0.35).toFixed(2));
+    } else {
+      prefs.formatWeights[normalizedMType] = Math.max(0.1, Number((prefs.formatWeights[normalizedMType] - 0.4).toFixed(2)));
+    }
+  }
+
+  if (topic) {
+    const cleanTopic = topic.trim();
+    if (accepted) {
+      if (!prefs.likedTopics.includes(cleanTopic)) prefs.likedTopics.push(cleanTopic);
+      prefs.dislikedTopics = prefs.dislikedTopics.filter((t) => t.toLowerCase() !== cleanTopic.toLowerCase());
+    } else {
+      if (!prefs.dislikedTopics.includes(cleanTopic)) prefs.dislikedTopics.push(cleanTopic);
+      prefs.likedTopics = prefs.likedTopics.filter((t) => t.toLowerCase() !== cleanTopic.toLowerCase());
+    }
+  }
+
+  saveRecPreferences(cleanHandle, prefs);
+
+  // Invalidate recommendation cache so subsequent calls re-rank with updated weights
+  const recsCacheFile = path.join(config.localStorageDir, 'recommendations', `${cleanHandle}.json`);
+  if (fs.existsSync(recsCacheFile)) {
+    try { fs.unlinkSync(recsCacheFile); } catch {}
+  }
+
+  return res.json({
+    success: true,
+    message: accepted ? 'Feedback recorded: format preference increased' : 'Feedback recorded: format preference decreased and downranked',
+    preferences: prefs,
+  });
+});
+
+// GET /api/recommendations/preferences - View active preference weights
+recommendationsRouter.get('/preferences', (req: Request, res: Response) => {
+  const rawHandle = req.query.handle as string;
+  if (!rawHandle) return res.status(400).json({ error: 'handle parameter is required' });
+  let handle: string;
+  try {
+    handle = sanitizeAndValidateHandle(rawHandle);
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
+  const prefs = getRecPreferences(handle);
+  return res.json({ success: true, preferences: prefs });
+});
+
 // POST /api/recommendations/generate
 recommendationsRouter.post('/generate', async (req: Request, res: Response) => {
   const { handle, platform = 'instagram' } = req.body;
@@ -147,7 +257,12 @@ recommendationsRouter.post('/generate', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'handle is required' });
   }
 
-  const cleanHandle = handle.toLowerCase().replace(/^@/, '');
+  let cleanHandle: string;
+  try {
+    cleanHandle = sanitizeAndValidateHandle(handle);
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
 
   // 1. Load user profile, posts, and niche
   const storageDir = config.localStorageDir;
@@ -194,19 +309,30 @@ recommendationsRouter.post('/generate', async (req: Request, res: Response) => {
   const formatEffects = getFormatEffects();
   const bucketEffects = formatEffects[bucket] || {};
 
+  const userPrefs = getRecPreferences(cleanHandle);
+
   let bestFormat = 'reel';
   let bestLift = 0.28;
   let liftExplanation = 'Reels and short-form video deliver maximum algorithmic discovery for growing creators.';
 
   if (bucketEffects) {
     const sortedFormats = Object.entries(bucketEffects).sort(
-      (a: any, b: any) => (b[1].mean_lift || 0) - (a[1].mean_lift || 0)
+      (a: any, b: any) => {
+        const fmtA = a[0] === 'video' ? 'reel' : a[0];
+        const fmtB = b[0] === 'video' ? 'reel' : b[0];
+        const weightA = userPrefs.formatWeights[fmtA] !== undefined ? userPrefs.formatWeights[fmtA] : 1.0;
+        const weightB = userPrefs.formatWeights[fmtB] !== undefined ? userPrefs.formatWeights[fmtB] : 1.0;
+        const liftA = ((a[1] as any).mean_lift || 0.2) * weightA;
+        const liftB = ((b[1] as any).mean_lift || 0.2) * weightB;
+        return liftB - liftA;
+      }
     );
     if (sortedFormats.length > 0 && sortedFormats[0][1]) {
       const topFmt = sortedFormats[0][0];
       bestFormat = topFmt === 'video' ? 'reel' : topFmt;
       bestLift = (sortedFormats[0][1] as any).mean_lift || 0.28;
-      liftExplanation = `Statistically calibrated for creators in the ${bucket} follower tier: +${(bestLift * 100).toFixed(1)}% expected engagement lift vs static formats.`;
+      const fmtWeight = userPrefs.formatWeights[bestFormat] || 1.0;
+      liftExplanation = `Statistically calibrated for creators in the ${bucket} follower tier (weighted by feedback score ${fmtWeight.toFixed(2)}x): +${(bestLift * 100).toFixed(1)}% expected engagement lift vs static formats.`;
     }
   }
 
@@ -276,9 +402,11 @@ recommendationsRouter.post('/generate', async (req: Request, res: Response) => {
   }
 
   // 6. Generate AI Recommendations using ultra-fast gemini-3.1-flash-lite
+  const llmProvider = process.env.LLM_PROVIDER || 'mock';
   const geminiApiKey = process.env.GEMINI_API_KEY || '';
+  const canUseGemini = llmProvider === 'gemini' && geminiApiKey.startsWith('AIzaSy');
 
-  if (geminiApiKey && liveTrends.length > 0) {
+  if (canUseGemini && liveTrends.length > 0) {
     const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'];
     const trendsContext = liveTrends.slice(0, 10).map((t) => ({
       title: t.title,
@@ -386,7 +514,11 @@ Output ONLY a valid JSON array of 3 objects. No markdown backticks.`;
   }
 
   // 7. Deterministic Instant Offline Fallback with Live Google Trends
-  const topTrends = liveTrends.slice(0, 3);
+  const filteredLiveTrends = liveTrends.filter(
+    (t) => !userPrefs.dislikedTopics.some((dt) => t.title.toLowerCase().includes(dt.toLowerCase()))
+  );
+  const candidateTrends = filteredLiveTrends.length >= 3 ? filteredLiveTrends : liveTrends;
+  const topTrends = candidateTrends.slice(0, 3);
   const fallbackTrends = topTrends.length >= 3 ? topTrends : [
     { title: 'Public Policy and Healthcare Access', traffic: '50K+ searches', source: 'Google Trends (US)', geo: 'US', news_title: 'National healthcare reform and infrastructure focus', news_source: 'National News' },
     { title: 'Community Organizing and Civic Action', traffic: '20K+ searches', source: 'Google Trends (US)', geo: 'US', news_title: 'Voter turnout and grassroots community development', news_source: 'Civic Report' },

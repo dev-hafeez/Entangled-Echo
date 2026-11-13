@@ -12,6 +12,7 @@ dist/
 build/
 .next/
 out/
+*.tsbuildinfo
 
 # Python & ML
 __pycache__/
@@ -27,6 +28,11 @@ services/ml/artifacts/*.joblib
 .chromium-profile.lock
 test-results/
 playwright-report/
+apps/api/scripts/
+
+# Local Storage (Media, Models, Large Data)
+storage/
+reports/
 
 # Logs & temp
 *.log

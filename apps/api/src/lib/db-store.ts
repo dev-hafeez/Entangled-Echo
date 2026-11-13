@@ -1,16 +1,21 @@
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { config } from '../config.js';
 import { getSupabaseAdmin } from './supabase.js';
 import { ScrapedPost, ScrapedProfile } from '../scraper/types.js';
+import { writeJsonAtomic, withFileLock } from './atomic-file.js';
 
 export async function persistScrapeData(params: {
   jobId?: string | null;
   profile: ScrapedProfile;
   posts?: ScrapedPost[];
   rawCaptures?: Array<{ captureType: string; endpointUrl: string; payload: any }>;
+  sessionAuthenticated?: boolean;
 }): Promise<{ accountId: string }> {
-  const supabase = getSupabaseAdmin();
-  const { profile, posts = [], rawCaptures = [], jobId } = params;
+  const { profile, posts = [], rawCaptures = [], jobId, sessionAuthenticated = true } = params;
 
-  // 1. Upsert Account
+  // 1. Prepare Account Payload
   const accountPayload = {
     handle: profile.handle,
     full_name: profile.fullName,
@@ -32,137 +37,60 @@ export async function persistScrapeData(params: {
     posts_count_source: profile.postsCount.source,
     posts_count_raw_str: profile.postsCount.rawStr,
     posts_count_precision: profile.postsCount.precision,
+    session_authenticated: sessionAuthenticated,
+    scraper_version: '2.0.0-depth',
     last_scraped_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
 
-  const { data: accountRow, error: accountErr } = await supabase
-    .from('accounts')
-    .upsert(accountPayload, { onConflict: 'handle' })
-    .select('id')
-    .single();
+  // 2. SAVE LOCALLY FIRST (guaranteed persistent, zero timeout, 100% offline)
+  let accountId: string = crypto.randomUUID();
+  try {
+    const profilesDir = path.join(config.localStorageDir, 'profiles');
+    const postsDir = path.join(config.localStorageDir, 'posts');
+    fs.mkdirSync(profilesDir, { recursive: true });
+    fs.mkdirSync(postsDir, { recursive: true });
 
-  if (accountErr || !accountRow) {
-    throw new Error(`Failed to upsert account ${profile.handle}: ${accountErr?.message}`);
-  }
-
-  const accountId = accountRow.id;
-
-  // 2. Insert Account Snapshot (one row per scrape)
-  await supabase.from('account_snapshots').insert({
-    account_id: accountId,
-    followers_count: profile.followers.count,
-    followers_source: profile.followers.source,
-    followers_raw_str: profile.followers.rawStr,
-    followers_precision: profile.followers.precision,
-    following_count: profile.following.count,
-    following_source: profile.following.source,
-    following_raw_str: profile.following.rawStr,
-    following_precision: profile.following.precision,
-    posts_count: profile.postsCount.count,
-    posts_count_source: profile.postsCount.source,
-    posts_count_raw_str: profile.postsCount.rawStr,
-    posts_count_precision: profile.postsCount.precision,
-  });
-
-  // 3. Upsert Posts & Post Snapshots
-  for (const p of posts) {
-    // Check if post already exists to preserve existing storage_paths if new scrape didn't re-download
-    const { data: existingPost } = await supabase
-      .from('posts')
-      .select('id, storage_paths')
-      .eq('shortcode', p.shortcode)
-      .maybeSingle();
-
-    const storagePaths =
-      p.storagePaths && p.storagePaths.length > 0
-        ? p.storagePaths
-        : existingPost?.storage_paths || [];
-
-    const postPayload = {
-      account_id: accountId,
-      shortcode: p.shortcode,
-      url: p.url,
-      media_type: p.mediaType,
-      media_type_source: p.mediaTypeSource,
-      caption: p.caption,
-      caption_source: p.captionSource,
-      hashtags: p.hashtags,
-      mentions: p.mentions,
-      posted_at: p.postedAt, // STRICT: NULL if unavailable, never now!
-      posted_at_source: p.postedAtSource,
-      location_tag: p.locationTag,
-      location_tag_source: p.locationTagSource,
-      audio_name: p.audioName,
-      audio_name_source: p.audioNameSource,
-      media_urls: p.mediaUrls,
-      storage_paths: storagePaths,
-      carousel_size: p.carouselSize,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { data: postRow, error: postErr } = await supabase
-      .from('posts')
-      .upsert(postPayload, { onConflict: 'shortcode' })
-      .select('id')
-      .single();
-
-    if (postErr || !postRow) {
-      console.warn(`[db-store] Failed to upsert post ${p.shortcode}: ${postErr?.message}`);
-      continue;
+    const localProfileFile = path.join(profilesDir, `${profile.handle}.json`);
+    if (fs.existsSync(localProfileFile)) {
+      try {
+        const existingData = JSON.parse(fs.readFileSync(localProfileFile, 'utf-8'));
+        if (existingData?.id) accountId = existingData.id;
+      } catch {}
     }
 
-    const postId = postRow.id;
-
-    // Insert Post Snapshot
-    await supabase.from('post_snapshots').insert({
-      post_id: postId,
-      likes_count: p.likesCount,
-      likes_source: p.likesSource,
-      likes_raw_str: p.likesRawStr,
-      comments_count: p.commentsCount,
-      comments_source: p.commentsSource,
-      comments_raw_str: p.commentsRawStr,
-      views_count: p.viewsCount,
-      views_source: p.viewsSource,
-      views_raw_str: p.viewsRawStr,
+    await withFileLock(localProfileFile, () => {
+      writeJsonAtomic(localProfileFile, { ...accountPayload, id: accountId });
     });
 
-    // Insert Comments (clean up existing comments for this post first to prevent duplicates on re-scrape)
-    if (p.topComments && p.topComments.length > 0) {
-      await supabase.from('comments').delete().eq('post_id', postId);
-
-      const commentsData = p.topComments.map((c) => ({
-        post_id: postId,
-        comment_id: c.commentId,
-        author: c.author,
-        text: c.text,
-        likes_count: c.likesCount,
-        posted_at: c.postedAt,
-        author_source: c.authorSource,
-        text_source: c.textSource,
-        likes_source: c.likesSource,
-        posted_at_source: c.postedAtSource,
+    if (posts.length > 0) {
+      // Annotate posts with session_authenticated and scraper_version
+      const annotatedPosts = posts.map((p) => ({
+        ...p,
+        session_authenticated: sessionAuthenticated,
+        scraper_version: '2.0.0-depth',
       }));
-      await supabase.from('comments').insert(commentsData);
-    }
-  }
 
-  // 4. Save Raw Captures
-  if (rawCaptures.length > 0) {
-    const rawData = rawCaptures.map((rc) => ({
-      job_id: jobId || null,
-      account_id: accountId,
-      capture_type: rc.captureType,
-      endpoint_url: rc.endpointUrl,
-      payload: rc.payload,
-    }));
-
-    // Insert in batches of 20 to avoid large payload error
-    for (let i = 0; i < rawData.length; i += 20) {
-      const batch = rawData.slice(i, i + 20);
-      await supabase.from('raw_captures').insert(batch);
+      // Merge with any existing posts for this account with mutual exclusion lock
+      const localPostFile = path.join(postsDir, `${profile.handle}.json`);
+      await withFileLock(localPostFile, () => {
+        let combinedPosts = annotatedPosts;
+        if (fs.existsSync(localPostFile)) {
+          try {
+            const oldPosts = JSON.parse(fs.readFileSync(localPostFile, 'utf-8'));
+            if (Array.isArray(oldPosts)) {
+              const seenCodes = new Set(annotatedPosts.map((p) => p.shortcode));
+              const newOldPosts = oldPosts.filter((p: any) => p.shortcode && !seenCodes.has(p.shortcode));
+              combinedPosts = [...annotatedPosts, ...newOldPosts];
+            }
+          } catch {}
+        }
+        writeJsonAtomic(localPostFile, combinedPosts);
+      });
     }
+    console.log(`[local-storage] Saved @${profile.handle} profile & ${posts.length} posts to local disk.`);
+  } catch (localErr: any) {
+    console.warn(`[local-storage] Error saving locally: ${localErr.message}`);
   }
 
   return { accountId };

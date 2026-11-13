@@ -13,6 +13,7 @@ import { recommendationsRouter } from './routes/recommendations.js';
 import { graphApiRouter } from './routes/graph.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { calendarRouter } from './routes/calendar.js';
+import { adminRouter } from './routes/admin.js';
 import { schedulerService } from './services/scheduler.js';
 import { JobWorker } from './lib/queue.js';
 
@@ -59,6 +60,7 @@ app.use('/api/recommendations', recommendationsRouter);
 app.use('/api/graph', graphApiRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/calendar', calendarRouter);
+app.use('/api/admin', adminRouter);
 app.use('/internal/tick', async (req: Request, res: Response) => {
   const result = await schedulerService.runTick();
   res.json({ success: true, ...result });

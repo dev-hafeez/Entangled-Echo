@@ -5,6 +5,7 @@ import { config } from '../config.js';
 import { notificationStore } from './notifications.js';
 import { emailProvider } from './email.js';
 import { GraphApiClient } from './graph-api.js';
+import { writeJsonAtomic } from '../lib/atomic-file.js';
 
 export type PostStatus = 'DRAFT' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'CANCELLED';
 export type MediaType = 'image' | 'video' | 'carousel';
@@ -148,7 +149,7 @@ export class SchedulerService {
     const file = this.getUserFile(userId);
     const existing = this.listPosts(userId);
     existing.push(post);
-    fs.writeFileSync(file, JSON.stringify(existing, null, 2));
+    writeJsonAtomic(file, existing);
 
     return post;
   }
@@ -180,7 +181,7 @@ export class SchedulerService {
     };
 
     posts[index] = updated;
-    fs.writeFileSync(file, JSON.stringify(posts, null, 2));
+    writeJsonAtomic(file, posts);
     return updated;
   }
 
@@ -211,7 +212,7 @@ export class SchedulerService {
     const posts = this.listPosts(userId);
     const filtered = posts.filter((p) => p.id !== id);
     if (filtered.length === posts.length) return false;
-    fs.writeFileSync(file, JSON.stringify(filtered, null, 2));
+    writeJsonAtomic(file, filtered);
     return true;
   }
 
@@ -325,7 +326,12 @@ export class SchedulerService {
   /**
    * Execute immediate or scheduled publishing
    */
-  async publishPost(id: string, userId: string, forceErrorForTest: boolean = false): Promise<ScheduledPost> {
+  async publishPost(
+    id: string,
+    userId: string,
+    forceErrorForTest: boolean = false,
+    forceNow?: Date
+  ): Promise<ScheduledPost> {
     const post = this.getPost(id, userId);
     if (!post) throw new Error(`Scheduled post not found: ${id}`);
 
@@ -365,7 +371,7 @@ export class SchedulerService {
       // 2. Mark as PUBLISHED
       const finalPost = this.updatePost(id, userId, {
         status: 'PUBLISHED',
-        publishedAt: new Date().toISOString(),
+        publishedAt: (forceNow || new Date()).toISOString(),
         publishedPostId: publishedId,
         lastError: null,
       });
@@ -444,7 +450,7 @@ export class SchedulerService {
           // Check if due and in SCHEDULED state
           if (post.status === 'SCHEDULED' && new Date(post.scheduledTime) <= now) {
             processed++;
-            const result = await this.publishPost(post.id, post.userId);
+            const result = await this.publishPost(post.id, post.userId, false, now);
             if (result.status === 'PUBLISHED') published++;
             else if (result.status === 'FAILED') failed++;
             else if (result.status === 'SCHEDULED') retrying++;

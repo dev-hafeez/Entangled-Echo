@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { config } from '../config.js';
 import { getSupabaseAdmin } from '../lib/supabase.js';
+import { sanitizeAndValidateHandle } from '../lib/security.js';
 
 export const accountsRouter = Router();
 
@@ -103,8 +104,12 @@ accountsRouter.get('/', async (req: Request, res: Response) => {
 
 // GET /api/accounts/:handle - Profile and snapshots
 accountsRouter.get('/:handle', async (req: Request, res: Response) => {
-  const { handle } = req.params;
-  const cleanHandle = handle.toLowerCase().replace(/^@/, '');
+  let cleanHandle: string;
+  try {
+    cleanHandle = sanitizeAndValidateHandle(req.params.handle);
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
 
   // 1. Try local storage profile first
   const profileFile = path.join(config.localStorageDir, 'profiles', `${cleanHandle}.json`);
@@ -136,8 +141,12 @@ accountsRouter.get('/:handle', async (req: Request, res: Response) => {
 
 // GET /api/accounts/:handle/posts - Grid of posts with metric details & sources
 accountsRouter.get('/:handle/posts', async (req: Request, res: Response) => {
-  const { handle } = req.params;
-  const cleanHandle = handle.toLowerCase().replace(/^@/, '');
+  let cleanHandle: string;
+  try {
+    cleanHandle = sanitizeAndValidateHandle(req.params.handle);
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
 
   // 1. Try local storage posts first
   const postsFile = path.join(config.localStorageDir, 'posts', `${cleanHandle}.json`);
@@ -351,8 +360,12 @@ accountsRouter.delete('/:idOrHandle', async (req: Request, res: Response) => {
 
 // GET /api/accounts/:handle/audience - FR-30 Audience Breakdown
 accountsRouter.get('/:handle/audience', async (req: Request, res: Response) => {
-  const { handle } = req.params;
-  const cleanHandle = handle.toLowerCase().replace(/^@/, '');
+  let cleanHandle: string;
+  try {
+    cleanHandle = sanitizeAndValidateHandle(req.params.handle);
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
   const audienceDir = path.join(config.localStorageDir, 'audiences');
   const audiencePath = path.join(audienceDir, `${cleanHandle}.json`);
 
@@ -376,8 +389,12 @@ accountsRouter.get('/:handle/audience', async (req: Request, res: Response) => {
 
 // GET /api/accounts/:handle/export/csv - FR-31 Data Export (CSV format)
 accountsRouter.get('/:handle/export/csv', async (req: Request, res: Response) => {
-  const { handle } = req.params;
-  const cleanHandle = handle.toLowerCase().replace(/^@/, '');
+  let cleanHandle: string;
+  try {
+    cleanHandle = sanitizeAndValidateHandle(req.params.handle);
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
   const postsDir = path.join(config.localStorageDir, 'posts');
   const profilesDir = path.join(config.localStorageDir, 'profiles');
 
