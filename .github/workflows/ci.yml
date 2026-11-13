@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    name: Lint, Typecheck, Tests & Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12.9.1
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r services/ml/requirements.txt
+
+      - name: Install Node Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Secret Scan (Gitleaks & Working Tree)
+        run: python scripts/scan_secrets.py
+
+      - name: Typecheck & Build API
+        run: pnpm --filter api build
+
+      - name: Typecheck & Build Web
+        run: pnpm --filter web build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+          NEXT_IGNORE_INCORRECT_LOCKFILE: 1
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
+
+      - name: Run Security Tests (Path Traversal, Upload, Headers, Tokens)
+        run: |
+          ./apps/api/node_modules/.bin/tsx scripts/test_path_traversal.ts
+          ./apps/api/node_modules/.bin/tsx scripts/test_upload_security.ts
+          ./apps/api/node_modules/.bin/tsx scripts/test_security_headers.ts
+          ./apps/api/node_modules/.bin/tsx scripts/test_token_encryption.ts
+          ./apps/api/node_modules/.bin/tsx scripts/test_admin_auth.ts
+
+      - name: Run Core Verification Tests (FR-24, FR-26/27/28, FR-31, FR-34)
+        run: |
+          ./apps/api/node_modules/.bin/tsx scripts/test_fr24_feedback.ts
+          ./apps/api/node_modules/.bin/tsx scripts/test_publishing_bench_and_retry.ts
+          ./apps/api/node_modules/.bin/tsx scripts/test_csv_export_count.ts
+          ./apps/api/node_modules/.bin/tsx scripts/test_email_smtp_sink.ts
+
+      - name: Run Algorithmic & NFR Tests
+        run: |
+          python scripts/benchmark_scheduler_runtime.py
+          ./apps/api/node_modules/.bin/tsx scripts/test_concurrent_storage_writes.ts
+          ./apps/api/node_modules/.bin/tsx scripts/test_publish_within_60s.ts
+          ./apps/api/node_modules/.bin/tsx scripts/test_500_post_sync.ts
