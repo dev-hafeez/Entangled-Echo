@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import net from 'net';
 import { config } from '../config.js';
 
 export interface EmailMessage {
@@ -48,8 +49,86 @@ export class MockEmailProvider implements EmailProvider {
   }
 }
 
+export class SmtpEmailProvider implements EmailProvider {
+  private host: string;
+  private port: number;
+  private from: string;
+
+  constructor(options?: { host?: string; port?: number; from?: string }) {
+    this.host = options?.host || process.env.SMTP_HOST || '127.0.0.1';
+    this.port = options?.port || parseInt(process.env.SMTP_PORT || '1025', 10);
+    this.from = options?.from || process.env.EMAIL_FROM || 'noreply@entangled-echo.com';
+  }
+
+  async send(message: EmailMessage): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const messageId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    return new Promise((resolve) => {
+      const socket = net.createConnection(this.port, this.host);
+      let step = 0;
+
+      const finish = (success: boolean, err?: string) => {
+        if (!socket.destroyed) socket.destroy();
+        resolve({ success, messageId, error: err });
+      };
+
+      socket.setTimeout(5000);
+      socket.on('timeout', () => finish(false, 'SMTP connection timed out'));
+      socket.on('error', (err) => finish(false, `SMTP error: ${err.message}`));
+
+      socket.on('data', (data) => {
+        const res = data.toString();
+        if (step === 0 && res.startsWith('220')) {
+          step = 1;
+          socket.write(`HELO localhost\r\n`);
+        } else if (step === 1 && res.startsWith('250')) {
+          step = 2;
+          socket.write(`MAIL FROM:<${this.from}>\r\n`);
+        } else if (step === 2 && res.startsWith('250')) {
+          step = 3;
+          socket.write(`RCPT TO:<${message.to}>\r\n`);
+        } else if (step === 3 && res.startsWith('250')) {
+          step = 4;
+          socket.write(`DATA\r\n`);
+        } else if (step === 4 && res.startsWith('354')) {
+          step = 5;
+          const headers = [
+            `From: ${this.from}`,
+            `To: ${message.to}`,
+            `Subject: ${message.subject}`,
+            `Message-ID: <${messageId}@entangled-echo.com>`,
+            `Date: ${new Date().toUTCString()}`,
+            `MIME-Version: 1.0`,
+            `Content-Type: text/html; charset=utf-8`,
+            ``,
+            message.html,
+            `\r\n.\r\n`,
+          ].join('\r\n');
+          socket.write(headers);
+        } else if (step === 5 && res.startsWith('250')) {
+          step = 6;
+          socket.write(`QUIT\r\n`);
+          finish(true);
+        } else if (res.startsWith('4') || res.startsWith('5')) {
+          finish(false, `SMTP rejected command at step ${step}: ${res.trim()}`);
+        }
+      });
+    });
+  }
+}
+
+export function getEmailProvider(): EmailProvider {
+  if (process.env.EMAIL_PROVIDER === 'smtp' || process.env.SMTP_HOST) {
+    return new SmtpEmailProvider();
+  }
+  return new MockEmailProvider();
+}
+
 // Global provider instance (defaults to mock per Section 0 Operating Rule 3)
-export const emailProvider: EmailProvider = new MockEmailProvider();
+export let emailProvider: EmailProvider = getEmailProvider();
+
+export function setEmailProvider(provider: EmailProvider) {
+  emailProvider = provider;
+}
 
 /**
  * Generate a clean, minimal HTML Weekly Performance Digest (FR-34)
