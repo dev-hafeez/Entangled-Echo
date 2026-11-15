@@ -4,7 +4,7 @@ import path from 'path';
 import { config } from '../config.js';
 import { executeNicheAnalysis } from './onboarding.js';
 import { sanitizeAndValidateHandle, createRateLimiter } from '../lib/security.js';
-import { requireAuth, requireUserOrAdmin, isUserAccountOwnerOrAdmin } from '../lib/auth.js';
+import { requireAuth, requireUserOrAdmin, isUserAccountOwnerOrAdmin, findUserByHandle, getUserLinkedHandleRecord } from '../lib/auth.js';
 
 export const recommendationsRouter = Router();
 
@@ -282,12 +282,19 @@ recommendationsRouter.post('/generate', requireUserOrAdmin, async (req: Request,
     return res.status(400).json({ error: err.message });
   }
 
-  // Enforce social account ownership
-  if (!isUserAccountOwnerOrAdmin(req, cleanHandle)) {
-    return res.status(403).json({
-      error: `Forbidden: You do not have permission to generate recommendations for account @${cleanHandle}`,
-      status: 403,
-    });
+  // Enforce social account authorization for recommendation generation:
+  // 1. Administrators can generate recommendations for any account.
+  // 2. Verified or registered account owners can generate recommendations for their account.
+  // 3. Accounts claimed by another registered user are strictly forbidden (403).
+  // 4. Unclaimed demo accounts (e.g. cristiano) are accessible to authenticated users.
+  if (!req.auth?.isAdmin) {
+    const existingBinding = findUserByHandle(cleanHandle);
+    if (existingBinding && existingBinding.userId !== req.auth?.userId) {
+      return res.status(403).json({
+        error: `Forbidden: Social account @${cleanHandle} is registered to another user`,
+        status: 403,
+      });
+    }
   }
 
   // 1. Load user profile, posts, and niche

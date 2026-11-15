@@ -1,9 +1,18 @@
-const getBaseUrl = () => {
-  // In the browser, use the same-site Next.js proxy route so HttpOnly cookies are passed seamlessly
-  if (typeof window !== 'undefined') {
+const getBaseUrl = (endpoint: string = '') => {
+  // In the browser, determine destination based on endpoint and authentication model:
+  // 1. Admin-only endpoints require the same-site Next.js proxy route so HttpOnly admin_session cookie is passed seamlessly.
+  // 2. User endpoints with Clerk JWT authentication connect directly to the Express API to preserve Bearer token credentials.
+  const isAdminEndpoint =
+    endpoint.startsWith('/api/admin') ||
+    endpoint.startsWith('/api/jobs') ||
+    endpoint.startsWith('/api/session') ||
+    endpoint.startsWith('/api/scrape') ||
+    endpoint.startsWith('/api/models');
+
+  if (typeof window !== 'undefined' && isAdminEndpoint) {
     return '/api/proxy';
   }
-  return process.env.INTERNAL_API_URL || process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  return process.env.NEXT_PUBLIC_API_URL || process.env.INTERNAL_API_URL || process.env.API_URL || 'http://localhost:4000';
 };
 
 let clerkTokenGetter: (() => Promise<string | null>) | null = null;
@@ -39,7 +48,7 @@ export async function fetchFromApi(endpoint: string, options: RequestInit = {}) 
     }
   }
 
-  const res = await fetch(`${getBaseUrl()}${endpoint}`, {
+  const res = await fetch(`${getBaseUrl(endpoint)}${endpoint}`, {
     ...options,
     credentials: 'include',
     headers,
@@ -179,8 +188,10 @@ export const api = {
     fetchFromApi(`/api/accounts/${encodeURIComponent(handle)}/audience`),
 
   // FR-31 Data Export (CSV)
-  getCsvExportUrl: (handle: string) =>
-    `${getBaseUrl()}/api/accounts/${encodeURIComponent(handle)}/export/csv`,
+  getCsvExportUrl: (handle: string) => {
+    const ep = `/api/accounts/${encodeURIComponent(handle)}/export/csv`;
+    return `${getBaseUrl(ep)}${ep}`;
+  },
 
   // FR-32 Competitive Analysis
   compareCompetitors: (handles: string[]) =>
