@@ -192,12 +192,106 @@ async function run() {
 
   mockUpstream.close();
 
+  // --- GROUP 5: Real Admin Request Through Browser Route & Proxy to Live Express API ---
+  console.log('\n--- GROUP 5: Real Admin Request Through Proxy to Live Express API ---');
+
+  const REAL_ADMIN_SECRET = 'task2_live_express_admin_secret_987';
+  process.env.ADMIN_SECRET_KEY = REAL_ADMIN_SECRET;
+  process.env.ADMIN_PASSWORD = REAL_ADMIN_SECRET;
+
+  // 5a. Start real Express application
+  const { default: expressApp } = await import('../apps/api/src/index.js');
+  let realExpressServer: http.Server;
+  let realExpressPort: number;
+
+  await new Promise<void>((resolve) => {
+    realExpressServer = expressApp.listen(0, '127.0.0.1', () => {
+      const addr = realExpressServer.address() as any;
+      realExpressPort = addr.port;
+      resolve();
+    });
+  });
+
+  process.env.API_URL = `http://127.0.0.1:${realExpressPort}`;
+
+  // 5b. Log in as admin through Next.js browser route POST /api/auth/login
+  const { POST: loginRoutePost } = await import('../apps/web/src/app/api/auth/login/route.js');
+  const loginReq = new NextRequest('http://localhost:3000/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ password: REAL_ADMIN_SECRET }),
+  });
+  const loginRes = await loginRoutePost(loginReq);
+  const loginBody = await loginRes.json();
+  const rawSetCookie = loginRes.headers.get('set-cookie') || '';
+  const matchCookie = rawSetCookie.match(/admin_session=([^;]+)/);
+  const browserAdminCookie = matchCookie ? matchCookie[1] : '';
+
+  assertTest('POST /api/auth/login returns 200 with { success: true }', loginRes.status === 200 && loginBody.success === true);
+  assertTest('POST /api/auth/login issues HttpOnly admin_session cookie', browserAdminCookie.length > 0 && rawSetCookie.includes('HttpOnly'));
+
+  // 5c. Send real admin request GET /api/proxy/api/admin/status with browser-issued cookie
+  const proxyReq = new NextRequest('http://localhost:3000/api/proxy/api/admin/status', {
+    headers: {
+      Cookie: `admin_session=${browserAdminCookie}`,
+    },
+  });
+  const proxyRes = await GET(proxyReq, { params: { path: ['api', 'admin', 'status'] } });
+  const realExpressBody = await proxyRes.json();
+
+  assertTest(
+    'GET /api/proxy/api/admin/status returns 200 with real Express body',
+    proxyRes.status === 200 &&
+    realExpressBody.status === 'ok' &&
+    realExpressBody.admin === true &&
+    typeof realExpressBody.totalAccountsTracked === 'number' &&
+    typeof realExpressBody.serverUptime === 'number'
+  );
+  console.log('   [Express Access Proof] Upstream payload received:', JSON.stringify(realExpressBody));
+
+  // 5d. Missing admin cookie fails with 403 and body contains no secret
+  const unauthProxyReq = new NextRequest('http://localhost:3000/api/proxy/api/admin/status');
+  const unauthProxyRes = await GET(unauthProxyReq, { params: { path: ['api', 'admin', 'status'] } });
+  const unauthBody = await unauthProxyRes.json();
+  const unauthBodyStr = JSON.stringify(unauthBody);
+
+  assertTest(
+    'GET /api/proxy/api/admin/status with missing cookie returns 403',
+    unauthProxyRes.status === 403
+  );
+  assertTest(
+    'Missing cookie 403 response contains no secrets',
+    !unauthBodyStr.includes(REAL_ADMIN_SECRET) && !unauthBodyStr.includes(browserAdminCookie)
+  );
+
+  // 5e. Tampered admin cookie fails with 403 and body contains no secret
+  const tamperedProxyReq = new NextRequest('http://localhost:3000/api/proxy/api/admin/status', {
+    headers: {
+      Cookie: 'admin_session=tampered.token.value',
+    },
+  });
+  const tamperedProxyRes = await GET(tamperedProxyReq, { params: { path: ['api', 'admin', 'status'] } });
+  const tamperedBody = await tamperedProxyRes.json();
+  const tamperedBodyStr = JSON.stringify(tamperedBody);
+
+  assertTest(
+    'GET /api/proxy/api/admin/status with tampered cookie returns 403',
+    tamperedProxyRes.status === 403
+  );
+  assertTest(
+    'Tampered cookie 403 response contains no secrets',
+    !tamperedBodyStr.includes(REAL_ADMIN_SECRET) && !tamperedBodyStr.includes('tampered.token.value')
+  );
+
+  realExpressServer.close();
+
   console.log('\n================================================================');
   console.log(`Summary: ${passedCount} / ${totalCount} Proxy Security Tests Passed`);
   console.log('================================================================');
 
   if (passedCount !== totalCount) {
     process.exit(1);
+  } else {
+    process.exit(0);
   }
 }
 
