@@ -39,33 +39,41 @@ export default function RecommendationsPage() {
   const [expandedRec, setExpandedRec] = useState<string>('rec_1');
   const [activeTab, setActiveTab] = useState<'all' | 'reels' | 'carousels' | 'posts'>('all');
 
-  // Load user handle and generate recommendations
+  // Immediate resolution on mount: load active/default handle immediately without waiting for external auth script
   useEffect(() => {
-    if (!isLoaded) return;
+    let initial = 'nightcreeper24';
+    if (typeof window !== 'undefined') {
+      initial = localStorage.getItem('ee_active_handle') || 'nightcreeper24';
+    }
+    setHandle(initial);
+    setCustomHandleInput(initial);
+    fetchRecommendations(initial);
+  }, []);
 
-    const resolveHandle = async () => {
-      let resolved = '';
-      if (user) {
-        try {
-          const userProfile = await api.getUserProfile(user.id).catch(() => null);
-          if (userProfile?.profile?.handle) {
-            resolved = userProfile.profile.handle;
-          } else {
-            resolved = localStorage.getItem(`ee_handle_${user.id}`) || 'nightcreeper24';
+  // Once Clerk finishes loading, if authenticated user has an onboarded account, load their account recommendations
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+
+    const checkUserProfile = async () => {
+      try {
+        const userProfile = await api.getUserProfile(user.id).catch(() => null);
+        if (userProfile?.profile?.handle) {
+          const userHandle = userProfile.profile.handle;
+          setHandle(userHandle);
+          setCustomHandleInput(userHandle);
+          fetchRecommendations(userHandle);
+        } else {
+          const stored = localStorage.getItem(`ee_handle_${user.id}`);
+          if (stored) {
+            setHandle(stored);
+            setCustomHandleInput(stored);
+            fetchRecommendations(stored);
           }
-        } catch {
-          resolved = 'nightcreeper24';
         }
-      } else {
-        resolved = (typeof window !== 'undefined' && localStorage.getItem('ee_active_handle')) || 'nightcreeper24';
-      }
-
-      setHandle(resolved);
-      setCustomHandleInput(resolved);
-      fetchRecommendations(resolved);
+      } catch {}
     };
 
-    resolveHandle();
+    checkUserProfile();
   }, [isLoaded, user]);
 
   const fetchRecommendations = async (targetHandle: string) => {
