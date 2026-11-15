@@ -525,11 +525,14 @@ ${evidenceBlock}
 
 13. "summary": 2–3 sentence overview. Every claim must be backed by data points listed above. No marketing language.
 
+14. "keywords": 5–10 core topical domain keywords characterizing this creator's niche (e.g. ["chartered accountancy", "audit", "tax", "acca", "finance exam"]).
+
 Output ONLY valid JSON. No markdown, no backticks, no explanation outside the JSON:
 {
   "niche": "...",
   "sub_niche": "...",
   "content_pillars": ["...", "...", "..."],
+  "keywords": ["...", "...", "..."],
   "tone": "...",
   "target_audience": "...",
   "language_preference": "...",
@@ -546,7 +549,7 @@ Output ONLY valid JSON. No markdown, no backticks, no explanation outside the JS
 
   // ── 5. Call the LLM ────────────────────────────────────────────────────
   if (geminiApiKey) {
-    const candidateModels = ['gemini-3.5-flash-lite', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
+    const candidateModels = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
     for (const model of candidateModels) {
       try {
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
@@ -559,7 +562,8 @@ Output ONLY valid JSON. No markdown, no backticks, no explanation outside the JS
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
               temperature: 0.1,
-              maxOutputTokens: 800,
+              maxOutputTokens: 4096,
+              responseMimeType: 'application/json',
             },
           }),
         });
@@ -570,6 +574,7 @@ Output ONLY valid JSON. No markdown, no backticks, no explanation outside the JS
 
         const aiData = await aiResp.json();
         const rawText = aiData?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+        console.log(`[NicheIQ] ${model} raw output:\n`, rawText);
         const cleanJsonText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
 
         let parsedNiche: any = {};
@@ -634,6 +639,7 @@ function buildResult(
     niche: parsed.niche || 'Insufficient data',
     sub_niche: parsed.sub_niche || 'Insufficient data',
     content_pillars: parsed.content_pillars || [],
+    keywords: Array.isArray(parsed.keywords) ? parsed.keywords : [],
     tone: parsed.tone || 'Insufficient data',
     target_audience: parsed.target_audience || 'Insufficient data',
     language_preference: parsed.language_preference || inferLanguage(lang),

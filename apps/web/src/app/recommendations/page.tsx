@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import {
@@ -12,45 +13,63 @@ import {
   Image as ImageIcon,
   Copy,
   Check,
-  ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Flame,
   Globe,
-  ArrowUpRight,
   RefreshCw,
   Compass,
   Lightbulb,
   Calendar,
   AlertCircle,
   User,
+  ThumbsUp,
+  ThumbsDown,
+  CheckCircle2,
+  ArrowRight,
+  Zap,
+  Target,
+  Tag,
+  Hash,
+  CheckSquare,
+  BookOpen,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
-const POPULAR_HANDLES = ['nightcreeper24', 'cristiano', 'leomessi', 'icc', '100xengineers'];
+const POPULAR_HANDLES = ['tahirabbas_ca', '100xengineers', 'nightcreeper24', 'cristiano', 'leomessi'];
 
 export default function RecommendationsPage() {
+  const router = useRouter();
   const { user, isLoaded } = useUser();
   const [handle, setHandle] = useState<string>('');
   const [customHandleInput, setCustomHandleInput] = useState<string>('');
   const [isEditingHandle, setIsEditingHandle] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
+  const [reanalyzingNiche, setReanalyzingNiche] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [recsData, setRecsData] = useState<any>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [expandedRec, setExpandedRec] = useState<string>('rec_1');
+  const [expandedBlueprints, setExpandedBlueprints] = useState<Record<string, boolean>>({
+    rec_1: true,
+    rec_2: false,
+    rec_3: false,
+  });
   const [activeTab, setActiveTab] = useState<'all' | 'reels' | 'carousels' | 'posts'>('all');
+  const [feedbackMap, setFeedbackMap] = useState<Record<string, 'accepted' | 'rejected'>>({});
+  const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
-  // Immediate resolution on mount: load active/default handle immediately without waiting for external auth script
+  // Initialize handle on mount
   useEffect(() => {
-    let initial = 'nightcreeper24';
+    let initial = 'tahirabbas_ca';
     if (typeof window !== 'undefined') {
-      initial = localStorage.getItem('ee_active_handle') || 'nightcreeper24';
+      initial = localStorage.getItem('ee_active_handle') || 'tahirabbas_ca';
     }
     setHandle(initial);
     setCustomHandleInput(initial);
     fetchRecommendations(initial);
   }, []);
 
-  // Once Clerk finishes loading, if authenticated user has an onboarded account, load their account recommendations
+  // Update with authenticated user handle if available
   useEffect(() => {
     if (!isLoaded || !user) return;
 
@@ -76,14 +95,14 @@ export default function RecommendationsPage() {
     checkUserProfile();
   }, [isLoaded, user]);
 
-  const fetchRecommendations = async (targetHandle: string) => {
+  const fetchRecommendations = async (targetHandle: string, forceRefresh: boolean = false) => {
     const clean = targetHandle.trim().toLowerCase().replace(/^@/, '');
     if (!clean) return;
 
     setLoading(true);
     setErrorMessage(null);
     try {
-      const data = await api.generateRecommendations(clean);
+      const data = await api.generateRecommendations(clean, 'instagram', forceRefresh);
       if (data?.recommendations && data.recommendations.length > 0) {
         setRecsData(data);
       } else {
@@ -103,8 +122,11 @@ export default function RecommendationsPage() {
     setHandle(newHandle);
     setCustomHandleInput(newHandle);
     setIsEditingHandle(false);
-    if (user?.id) {
-      localStorage.setItem(`ee_handle_${user.id}`, newHandle);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ee_active_handle', newHandle);
+      if (user?.id) {
+        localStorage.setItem(`ee_handle_${user.id}`, newHandle);
+      }
     }
     fetchRecommendations(newHandle);
   };
@@ -117,10 +139,69 @@ export default function RecommendationsPage() {
     }
   };
 
+  const handleReanalyzeNiche = async () => {
+    if (!handle) return;
+    setReanalyzingNiche(true);
+    setErrorMessage(null);
+    try {
+      await api.analyzeNiche(handle);
+      await fetchRecommendations(handle, true);
+      setFeedbackToast('Niche & caption intelligence successfully updated by Gemini AI!');
+      setTimeout(() => setFeedbackToast(null), 3500);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to re-analyze niche.');
+    } finally {
+      setReanalyzingNiche(false);
+    }
+  };
+
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const toggleBlueprint = (id: string) => {
+    setExpandedBlueprints((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
+  const handleSchedulePost = (rec: any) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(
+        'ee_pending_schedule',
+        JSON.stringify({
+          handle,
+          caption: rec.caption_draft,
+          hashtags: rec.suggested_hashtags || [],
+          mediaType: rec.recommended_format === 'reel' ? 'video' : rec.recommended_format,
+        })
+      );
+    }
+    router.push('/calendar');
+  };
+
+  const handleFeedback = async (rec: any, accepted: boolean) => {
+    try {
+      setFeedbackMap((prev) => ({ ...prev, [rec.id]: accepted ? 'accepted' : 'rejected' }));
+      await api.submitRecommendationFeedback({
+        handle,
+        recommendationId: rec.id,
+        accepted,
+        mediaType: rec.recommended_format,
+        topic: rec.trend_topic || rec.title,
+      });
+      setFeedbackToast(
+        accepted
+          ? `Feedback saved! Format preference for ${rec.recommended_format.toUpperCase()} increased.`
+          : `Feedback saved! Topics related to "${rec.trend_topic || rec.title}" will be downranked.`
+      );
+      setTimeout(() => setFeedbackToast(null), 3500);
+    } catch (err) {
+      console.warn('Feedback submission failed:', err);
+    }
   };
 
   const formatIcon = (fmt: string) => {
@@ -135,34 +216,43 @@ export default function RecommendationsPage() {
     }
   };
 
-  const filteredRecs = recsData?.recommendations?.filter((r: any) => {
-    if (activeTab === 'reels') return r.recommended_format === 'reel' || r.recommended_format === 'video';
-    if (activeTab === 'carousels') return r.recommended_format === 'carousel';
-    if (activeTab === 'posts') return r.recommended_format === 'image';
-    return true;
-  }) || [];
+  const filteredRecs =
+    recsData?.recommendations?.filter((r: any) => {
+      if (activeTab === 'reels') return r.recommended_format === 'reel' || r.recommended_format === 'video';
+      if (activeTab === 'carousels') return r.recommended_format === 'carousel';
+      if (activeTab === 'posts') return r.recommended_format === 'image';
+      return true;
+    }) || [];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-16">
-      {/* Top Header & Context Bar */}
+    <div className="max-w-7xl mx-auto space-y-8 pb-20">
+      {/* Toast Notification */}
+      {feedbackToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-slate-700 animate-in fade-in slide-in-from-bottom-3">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span className="text-xs font-medium">{feedbackToast}</span>
+        </div>
+      )}
+
+      {/* Top Header & Account Switcher */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-purple-700 bg-purple-50 px-2.5 py-1 rounded-full border border-purple-200 flex items-center gap-1.5">
               <Flame className="w-3.5 h-3.5 text-purple-600" />
-              Live Trends & Algorithmic Blueprint
+              Real-Time Trends & Gemini Niche Matcher
             </span>
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900 mt-2 tracking-tight">
             AI Content Recommendations
           </h1>
-          <p className="text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
-            Correlated against live Google Search Trends, platform viral topics, your calibrated statistical format lift, and optimal posting timelines.
+          <p className="text-sm text-slate-600 mt-1 max-w-2xl leading-relaxed">
+            Real-time Google search trends correlated against your verified niche, with step-by-step next steps, production blueprints, and copyable captions.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Creator Account Selector / Pill */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Creator Account Selector */}
           {isEditingHandle ? (
             <form onSubmit={handleCustomHandleSubmit} className="flex items-center gap-1.5">
               <input
@@ -175,7 +265,7 @@ export default function RecommendationsPage() {
               />
               <button
                 type="submit"
-                className="px-2.5 py-1.5 text-xs font-semibold bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                className="px-2.5 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-black transition"
               >
                 Go
               </button>
@@ -193,7 +283,7 @@ export default function RecommendationsPage() {
               <span>@{handle || 'creator'}</span>
               <button
                 onClick={() => setIsEditingHandle(true)}
-                className="text-[10px] text-purple-600 hover:text-purple-800 underline font-medium ml-1"
+                className="text-[11px] text-purple-600 hover:text-purple-800 underline font-medium ml-1"
                 title="Change Creator Account"
               >
                 Switch
@@ -202,32 +292,42 @@ export default function RecommendationsPage() {
           )}
 
           <button
-            onClick={() => handle && fetchRecommendations(handle)}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition shadow-sm"
+            onClick={() => handle && fetchRecommendations(handle, true)}
+            disabled={loading || reanalyzingNiche}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition shadow-2xs disabled:opacity-60"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh Trends
           </button>
-          <Link
-            href="/dashboard"
-            className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+
+          <button
+            onClick={handleReanalyzeNiche}
+            disabled={loading || reanalyzingNiche}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:text-purple-900 bg-purple-50 border border-purple-200 hover:bg-purple-100 rounded-lg transition shadow-2xs disabled:opacity-60"
           >
-            Back to Dashboard
+            <Sparkles className={`w-3.5 h-3.5 ${reanalyzingNiche ? 'animate-spin' : ''}`} />
+            {reanalyzingNiche ? 'Analyzing Niche...' : 'Re-Analyze Niche with AI'}
+          </button>
+
+          <Link
+            href="/calendar"
+            className="px-3 py-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 border border-slate-300 rounded-lg hover:bg-slate-50 transition"
+          >
+            Calendar
           </Link>
         </div>
       </div>
 
-      {/* Account Quick Switch Pills */}
+      {/* Account Quick Switch Bar */}
       <div className="flex items-center gap-2 overflow-x-auto text-xs pb-1 no-scrollbar">
-        <span className="text-slate-400 font-medium shrink-0">Sample Accounts:</span>
+        <span className="text-slate-500 font-medium shrink-0">Sample Accounts:</span>
         {POPULAR_HANDLES.map((h) => (
           <button
             key={h}
             onClick={() => handleSelectHandle(h)}
             className={`px-2.5 py-1 rounded-md transition font-medium shrink-0 ${
               handle === h
-                ? 'bg-purple-100 text-purple-800 font-semibold border border-purple-200'
+                ? 'bg-slate-900 text-white font-semibold'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
@@ -236,7 +336,7 @@ export default function RecommendationsPage() {
         ))}
       </div>
 
-      {/* Error Banner */}
+      {/* Error Message */}
       {errorMessage && (
         <div className="p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-800 flex items-center justify-between gap-4 animate-in fade-in">
           <div className="flex items-center gap-2.5 text-sm">
@@ -244,7 +344,7 @@ export default function RecommendationsPage() {
             <span>{errorMessage}</span>
           </div>
           <button
-            onClick={() => handle && fetchRecommendations(handle)}
+            onClick={() => handle && fetchRecommendations(handle, true)}
             className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-semibold hover:bg-rose-700 transition shrink-0"
           >
             Retry
@@ -257,70 +357,91 @@ export default function RecommendationsPage() {
           <div className="w-10 h-10 border-4 border-slate-200 border-t-purple-600 rounded-full animate-spin" />
           <div className="text-center space-y-1">
             <p className="text-sm font-semibold text-slate-800">
-              Ingesting live search trends and correlating with your niche profile...
+              Correlating real-time Google search trends with your verified niche...
             </p>
-            <p className="text-xs text-slate-400">
-              Cross-referencing Google Trends, optimal slot windows, and format lifts for @{handle}
+            <p className="text-xs text-slate-500">
+              Extracting domain insights, next steps, and creation blueprints for @{handle}
             </p>
           </div>
         </div>
       ) : recsData ? (
         <>
-          {/* Creator Intel Highlights Strip */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm flex items-start gap-3">
-              <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-600 shrink-0">
-                <Compass className="w-5 h-5" />
+          {/* Creator Niche Ground Truth Intelligence Bar */}
+          <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                  {handle.slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900 text-base">@{handle}</span>
+                    <span className="text-[11px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                      {recsData?.user_niche || 'Digital Creator'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Sub-Niche: <span className="font-medium text-slate-700">{recsData?.sub_niche || 'Core Industry'}</span> • Follower Tier: <span className="font-medium text-slate-700">{recsData?.follower_tier || 'Micro-Influencer'}</span>
+                  </p>
+                </div>
               </div>
-              <div className="space-y-0.5">
-                <span className="text-xs text-slate-500 font-medium">Classified Niche</span>
-                <div className="text-sm font-bold text-slate-900 leading-tight">
-                  {recsData?.user_niche || 'Digital Creator'}
+
+              <div className="flex flex-wrap items-center gap-3 text-xs">
+                <div className="flex items-center gap-1.5 text-slate-700 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
+                  <TrendingUp className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Best Format: <strong className="capitalize">{recsData?.dominant_format_recommendation || 'Reels'}</strong></span>
+                </div>
+                <div className="flex items-center gap-1.5 text-slate-700 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Optimal Slot: <strong>{recsData?.optimal_time_window || '5:00 PM - 7:00 PM (UTC)'}</strong></span>
+                </div>
+                <div className="flex items-center gap-1.5 text-slate-700 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
+                  <Globe className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Language: <strong>{recsData?.language_preference || 'English'}</strong></span>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm flex items-start gap-3">
-              <div className="p-2.5 rounded-lg bg-purple-50 border border-purple-100 text-purple-600 shrink-0">
-                <TrendingUp className="w-5 h-5" />
-              </div>
-              <div className="space-y-0.5">
-                <span className="text-xs text-slate-500 font-medium">Recommended Format</span>
-                <div className="text-sm font-bold text-slate-900 capitalize leading-tight flex items-center gap-1.5">
-                  {formatIcon(recsData?.dominant_format_recommendation)}
-                  <span>{recsData?.dominant_format_recommendation || 'Reels'}</span>
-                </div>
-              </div>
-            </div>
+            {/* Content Pillars & Keywords */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+              <span className="font-semibold text-slate-500 flex items-center gap-1">
+                <Target className="w-3.5 h-3.5 text-slate-400" />
+                Content Pillars:
+              </span>
+              {(recsData?.content_pillars || ['Core Expertise', 'Behind The Scenes', 'Industry Guidance']).map(
+                (p: string, i: number) => (
+                  <span
+                    key={i}
+                    className="px-2.5 py-0.5 bg-slate-100 text-slate-700 font-medium rounded-md border border-slate-200"
+                  >
+                    {p}
+                  </span>
+                )
+              )}
 
-            <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm flex items-start gap-3">
-              <div className="p-2.5 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 shrink-0">
-                <Clock className="w-5 h-5" />
-              </div>
-              <div className="space-y-0.5">
-                <span className="text-xs text-slate-500 font-medium">Peak Engagement Window</span>
-                <div className="text-sm font-bold text-slate-900 leading-tight">
-                  {recsData?.optimal_time_window || '6:00 PM - 8:00 PM UTC'}
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm flex items-start gap-3">
-              <div className="p-2.5 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 shrink-0">
-                <Globe className="w-5 h-5" />
-              </div>
-              <div className="space-y-0.5">
-                <span className="text-xs text-slate-500 font-medium">Target Language</span>
-                <div className="text-sm font-bold text-slate-900 leading-tight">
-                  {recsData?.language_preference || 'English'}
-                </div>
-              </div>
+              {recsData?.keywords && recsData.keywords.length > 0 && (
+                <>
+                  <span className="text-slate-300 mx-1">|</span>
+                  <span className="font-semibold text-slate-500 flex items-center gap-1">
+                    <Tag className="w-3.5 h-3.5 text-slate-400" />
+                    Keywords:
+                  </span>
+                  {recsData.keywords.slice(0, 5).map((kw: string, i: number) => (
+                    <span
+                      key={i}
+                      className="px-2 py-0.5 bg-purple-50 text-purple-700 font-medium rounded-md border border-purple-100 text-[11px]"
+                    >
+                      {kw}
+                    </span>
+                  ))}
+                </>
+              )}
             </div>
           </div>
 
           {/* Live Google Trends Real-Time Ticker */}
           {recsData?.live_trend_signals && recsData.live_trend_signals.length > 0 && (
-            <div className="p-3.5 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200 rounded-xl flex flex-col md:flex-row md:items-center gap-3 text-xs shadow-xs">
+            <div className="p-3.5 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200 rounded-xl flex flex-col md:flex-row md:items-center gap-3 text-xs shadow-2xs">
               <div className="flex items-center gap-2 font-bold text-amber-900 shrink-0">
                 <Flame className="w-4 h-4 text-orange-600 animate-pulse" />
                 <span>Live Google Search Trends:</span>
@@ -355,7 +476,7 @@ export default function RecommendationsPage() {
                 onClick={() => setActiveTab('all')}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
                   activeTab === 'all'
-                    ? 'bg-slate-900 text-white shadow-sm'
+                    ? 'bg-slate-900 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
@@ -365,18 +486,18 @@ export default function RecommendationsPage() {
                 onClick={() => setActiveTab('reels')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
                   activeTab === 'reels'
-                    ? 'bg-purple-700 text-white shadow-sm'
+                    ? 'bg-purple-700 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
                 <Video className="w-3.5 h-3.5" />
-                Reels
+                Reels / Video
               </button>
               <button
                 onClick={() => setActiveTab('carousels')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
                   activeTab === 'carousels'
-                    ? 'bg-blue-700 text-white shadow-sm'
+                    ? 'bg-blue-700 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
@@ -387,24 +508,24 @@ export default function RecommendationsPage() {
                 onClick={() => setActiveTab('posts')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
                   activeTab === 'posts'
-                    ? 'bg-emerald-700 text-white shadow-sm'
+                    ? 'bg-emerald-700 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
                 <ImageIcon className="w-3.5 h-3.5" />
-                Posts
+                Static Posts
               </button>
             </div>
 
             <div className="text-xs text-slate-500 font-medium hidden sm:block">
-              Matched against Live Search Trends
+              Niche-Calibrated Opportunities
             </div>
           </div>
 
-          {/* Recommendations Content Cards */}
+          {/* 3-Column Recommendations Grid */}
           {filteredRecs.length === 0 ? (
             <div className="py-12 text-center space-y-2 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
-              <p className="text-sm font-semibold text-slate-700">No recommendations found for this filter.</p>
+              <p className="text-sm font-semibold text-slate-700">No recommendations found for this format filter.</p>
               <button
                 onClick={() => setActiveTab('all')}
                 className="text-xs text-purple-600 hover:text-purple-800 font-medium underline"
@@ -413,204 +534,244 @@ export default function RecommendationsPage() {
               </button>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
               {filteredRecs.map((rec: any, idx: number) => {
-                const isExpanded = expandedRec === rec.id;
+                const isExpanded = expandedBlueprints[rec.id] ?? false;
+                const userFeedback = feedbackMap[rec.id];
+
                 return (
                   <div
                     key={rec.id || idx}
-                    className="rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden"
+                    className="rounded-2xl border border-slate-200 bg-white shadow-xs hover:shadow-md transition duration-200 flex flex-col justify-between overflow-hidden"
                   >
-                    {/* Top Opportunity Bar */}
-                    <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
-                      <div className="space-y-1.5">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-xs font-bold uppercase tracking-wider text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded-full">
+                    <div className="p-5 space-y-4">
+                      {/* Top Opportunity Header */}
+                      <div className="space-y-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200">
                             Opportunity #{idx + 1}
                           </span>
-                          <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                            {rec.niche_match_score}% Niche Match
+                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                            {rec.niche_match_score || 95}% Match
                           </span>
-                          <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                        </div>
+
+                        {/* Format & Lift Pill */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-semibold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md flex items-center gap-1.5 capitalize">
+                            {formatIcon(rec.recommended_format)}
+                            {rec.recommended_format}
+                          </span>
+                          <span className="text-xs font-semibold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-md border border-purple-200">
                             {rec.format_lift}
                           </span>
-                          <span className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                            <Flame className="w-3.5 h-3.5 text-amber-600" />
-                            {rec.trend_source || 'Google Trends (Live)'}
-                          </span>
-                          {rec.trend_traffic && (
-                            <span className="text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
-                              📈 {rec.trend_traffic}
-                            </span>
-                          )}
                         </div>
-                        <h3 className="text-xl font-bold text-slate-900 tracking-tight">
+
+                        {/* Title */}
+                        <h3 className="text-base font-bold text-slate-900 leading-snug tracking-tight">
                           {rec.title}
                         </h3>
-                        {rec.trend_news_context && (
-                          <div className="text-xs text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-1.5 flex items-center gap-2 max-w-3xl shadow-2xs">
-                            <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span className="font-semibold text-slate-800 shrink-0">Live Search Driver:</span>
-                            <span className="truncate">{rec.trend_news_context}</span>
+
+                        {/* Trend Context */}
+                        <div className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-2.5 space-y-1">
+                          <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+                            <Flame className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            <span>Trend: {rec.trend_topic}</span>
                           </div>
-                        )}
-                        <p className="text-xs text-slate-600 leading-relaxed max-w-3xl">
-                          {rec.rationale}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setExpandedRec(isExpanded ? '' : rec.id)}
-                          className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition shadow-sm flex items-center gap-1.5"
-                        >
-                          <span>{isExpanded ? 'Collapse Blueprint' : 'View Creation Guide'}</span>
-                          <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Strategy & Timing Overview */}
-                    <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-slate-100">
-                      <div className="space-y-1">
-                        <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                          Recommended Media Type
-                        </span>
-                        <div className="flex items-center gap-2 text-sm font-bold text-slate-800 capitalize">
-                          {formatIcon(rec.recommended_format)}
-                          <span>{rec.recommended_format}</span>
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          Higher retention & algorithmic discovery
-                        </p>
-                      </div>
-
-                      <div className="space-y-1">
-                        <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                          Optimal Posting Time
-                        </span>
-                        <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
-                          <Clock className="w-4 h-4 text-amber-500" />
-                          <span>{rec.optimal_posting_time}</span>
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          Calibrated from your audience peak reach
-                        </p>
-                      </div>
-
-                      <div className="space-y-1">
-                        <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                          Suggested Timeline Day
-                        </span>
-                        <div className="flex items-center gap-2 text-sm font-bold text-slate-800">
-                          <Calendar className="w-4 h-4 text-blue-500" />
-                          <span>{rec.recommended_day}</span>
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          Highest weekly engagement surge
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Caption & Hashtag Draft Box */}
-                    <div className="p-6 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                          <Sparkles className="w-4 h-4 text-purple-600" />
-                          Generated Caption Draft ({recsData?.language_preference || 'English'})
-                        </span>
-                        <button
-                          onClick={() => handleCopy(rec.caption_draft, `cap_${rec.id}`)}
-                          className="text-xs font-semibold text-purple-700 hover:text-purple-900 flex items-center gap-1 transition"
-                        >
-                          {copiedId === `cap_${rec.id}` ? (
-                            <>
-                              <Check className="w-3.5 h-3.5 text-emerald-600" />
-                              <span className="text-emerald-600">Copied!</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3.5 h-3.5" />
-                              <span>Copy Caption</span>
-                            </>
+                          {rec.trend_news_context && (
+                            <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                              {rec.trend_news_context}
+                            </p>
                           )}
-                        </button>
+                          <div className="text-[10px] text-slate-400 font-medium">
+                            Source: {rec.trend_source} • {rec.trend_traffic || 'Trending'}
+                          </div>
+                        </div>
+
+                        {/* Rationale */}
+                        <div className="text-xs text-slate-700 leading-relaxed bg-purple-50/50 border border-purple-100 rounded-lg p-2.5">
+                          <strong className="text-purple-900 block mb-0.5">Why This Fits Your Niche:</strong>
+                          {rec.rationale}
+                        </div>
                       </div>
 
-                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-800 leading-relaxed font-normal">
-                        {rec.caption_draft}
+                      {/* Next Steps Checklist */}
+                      <div className="space-y-2 pt-2 border-t border-slate-100">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 uppercase tracking-wider">
+                          <CheckSquare className="w-4 h-4 text-purple-600" />
+                          <span>Actionable Next Steps</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {(rec.next_steps || [
+                            `Step 1: Hook & Concept - Craft a compelling 5-second opening for ${rec.title}.`,
+                            `Step 2: Scripting & Visuals - Break down 3 key takeaways with high-contrast text overlays.`,
+                            `Step 3: Call to Action - Ask audience for their reaction and pin your clarifying comment.`,
+                          ]).map((step: string, sIdx: number) => (
+                            <div
+                              key={sIdx}
+                              className="text-xs text-slate-700 bg-slate-50 border border-slate-150 rounded-lg p-2 leading-relaxed flex items-start gap-2"
+                            >
+                              <span className="w-4 h-4 rounded-full bg-purple-100 text-purple-700 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                                {sIdx + 1}
+                              </span>
+                              <span>{step}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
 
-                      {/* Hashtags */}
-                      <div className="flex flex-wrap items-center gap-2 pt-1">
-                        <span className="text-xs font-medium text-slate-500">Suggested Tags:</span>
-                        {rec.suggested_hashtags?.map((tag: string, tIdx: number) => (
-                          <span
-                            key={tIdx}
-                            className="text-xs font-mono font-medium px-2.5 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200"
+                      {/* Creation Blueprint Toggle */}
+                      {rec.creation_blueprint && (
+                        <div className="pt-2 border-t border-slate-100">
+                          <button
+                            onClick={() => toggleBlueprint(rec.id)}
+                            className="w-full flex items-center justify-between text-xs font-bold text-slate-800 hover:text-purple-700 py-1.5 transition"
                           >
-                            {tag}
+                            <span className="flex items-center gap-1.5">
+                              <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                              {isExpanded ? 'Hide Production Blueprint' : 'View Production Blueprint'}
+                            </span>
+                            {isExpanded ? (
+                              <ChevronUp className="w-4 h-4 text-slate-500" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-slate-500" />
+                            )}
+                          </button>
+
+                          {isExpanded && (
+                            <div className="mt-2.5 p-3.5 rounded-xl bg-slate-900 text-white space-y-3 text-xs animate-in fade-in">
+                              <div className="space-y-1">
+                                <span className="font-bold text-purple-400 block uppercase text-[10px] tracking-wider">
+                                  1. Hook (First 3s)
+                                </span>
+                                <p className="text-slate-300 leading-relaxed text-[11px]">
+                                  {rec.creation_blueprint.hook}
+                                </p>
+                              </div>
+
+                              <div className="space-y-1">
+                                <span className="font-bold text-blue-400 block uppercase text-[10px] tracking-wider">
+                                  2. Value Delivery Body
+                                </span>
+                                <p className="text-slate-300 leading-relaxed text-[11px] whitespace-pre-line">
+                                  {rec.creation_blueprint.body}
+                                </p>
+                              </div>
+
+                              <div className="space-y-1">
+                                <span className="font-bold text-emerald-400 block uppercase text-[10px] tracking-wider">
+                                  3. Call To Action
+                                </span>
+                                <p className="text-slate-300 leading-relaxed text-[11px]">
+                                  {rec.creation_blueprint.call_to_action}
+                                </p>
+                              </div>
+
+                              {rec.creation_blueprint.production_tips && (
+                                <div className="pt-2 border-t border-slate-800 space-y-1">
+                                  <span className="font-bold text-slate-400 block uppercase text-[10px] tracking-wider">
+                                    Production Tips
+                                  </span>
+                                  <ul className="space-y-1 text-slate-300 text-[11px]">
+                                    {rec.creation_blueprint.production_tips.map((tip: string, tIdx: number) => (
+                                      <li key={tIdx} className="flex items-start gap-1.5">
+                                        <span className="text-purple-400 font-bold">•</span>
+                                        <span>{tip}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Ready-to-Post Caption Draft Box */}
+                      <div className="space-y-2 pt-2 border-t border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                            Ready-to-Post Draft
                           </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Expanded Creation Blueprint (How to Create It) */}
-                    {isExpanded && rec.creation_blueprint && (
-                      <div className="p-6 bg-slate-900 text-white border-t border-slate-800 space-y-5 animate-in fade-in duration-200">
-                        <div className="flex items-center gap-2">
-                          <Lightbulb className="w-5 h-5 text-amber-400" />
-                          <h4 className="text-base font-bold text-white tracking-tight">
-                            Production Blueprint: How to Create This Content
-                          </h4>
+                          <button
+                            onClick={() => {
+                              const fullText = `${rec.caption_draft}\n\n${(rec.suggested_hashtags || []).join(' ')}`;
+                              handleCopy(fullText, `cap_${rec.id}`);
+                            }}
+                            className="text-xs font-semibold text-purple-700 hover:text-purple-900 flex items-center gap-1 transition"
+                          >
+                            {copiedId === `cap_${rec.id}` ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                <span className="text-emerald-600 font-bold">Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span>Copy Caption</span>
+                              </>
+                            )}
+                          </button>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700 space-y-1.5">
-                            <span className="text-xs font-bold text-purple-400 uppercase tracking-wider">
-                              1. Hook (First 3s)
-                            </span>
-                            <p className="text-xs text-slate-200 leading-relaxed">
-                              {rec.creation_blueprint.hook}
-                            </p>
-                          </div>
-
-                          <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700 space-y-1.5">
-                            <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">
-                              2. Value Delivery (15-25s)
-                            </span>
-                            <p className="text-xs text-slate-200 leading-relaxed">
-                              {rec.creation_blueprint.body}
-                            </p>
-                          </div>
-
-                          <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700 space-y-1.5">
-                            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                              3. Call to Action (Final 5s)
-                            </span>
-                            <p className="text-xs text-slate-200 leading-relaxed">
-                              {rec.creation_blueprint.call_to_action}
-                            </p>
-                          </div>
+                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 leading-relaxed font-normal max-h-36 overflow-y-auto whitespace-pre-wrap select-text">
+                          {rec.caption_draft}
                         </div>
 
-                        {rec.creation_blueprint.production_tips && (
-                          <div className="space-y-2 pt-2">
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                              Technical Production Rules
-                            </span>
-                            <ul className="space-y-1.5 text-xs text-slate-300">
-                              {rec.creation_blueprint.production_tips.map((tip: string, tipIdx: number) => (
-                                <li key={tipIdx} className="flex items-center gap-2">
-                                  <span className="text-purple-400 font-bold">•</span>
-                                  <span>{tip}</span>
-                                </li>
-                              ))}
-                            </ul>
+                        {/* Suggested Hashtags */}
+                        {rec.suggested_hashtags && rec.suggested_hashtags.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1 pt-1">
+                            {rec.suggested_hashtags.map((tag: string, tIdx: number) => (
+                              <span
+                                key={tIdx}
+                                className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200"
+                              >
+                                {tag}
+                              </span>
+                            ))}
                           </div>
                         )}
                       </div>
-                    )}
+                    </div>
+
+                    {/* Card Action Footer */}
+                    <div className="p-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleFeedback(rec, true)}
+                          title="Accurate & helpful recommendation"
+                          className={`p-1.5 rounded-lg border transition text-xs flex items-center gap-1 ${
+                            userFeedback === 'accepted'
+                              ? 'bg-emerald-100 border-emerald-300 text-emerald-800 font-bold'
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          <ThumbsUp className="w-3.5 h-3.5" />
+                          <span className="text-[11px]">Helpful</span>
+                        </button>
+                        <button
+                          onClick={() => handleFeedback(rec, false)}
+                          title="Not relevant to niche"
+                          className={`p-1.5 rounded-lg border transition text-xs flex items-center gap-1 ${
+                            userFeedback === 'rejected'
+                              ? 'bg-rose-100 border-rose-300 text-rose-800 font-bold'
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          <ThumbsDown className="w-3.5 h-3.5" />
+                          <span className="text-[11px]">Downrank</span>
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => handleSchedulePost(rec)}
+                        className="px-3.5 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-black rounded-lg transition shadow-xs flex items-center gap-1.5"
+                      >
+                        <Calendar className="w-3.5 h-3.5 text-purple-300" />
+                        <span>Schedule Post</span>
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -618,7 +779,7 @@ export default function RecommendationsPage() {
           )}
         </>
       ) : (
-        <div className="py-16 text-center space-y-3 border border-slate-200 rounded-2xl bg-white shadow-sm p-8">
+        <div className="py-16 text-center space-y-3 border border-slate-200 rounded-2xl bg-white shadow-xs p-8">
           <p className="text-base font-semibold text-slate-800">
             No recommendations loaded for @{handle}
           </p>
@@ -626,10 +787,10 @@ export default function RecommendationsPage() {
             Select a sample account or enter your Instagram handle above to generate live AI content blueprints.
           </p>
           <button
-            onClick={() => handleSelectHandle('nightcreeper24')}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700 transition"
+            onClick={() => handleSelectHandle('tahirabbas_ca')}
+            className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-black transition"
           >
-            Load Sample Account (@nightcreeper24)
+            Load Sample Account (@tahirabbas_ca)
           </button>
         </div>
       )}

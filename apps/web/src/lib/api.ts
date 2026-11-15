@@ -195,10 +195,23 @@ export const api = {
     fetchFromApi(`/api/media/signed-url?path=${encodeURIComponent(path)}`),
 
   // Trend-Driven Recommendations Engine
-  generateRecommendations: (handle: string, platform: string = 'instagram') =>
+  generateRecommendations: (handle: string, platform: string = 'instagram', refresh: boolean = false) =>
     fetchFromApi('/api/recommendations/generate', {
       method: 'POST',
-      body: JSON.stringify({ handle, platform }),
+      body: JSON.stringify({ handle, platform, refresh }),
+    }),
+
+  submitRecommendationFeedback: (body: {
+    handle: string;
+    recommendationId: string;
+    accepted: boolean;
+    mediaType?: string;
+    topic?: string;
+    feedback?: string;
+  }) =>
+    fetchFromApi('/api/recommendations/feedback', {
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
 
   // FR-30 Audience Breakdown

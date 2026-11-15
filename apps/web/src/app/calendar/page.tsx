@@ -86,7 +86,7 @@ export default function CalendarPage() {
   const [formSubmitting, setFormSubmitting] = useState<boolean>(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Load account handle from local storage
+  // Load account handle and pre-filled draft from local storage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(`ee_handle_${userId}`);
@@ -96,6 +96,27 @@ export default function CalendarPage() {
       } else {
         setActiveHandle('creator');
         setFormHandle('creator');
+      }
+
+      // Check if arriving from AI Recommendations with a pre-filled draft
+      const pendingRaw = localStorage.getItem('ee_pending_schedule');
+      if (pendingRaw) {
+        try {
+          const pending = JSON.parse(pendingRaw);
+          if (pending.caption) {
+            setFormCaption(pending.caption);
+            setFormHashtags(Array.isArray(pending.hashtags) ? pending.hashtags.join(' ') : (pending.hashtags || ''));
+            if (pending.mediaType) {
+              setFormMediaType(pending.mediaType === 'reel' ? 'video' : pending.mediaType);
+            }
+            if (pending.handle) {
+              setFormHandle(pending.handle);
+              setActiveHandle(pending.handle);
+            }
+            setShowScheduleModal(true);
+            localStorage.removeItem('ee_pending_schedule');
+          }
+        } catch {}
       }
     }
   }, [userId]);

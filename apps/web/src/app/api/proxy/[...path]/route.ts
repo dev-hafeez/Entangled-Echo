@@ -99,6 +99,9 @@ async function proxyRequest(req: NextRequest, { params }: { params: { path: stri
   const accept = req.headers.get('accept');
   if (accept) forwardHeaders['accept'] = accept;
 
+  const authHeader = req.headers.get('authorization');
+  if (authHeader) forwardHeaders['authorization'] = authHeader;
+
   // Set ONLY the verified admin_session cookie from server-side cookie store
   if (isAdmin && adminSessionCookie) {
     forwardHeaders['cookie'] = `admin_session=${adminSessionCookie}`;
