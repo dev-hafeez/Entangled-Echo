@@ -120,8 +120,8 @@ sequenceDiagram
 
 ## 4. Verification & Automated Testing
 
-The automated test suite `scripts/test_clerk_auth.ts` verifies 47 discrete security checks across 8 suites:
-1. **Dependency Resolution**: `@clerk/backend` is declared as a direct dependency in `apps/api/package.json` and resolved through pnpm's content-addressable store (`.pnpm`) without ad-hoc symlinks.
+The automated test suite `scripts/test_clerk_auth.ts` verifies 61 discrete security checks across 11 suites:
+1. **Dependency Resolution & Packaging**: `@clerk/backend` is declared as a direct dependency in `apps/api/package.json` and resolved through pnpm's content-addressable store (`.pnpm`) without ad-hoc symlinks.
 2. **Unauthenticated / Malformed Handling**: Every protected route rejects missing, empty, or malformed credentials with `401 Unauthorized`.
 3. **Cryptographic JWT Validation**: Validates RS256 token signatures against RSA public keys, verifies expiration, and enforces allowed `azp` origins.
 4. **Admin Privileges & Bypass Elimination**: Rejects insecure default `admin123` and unsigned `admin_auth=true` cookie. Validates HMAC-SHA256 signed admin session cookies, constant-time header secrets, and Clerk admin role claims.
@@ -129,8 +129,33 @@ The automated test suite `scripts/test_clerk_auth.ts` verifies 47 discrete secur
 6. **Audience Demographics Privacy (FR-30)**: Proves unauthenticated callers get 401, non-owners get 403 (with zero information leakage on whether data exists), and only verified owners and admins get 200.
 7. **Social Account Ownership**: Verifies that users cannot schedule posts, submit feedback, or generate recommendations for other users' accounts, and cannot hijack accounts already claimed by another user.
 8. **Public Endpoints**: Verifies public health and creator discovery endpoints remain accessible without tokens.
+9. **Handle Ownership & Uniqueness (FIX 2)**: Enforces unique handles during onboarding (409 Conflict), denies self-asserted unverified handle access (403 Forbidden), and non-destructively migrates legacy duplicate records.
+10. **Authorization on Mutations (FIX 3)**: Requires admin for account deletion (403 Forbidden), requires internal tick secret with exact 401/503 fail-closed behavior, blocks scheduled post account reassignment (403 Forbidden), protects recommendation preferences (403 Forbidden), and restricts personal model training (403 Forbidden).
+11. **Admin Session Cookie & Proxy Forwarding (FIX 1)**: Verifies that admin sessions authenticate upstream via HttpOnly signed session cookies, that client authorization headers are stripped, and that unauthenticated proxy attempts to admin routes are rejected with 403 Forbidden.
 
 Run the test suite with:
 ```bash
-pnpm --filter api exec tsx ../../scripts/test_clerk_auth.ts
+./apps/api/node_modules/.bin/tsx scripts/test_clerk_auth.ts
 ```
+
+---
+
+## 5. Secret Rotation Inventory
+
+Per the security audit guidelines, committed credentials must be cataloged and marked for immediate rotation. Git history is intentionally preserved without destructive force-pushes or history rewrites to preserve audit traceability and build reproducibility.
+
+| Commit | File | Secret Type | Fingerprint | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| `048ee8d` | `.env.local` / config | Supabase Service Role Key | `eyJhbG...[redacted]` | Compromised - Rotate Required |
+| `00135d6` | `docker-compose.yml` / env | Admin Password | `adm...[redacted]` | Compromised - Rotate Required |
+| Legacy (Working Tree) | `scripts/test_browser_live_account.ts` | Meta Graph API Access Token | `EAAB...[redacted]` | Compromised - Rotate Required |
+| `cd97ebc` | `scripts/test_admin_browser_login.mjs` | Test Admin Credentials | `TEST_A...WORD` | Test Fixture - Rotate / Isolate |
+| `4dde450` | `docker-compose.yml` | Default Admin Password | `admin...123` | Compromised - Rotate Required |
+| `4dde450` | `.env.example` | Default Admin Password | `admin...123` | Example Config - Replaced with fail-closed requirement |
+| `6f5c3f0` | `.env.example` | Default Admin Password | `admin...123` | Example Config - Replaced with fail-closed requirement |
+
+### Rotation Action Plan:
+1. **Supabase Service Role Key**: Generate a new service role secret in the Supabase project dashboard; revoke the legacy token.
+2. **Admin Password / Admin Secret Key**: Deploy with cryptographically generated 256-bit entropy keys via `openssl rand -base64 32`. In production, if unset, the application fails closed with 503 instead of falling back to default values.
+3. **Meta Graph API Tokens**: Revoke existing user and system user tokens in the Meta Developer Portal; issue fresh tokens with restricted development scopes.
+4. **Internal Tick Secret**: Configure a secure random token in environment variables; unconfigured deployments fail closed with 503.

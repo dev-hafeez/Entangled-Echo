@@ -489,19 +489,34 @@ export interface UserSessionRecord {
 }
 
 /**
+ * Canonical social account handle normalizer.
+ * Applies Unicode NFKC normalization, lowercase folding, trims whitespace,
+ * and strips leading @ characters.
+ */
+export function normalizeHandle(handle: string): string {
+  if (typeof handle !== 'string') return '';
+  return handle
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/^@+/, '')
+    .trim();
+}
+
+/**
  * Helper to retrieve the linked social account record for a given userId.
  * Checks storage/user_sessions/${userId}.json.
  */
-export function getUserLinkedHandleRecord(userId: string): UserSessionRecord | null {
+export function getUserLinkedHandleRecord(userId: string, customDir?: string): UserSessionRecord | null {
   try {
-    const file = path.join(config.localStorageDir, 'user_sessions', `${userId}.json`);
+    const dir = customDir || path.join(config.localStorageDir, 'user_sessions');
+    const file = path.join(dir, `${userId}.json`);
     if (fs.existsSync(file)) {
       const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
       if (data && data.handle && typeof data.handle === 'string') {
         return {
           ...data,
           userId: data.userId || userId,
-          handle: data.handle.toLowerCase().replace(/^@/, '').trim(),
+          handle: normalizeHandle(data.handle),
           isVerified: Boolean(data.isVerified),
         };
       }
@@ -513,49 +528,72 @@ export function getUserLinkedHandleRecord(userId: string): UserSessionRecord | n
 /**
  * Helper to retrieve the linked social account handle for a given userId.
  */
-export function getUserLinkedHandle(userId: string): string | null {
-  const record = getUserLinkedHandleRecord(userId);
+export function getUserLinkedHandle(userId: string, customDir?: string): string | null {
+  const record = getUserLinkedHandleRecord(userId, customDir);
   return record ? record.handle : null;
 }
 
 /**
  * Searches storage/user_sessions for an existing binding to targetHandle.
+ * In the presence of legacy duplicate bindings, resolves deterministically to the
+ * first-bound legitimate owner (earliest createdAt/updatedAt timestamp).
  */
-export function findUserByHandle(targetHandle: string): UserSessionRecord | null {
-  const cleanTarget = targetHandle.toLowerCase().replace(/^@/, '').trim();
-  const dir = path.join(config.localStorageDir, 'user_sessions');
+export function findUserByHandle(targetHandle: string, customDir?: string): UserSessionRecord | null {
+  const cleanTarget = normalizeHandle(targetHandle);
+  if (!cleanTarget) return null;
+
+  const dir = customDir || path.join(config.localStorageDir, 'user_sessions');
   if (!fs.existsSync(dir)) return null;
 
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.json'));
+  const matches: { record: UserSessionRecord; timestamp: number }[] = [];
+
   for (const file of files) {
     try {
       const fullPath = path.join(dir, file);
       const data = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
       if (data && data.handle && typeof data.handle === 'string') {
-        const h = data.handle.toLowerCase().replace(/^@/, '').trim();
+        const h = normalizeHandle(data.handle);
         if (h === cleanTarget) {
           const userId = data.userId || path.basename(file, '.json');
-          return {
-            ...data,
-            userId,
-            handle: h,
-            isVerified: Boolean(data.isVerified),
-          };
+          const timestamp = data.createdAt
+            ? new Date(data.createdAt).getTime()
+            : data.updatedAt
+            ? new Date(data.updatedAt).getTime()
+            : 0;
+          matches.push({
+            record: {
+              ...data,
+              userId,
+              handle: h,
+              isVerified: Boolean(data.isVerified),
+            },
+            timestamp,
+          });
         }
       }
     } catch {}
   }
-  return null;
+
+  if (matches.length === 0) return null;
+
+  // Canonical first-bound resolution: earliest timestamp wins
+  matches.sort((a, b) => a.timestamp - b.timestamp);
+  return matches[0].record;
 }
 
 /**
- * Checks storage/user_sessions/ and migrates any duplicate handle bindings
- * to the first-bound user (by createdAt/updatedAt).
+ * Checks storage/user_sessions/ and inventories any duplicate handle bindings.
+ * Strictly non-destructive: NEVER deletes, overwrites, or rewrites session files on disk.
  */
-export function migrateDuplicateHandles(): { duplicatesMigrated: number; uniqueHandles: number } {
-  const dir = path.join(config.localStorageDir, 'user_sessions');
+export function migrateDuplicateHandles(customDir?: string): {
+  duplicatesMigrated: number;
+  uniqueHandles: number;
+  duplicateDetails: { handle: string; count: number; canonicalUserId: string; duplicateUserIds: string[] }[];
+} {
+  const dir = customDir || path.join(config.localStorageDir, 'user_sessions');
   if (!fs.existsSync(dir)) {
-    return { duplicatesMigrated: 0, uniqueHandles: 0 };
+    return { duplicatesMigrated: 0, uniqueHandles: 0, duplicateDetails: [] };
   }
 
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.json'));
@@ -566,40 +604,45 @@ export function migrateDuplicateHandles(): { duplicatesMigrated: number; uniqueH
       const fullPath = path.join(dir, f);
       const data = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
       if (data && data.handle && typeof data.handle === 'string') {
-        const clean = data.handle.toLowerCase().replace(/^@/, '').trim();
-        const timestamp = data.createdAt ? new Date(data.createdAt).getTime() : (data.updatedAt ? new Date(data.updatedAt).getTime() : 0);
-        const list = handleMap.get(clean) || [];
-        list.push({ file: f, userId: data.userId || path.basename(f, '.json'), timestamp });
-        handleMap.set(clean, list);
+        const clean = normalizeHandle(data.handle);
+        if (clean) {
+          const timestamp = data.createdAt
+            ? new Date(data.createdAt).getTime()
+            : data.updatedAt
+            ? new Date(data.updatedAt).getTime()
+            : 0;
+          const list = handleMap.get(clean) || [];
+          list.push({ file: f, userId: data.userId || path.basename(f, '.json'), timestamp });
+          handleMap.set(clean, list);
+        }
       }
     } catch {}
   }
 
-  let duplicatesMigrated = 0;
+  let duplicatesCount = 0;
+  const duplicateDetails: { handle: string; count: number; canonicalUserId: string; duplicateUserIds: string[] }[] = [];
+
   for (const [handle, records] of handleMap.entries()) {
     if (records.length > 1) {
-      // Sort to find the first-bound user (earliest timestamp)
+      // Sort to identify the first-bound canonical user
       records.sort((a, b) => a.timestamp - b.timestamp);
       const firstBound = records[0];
-      // All subsequent records are duplicates that must be dissociated
-      for (let i = 1; i < records.length; i++) {
-        const dup = records[i];
-        const dupPath = path.join(dir, dup.file);
-        try {
-          const dupData = JSON.parse(fs.readFileSync(dupPath, 'utf-8'));
-          delete dupData.handle;
-          dupData.isVerified = false;
-          dupData.duplicateDissociatedAt = new Date().toISOString();
-          dupData.duplicateOfHandle = handle;
-          dupData.firstBoundUserId = firstBound.userId;
-          fs.writeFileSync(dupPath, JSON.stringify(dupData, null, 2));
-          duplicatesMigrated++;
-        } catch {}
-      }
+      const dupUserIds = records.slice(1).map((r) => r.userId);
+      duplicatesCount += dupUserIds.length;
+      duplicateDetails.push({
+        handle,
+        count: records.length,
+        canonicalUserId: firstBound.userId,
+        duplicateUserIds: dupUserIds,
+      });
     }
   }
 
-  return { duplicatesMigrated, uniqueHandles: handleMap.size };
+  return {
+    duplicatesMigrated: duplicatesCount,
+    uniqueHandles: handleMap.size,
+    duplicateDetails,
+  };
 }
 
 /**
@@ -607,7 +650,7 @@ export function migrateDuplicateHandles(): { duplicatesMigrated: number; uniqueH
  * Single source of truth:
  * 1. Administrator (`req.auth?.isAdmin === true`) is always authorized.
  * 2. Unverified handles ALWAYS return false.
- * 3. Verified handles are authorized only if caller's session record matches targetHandle.
+ * 3. Verified handles are authorized only if caller is the canonical first-bound owner of targetHandle.
  */
 export function isUserAccountOwnerOrAdmin(req: Request, targetHandle: string): boolean {
   if (req.auth?.isAdmin) {
@@ -616,12 +659,21 @@ export function isUserAccountOwnerOrAdmin(req: Request, targetHandle: string): b
   if (!req.auth?.userId) {
     return false;
   }
-  const cleanTarget = targetHandle.toLowerCase().replace(/^@/, '').trim();
+  const cleanTarget = normalizeHandle(targetHandle);
+  if (!cleanTarget) return false;
+
   const record = getUserLinkedHandleRecord(req.auth.userId);
   if (!record || !record.isVerified) {
     return false;
   }
-  return record.handle === cleanTarget;
+
+  if (record.handle !== cleanTarget) {
+    return false;
+  }
+
+  // Confirm caller is canonical first-bound owner of this handle in case of duplicate bindings
+  const canonical = findUserByHandle(cleanTarget);
+  return canonical !== null && canonical.userId === req.auth.userId;
 }
 
 /**

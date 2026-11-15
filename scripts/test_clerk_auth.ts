@@ -551,17 +551,29 @@ async function runTestSuite() {
       res.body?.error
     );
 
-    // 10b. Anonymous POST /api/calendar/tick rejected
+    // 10b. With configured secret, anonymous call gets exact 401
+    process.env.INTERNAL_TICK_SECRET = 'test_tick_secret_xyz123';
     res = await makeRequest('POST', '/api/calendar/tick');
     record(
       'SUITE 10',
-      'Anonymous POST /api/calendar/tick rejected (401 or 503)',
-      res.status === 401 || res.status === 503 ? 401 : res.status,
+      'Anonymous POST /api/calendar/tick with configured secret rejected with exact 401',
+      res.status,
       401,
       res.body?.error
     );
 
-    // 10c. Authorized POST /api/calendar/tick with INTERNAL_TICK_SECRET succeeds (200)
+    // 10c. With unconfigured secret, anonymous call fails closed with exact 503
+    delete process.env.INTERNAL_TICK_SECRET;
+    res = await makeRequest('POST', '/api/calendar/tick');
+    record(
+      'SUITE 10',
+      'Anonymous POST /api/calendar/tick with unconfigured secret fails closed with exact 503',
+      res.status,
+      503,
+      res.body?.error
+    );
+
+    // 10d. Authorized POST /api/calendar/tick with INTERNAL_TICK_SECRET succeeds (200)
     process.env.INTERNAL_TICK_SECRET = 'test_tick_secret_xyz123';
     res = await makeRequest(
       'POST',
@@ -576,7 +588,7 @@ async function runTestSuite() {
       `Success: ${res.body?.success}`
     );
 
-    // 10d. /internal/tick fails closed when secret is unset (503)
+    // 10e. /internal/tick fails closed when secret is unset (503)
     delete process.env.INTERNAL_TICK_SECRET;
     res = await makeRequest('POST', '/internal/tick');
     record(
@@ -587,7 +599,7 @@ async function runTestSuite() {
       res.body?.error
     );
 
-    // 10e. /internal/tick succeeds when valid secret is provided
+    // 10f. /internal/tick succeeds when valid secret is provided
     process.env.INTERNAL_TICK_SECRET = 'test_tick_secret_xyz123';
     res = await makeRequest(
       'POST',

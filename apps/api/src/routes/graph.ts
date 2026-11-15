@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { config } from '../config.js';
 import { GraphApiClient } from '../services/graph-api.js';
-import { requireAuth, findUserByHandle, getUserLinkedHandleRecord } from '../lib/auth.js';
+import { requireAuth, findUserByHandle, getUserLinkedHandleRecord, normalizeHandle } from '../lib/auth.js';
 import { storeEncryptedToken } from '../lib/crypto.js';
 
 export const graphApiRouter = Router();
@@ -41,7 +41,7 @@ graphApiRouter.post('/connect', async (req: Request, res: Response) => {
 
     // Ingest account & posts
     const result = await client.ingestAccount(instagramAccountId);
-    const cleanHandle = result.handle.toLowerCase().replace(/^@/, '');
+    const cleanHandle = normalizeHandle(result.handle);
     const currentUserId = req.auth!.userId;
     const sessionsDir = path.join(config.localStorageDir, 'user_sessions');
 

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { config } from '../config.js';
-import { requireAuth, optionalAuth, findUserByHandle, getUserLinkedHandleRecord } from '../lib/auth.js';
+import { requireAuth, optionalAuth, findUserByHandle, getUserLinkedHandleRecord, normalizeHandle } from '../lib/auth.js';
 
 export const onboardingRouter = Router();
 
@@ -43,7 +43,7 @@ onboardingRouter.post('/user-profile', requireAuth, (req: Request, res: Response
     return res.status(400).json({ error: 'handle is required' });
   }
 
-  const cleanHandle = handle.toLowerCase().replace(/^@/, '').trim();
+  const cleanHandle = normalizeHandle(handle);
   if (cleanHandle.length === 0) {
     return res.status(400).json({ error: 'Valid handle is required' });
   }
