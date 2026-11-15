@@ -4,6 +4,7 @@ import path from 'path';
 import { config } from '../config.js';
 import { getSupabaseAdmin } from '../lib/supabase.js';
 import { sanitizeAndValidateHandle } from '../lib/security.js';
+import { requireAuth, requireUserOrAdmin, isUserAccountOwnerOrAdmin, requireAdmin } from '../lib/auth.js';
 
 export const accountsRouter = Router();
 
@@ -285,8 +286,8 @@ accountsRouter.get('/:handle/posts', async (req: Request, res: Response) => {
   }
 });
 
-// DELETE /api/accounts/:idOrHandle - Delete an account and its posts, snapshots, and media
-accountsRouter.delete('/:idOrHandle', async (req: Request, res: Response) => {
+// DELETE /api/accounts/:idOrHandle - Delete an account and its posts, snapshots, and media (FR-06: Administrator privileges required)
+accountsRouter.delete('/:idOrHandle', requireAdmin, async (req: Request, res: Response) => {
   const { idOrHandle } = req.params;
   const clean = idOrHandle.toLowerCase().replace(/^@/, '');
 
@@ -358,14 +359,23 @@ accountsRouter.delete('/:idOrHandle', async (req: Request, res: Response) => {
   });
 });
 
-// GET /api/accounts/:handle/audience - FR-30 Audience Breakdown
-accountsRouter.get('/:handle/audience', async (req: Request, res: Response) => {
+// GET /api/accounts/:handle/audience - FR-30 Audience Breakdown (Strictly Authenticated & Account Owner / Admin Only)
+accountsRouter.get('/:handle/audience', requireUserOrAdmin, async (req: Request, res: Response) => {
   let cleanHandle: string;
   try {
     cleanHandle = sanitizeAndValidateHandle(req.params.handle);
   } catch (err: any) {
     return res.status(400).json({ error: err.message });
   }
+
+  // Enforce account ownership: only account owner or administrator may view private audience demographics
+  if (!isUserAccountOwnerOrAdmin(req, cleanHandle)) {
+    return res.status(403).json({
+      error: `Forbidden: You do not have permission to access audience demographics for @${cleanHandle}`,
+      status: 403,
+    });
+  }
+
   const audienceDir = path.join(config.localStorageDir, 'audiences');
   const audiencePath = path.join(audienceDir, `${cleanHandle}.json`);
 

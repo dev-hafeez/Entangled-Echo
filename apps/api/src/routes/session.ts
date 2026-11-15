@@ -4,8 +4,12 @@ import path from 'path';
 import { chromium } from 'playwright';
 import { config } from '../config.js';
 import { runCanaryCheck } from '../scraper/canary.js';
+import { requireAdmin } from '../lib/auth.js';
 
 export const sessionRouter = Router();
+
+// Enforce FR-06: Internal scraper session inspection requires verified administrator privileges
+sessionRouter.use(requireAdmin);
 
 // GET /api/session/status - Check whether Instagram session is authenticated & active
 sessionRouter.get('/status', async (req: Request, res: Response) => {

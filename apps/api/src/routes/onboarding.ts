@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import { config } from '../config.js';
+import { requireAuth, optionalAuth, findUserByHandle, getUserLinkedHandleRecord, normalizeHandle } from '../lib/auth.js';
 
 export const onboardingRouter = Router();
 
@@ -35,18 +36,46 @@ function getUserNicheFile(handle: string): string {
 }
 
 // ── POST /api/onboarding/user-profile ───────────────────────────────────────
-onboardingRouter.post('/user-profile', (req: Request, res: Response) => {
-  const { userId, handle, nicheData, languagePreference } = req.body;
-  if (!userId || !handle) {
-    return res.status(400).json({ error: 'userId and handle are required' });
+onboardingRouter.post('/user-profile', requireAuth, (req: Request, res: Response) => {
+  const userId = req.auth!.userId;
+  const { handle, nicheData, languagePreference } = req.body;
+  if (!handle || typeof handle !== 'string') {
+    return res.status(400).json({ error: 'handle is required' });
   }
 
+  const cleanHandle = normalizeHandle(handle);
+  if (cleanHandle.length === 0) {
+    return res.status(400).json({ error: 'Valid handle is required' });
+  }
+
+  // Reject duplicate handle bindings across users with 409 Conflict
+  const existingBinding = findUserByHandle(cleanHandle);
+  if (existingBinding && existingBinding.userId !== userId) {
+    return res.status(409).json({
+      error: `Conflict: Handle @${cleanHandle} is already registered to another user`,
+      status: 409,
+    });
+  }
+
+  // Preserve verified status if this user previously linked and verified this account via Graph API
+  const currentSession = getUserLinkedHandleRecord(userId);
+  const isAlreadyVerified = Boolean(
+    currentSession && currentSession.handle === cleanHandle && currentSession.isVerified
+  );
+
   const profile = {
+    ...(currentSession || {}),
     userId,
-    handle: handle.toLowerCase().replace(/^@/, ''),
-    languagePreference: languagePreference || nicheData?.language_preference || 'English',
-    nicheData: nicheData || null,
+    handle: cleanHandle,
+    isVerified: isAlreadyVerified, // Self-asserted onboarding handles remain unverified until official Graph API verification
+    verificationMethod: isAlreadyVerified
+      ? currentSession?.verificationMethod
+      : 'unverified_self_asserted',
+    languagePreference:
+      languagePreference || nicheData?.language_preference || currentSession?.languagePreference || 'English',
+    nicheData: nicheData || currentSession?.nicheData || null,
     updatedAt: new Date().toISOString(),
+    createdAt: currentSession?.createdAt || new Date().toISOString(),
   };
 
   fs.writeFileSync(getUserAccountFile(userId), JSON.stringify(profile, null, 2));
@@ -54,8 +83,31 @@ onboardingRouter.post('/user-profile', (req: Request, res: Response) => {
 });
 
 // ── GET /api/onboarding/user-profile/:userId ────────────────────────────────
-onboardingRouter.get('/user-profile/:userId', (req: Request, res: Response) => {
+onboardingRouter.get('/user-profile/:userId', requireAuth, (req: Request, res: Response) => {
   const { userId } = req.params;
+  const requestingUserId = req.auth!.userId;
+
+  // Strict tenant boundary check: users can only access their own profile
+  if (userId !== requestingUserId) {
+    return res.status(403).json({
+      error: 'Forbidden: You do not have permission to access another user profile',
+      status: 403,
+    });
+  }
+
+  const file = getUserAccountFile(userId);
+  if (fs.existsSync(file)) {
+    try {
+      const profile = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      return res.json({ profile });
+    } catch {}
+  }
+  return res.status(404).json({ error: 'User profile not found' });
+});
+
+// ── GET /api/onboarding/user-profile (Current authenticated user) ────────────
+onboardingRouter.get('/user-profile', requireAuth, (req: Request, res: Response) => {
+  const userId = req.auth!.userId;
   const file = getUserAccountFile(userId);
   if (fs.existsSync(file)) {
     try {

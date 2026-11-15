@@ -1,9 +1,18 @@
 'use client';
 
 import './globals.css';
-import { ReactNode, Suspense } from 'react';
-import { ClerkProvider, SignInButton, SignUpButton, Show, UserButton } from '@clerk/nextjs';
+import { ReactNode, Suspense, useEffect } from 'react';
+import { ClerkProvider, SignInButton, SignUpButton, Show, UserButton, useAuth } from '@clerk/nextjs';
 import { usePathname } from 'next/navigation';
+import { setClerkTokenGetter } from '@/lib/api';
+
+function ClerkTokenBridge() {
+  const { getToken } = useAuth();
+  useEffect(() => {
+    setClerkTokenGetter(() => getToken());
+  }, [getToken]);
+  return null;
+}
 
 function NavigationHeader() {
   const pathname = usePathname();
@@ -116,6 +125,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
   return (
     <ClerkProvider>
+      <ClerkTokenBridge />
       <html lang="en">
         <body className="min-h-screen bg-white text-slate-900 antialiased">
           {!isLandingPage && !isAuthPage && <NavigationHeader />}
