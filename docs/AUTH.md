@@ -146,13 +146,13 @@ Per the security audit guidelines, committed credentials must be cataloged and m
 
 | Commit | File | Secret Type | Fingerprint | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| `048ee8d` | `.env.local` / config | Supabase Service Role Key | `eyJhbG...[redacted]` | Compromised - Rotate Required |
-| `00135d6` | `docker-compose.yml` / env | Admin Password | `adm...[redacted]` | Compromised - Rotate Required |
-| Legacy (Working Tree) | `scripts/test_browser_live_account.ts` | Meta Graph API Access Token | `EAAB...[redacted]` | Compromised - Rotate Required |
-| `cd97ebc` | `scripts/test_admin_browser_login.mjs` | Test Admin Credentials | `TEST_A...WORD` | Test Fixture - Rotate / Isolate |
-| `4dde450` | `docker-compose.yml` | Default Admin Password | `admin...123` | Compromised - Rotate Required |
-| `4dde450` | `.env.example` | Default Admin Password | `admin...123` | Example Config - Replaced with fail-closed requirement |
-| `6f5c3f0` | `.env.example` | Default Admin Password | `admin...123` | Example Config - Replaced with fail-closed requirement |
+| `048ee8d` | `.env.local` / config | Supabase Service Role Key | `eyJhbG...[redacted]` | Compromised - Rotation pending operator confirmation |
+| `00135d6` | `docker-compose.yml` / env | Admin Password | `adm...[redacted]` | Compromised - Rotation pending operator confirmation |
+| Legacy (Working Tree) | `scripts/test_browser_live_account.ts` | Meta Graph API Access Token | `EAAB...[redacted]` | Compromised - Rotation pending operator confirmation |
+| `cd97ebc` | `scripts/test_admin_browser_login.mjs` | Test Admin Credentials | `TEST_A...WORD` | Test Fixture - Rotation pending operator confirmation |
+| `4dde450` | `docker-compose.yml` | Default Admin Password | `admin...123` | Compromised - Rotation pending operator confirmation |
+| `4dde450` | `.env.example` | Default Admin Password | `admin...123` | Example Config - Rotation pending operator confirmation |
+| `6f5c3f0` | `.env.example` | Default Admin Password | `admin...123` | Example Config - Rotation pending operator confirmation |
 
 ### Rotation Action Plan:
 1. **Supabase Service Role Key**: Generate a new service role secret in the Supabase project dashboard; revoke the legacy token.
