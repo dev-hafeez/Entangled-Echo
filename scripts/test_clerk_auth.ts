@@ -128,6 +128,9 @@ interface TestResult {
 
 const results: TestResult[] = [];
 
+const filterSuite = process.argv.find((a) => a.startsWith('--suite='))?.split('=')[1];
+const filterGrep = process.argv.find((a) => a.startsWith('--grep='))?.split('=')[1]?.toLowerCase();
+
 function record(
   suite: string,
   name: string,
@@ -135,6 +138,9 @@ function record(
   expectedStatus: number | number[],
   detail?: string
 ) {
+  if (filterSuite && !suite.toLowerCase().includes(filterSuite.toLowerCase())) return;
+  if (filterGrep && !name.toLowerCase().includes(filterGrep)) return;
+
   const isMatch = Array.isArray(expectedStatus)
     ? expectedStatus.includes(status)
     : status === expectedStatus;
