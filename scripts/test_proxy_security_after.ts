@@ -226,7 +226,7 @@ async function run() {
   const matchCookie = rawSetCookie.match(/admin_session=([^;]+)/);
   const browserAdminCookie = matchCookie ? matchCookie[1] : '';
 
-  assertTest('POST /api/auth/login returns 200 with { success: true }', loginRes.status === 200 && loginBody.success === true);
+  assertTest('POST /api/auth/login returns 200 with { success: true } and no token in body', loginRes.status === 200 && loginBody.success === true && loginBody.token === undefined);
   assertTest('POST /api/auth/login issues HttpOnly admin_session cookie', browserAdminCookie.length > 0 && rawSetCookie.includes('HttpOnly'));
 
   // 5c. Send real admin request GET /api/proxy/api/admin/status with browser-issued cookie
