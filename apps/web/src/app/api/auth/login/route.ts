@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { signAdminSessionToken } from '../../../../lib/admin-auth.js';
+import { signAdminSessionToken } from '../../../../lib/admin-auth';
 
 export async function POST(req: NextRequest) {
   const { password } = await req.json().catch(() => ({}));
