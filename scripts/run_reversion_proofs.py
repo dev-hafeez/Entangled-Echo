@@ -113,6 +113,12 @@ def run_bash(cmd):
     p = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     return p.returncode, p.stdout.strip(), p.stderr.strip()
 
+def cleanup_sessions():
+    for f in ["user_alpha_1.json", "user_beta_2.json", "user_gamma_3.json", "user_delta_4.json", "user_epsilon_5.json"]:
+        p = os.path.join("storage", "user_sessions", f)
+        if os.path.exists(p):
+            os.remove(p)
+
 results = []
 
 for idx, item in enumerate(FIXES, 1):
@@ -123,6 +129,7 @@ for idx, item in enumerate(FIXES, 1):
     print(f"=================================================================")
 
     # 1. Create temporary branch from fix commit
+    cleanup_sessions()
     rc, out, err = run_bash(f"git checkout -b {temp_branch} {item['commit']}")
     if rc != 0:
         print(f"Error checking out {temp_branch}: {err}")
@@ -193,9 +200,11 @@ for idx, item in enumerate(FIXES, 1):
         sys.exit(1)
 
     # 4. Cleanup temporary branch
+    cleanup_sessions()
     run_bash(f"git restore .")
     run_bash("git checkout security-step-2.2-clean")
     run_bash(f"git branch -D {temp_branch}")
+    cleanup_sessions()
 
     results.append({
         "id": item["id"],
