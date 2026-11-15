@@ -1,0 +1,80 @@
+[
+  {
+    "handle": "shitposts.pk",
+    "bucket": "under 100K",
+    "requestedMaxPosts": 100,
+    "postsFound": 108,
+    "postsDetailed": 100,
+    "postsFailed": 0,
+    "timeTakenMs": 369065,
+    "loginWall": false,
+    "rateLimited": false,
+    "emptyGrid": false,
+    "scrollsNeeded": true,
+    "nullCounts": {
+      "likes": 100,
+      "comments": 100,
+      "timestamp": 0,
+      "caption": 100
+    },
+    "sampleShortcodes": [
+      "DdnntR3oQdy",
+      "DU6Pcb4iDl0",
+      "DLcVcx7IBp6",
+      "DPKA7kMiMIc",
+      "DLNFw6toUAa"
+    ]
+  },
+  {
+    "handle": "softwarewithnick",
+    "bucket": "100K-1M",
+    "requestedMaxPosts": 100,
+    "postsFound": 108,
+    "postsDetailed": 100,
+    "postsFailed": 0,
+    "timeTakenMs": 364391,
+    "loginWall": false,
+    "rateLimited": false,
+    "emptyGrid": false,
+    "scrollsNeeded": true,
+    "nullCounts": {
+      "likes": 100,
+      "comments": 100,
+      "timestamp": 0,
+      "caption": 100
+    },
+    "sampleShortcodes": [
+      "DN8lSJLEQGe",
+      "DKku6PcyW8y",
+      "DfN-Ua_iWFx",
+      "DfLVG0HiGx7",
+      "DfFwSOwi9nO"
+    ]
+  },
+  {
+    "handle": "techcrunch",
+    "bucket": "over 1M",
+    "requestedMaxPosts": 100,
+    "postsFound": 108,
+    "postsDetailed": 100,
+    "postsFailed": 0,
+    "timeTakenMs": 371366,
+    "loginWall": false,
+    "rateLimited": false,
+    "emptyGrid": false,
+    "scrollsNeeded": true,
+    "nullCounts": {
+      "likes": 100,
+      "comments": 100,
+      "timestamp": 0,
+      "caption": 100
+    },
+    "sampleShortcodes": [
+      "DfIuuXYiCKe",
+      "DfFTTQ1NuBV",
+      "De9onIBvtM1",
+      "De16OOSv48W",
+      "DeiLUOiFfc_"
+    ]
+  }
+]

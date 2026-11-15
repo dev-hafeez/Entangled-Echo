@@ -1,8 +1,11 @@
-import { getSupabaseAdmin } from '../lib/supabase.js';
+import fs from 'fs';
+import path from 'path';
+import { config } from '../config.js';
 
 /**
- * Downloads image buffer and uploads to Supabase Storage post-media bucket.
- * Path format: {handle}/{shortcode}/{index}.jpg
+ * Saves image buffer directly to local disk storage on PC:
+ * Path format: storage/post-media/{handle}/{shortcode}/{index}.jpg
+ * Relative path stored in DB: {handle}/{shortcode}/{index}.jpg
  * Skips failures and logs them, never crashes the scraper.
  */
 export async function uploadPostMedia(
@@ -12,25 +15,16 @@ export async function uploadPostMedia(
   buffer: Buffer,
   contentType: string = 'image/jpeg'
 ): Promise<string | null> {
-  const supabase = getSupabaseAdmin();
-  const filePath = `${handle}/${shortcode}/${index}.jpg`;
+  const relativePath = `${handle}/${shortcode}/${index}.jpg`;
+  const absoluteDir = path.join(config.localStorageDir, 'post-media', handle, shortcode);
+  const absoluteFilePath = path.join(absoluteDir, `${index}.jpg`);
 
   try {
-    const { data, error } = await supabase.storage
-      .from('post-media')
-      .upload(filePath, buffer, {
-        contentType,
-        upsert: true,
-      });
-
-    if (error) {
-      console.warn(`[storage] Failed to upload ${filePath}: ${error.message}`);
-      return null;
-    }
-
-    return filePath;
+    fs.mkdirSync(absoluteDir, { recursive: true });
+    fs.writeFileSync(absoluteFilePath, buffer);
+    return relativePath;
   } catch (err: any) {
-    console.warn(`[storage] Error uploading ${filePath}: ${err.message}`);
+    console.warn(`[local-storage] Error saving media file ${relativePath}: ${err.message}`);
     return null;
   }
 }

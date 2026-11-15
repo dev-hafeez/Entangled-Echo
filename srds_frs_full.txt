@@ -1,0 +1,240 @@
+FR-01
+Requirement Name
+User Registration
+========================================
+FR-02
+OAuth 2.0 Support
+========================================
+FR-03
+Email Verification
+========================================
+FR-04
+Password Reset
+========================================
+FR-05
+User Profiles
+========================================
+FR-06
+Role-Based Access
+========================================
+FR-07
+Social Integration
+========================================
+FR-08
+Token Security
+Detailed Description
+Allow registration with a valid
+email and password.
+Support Google login as a
+third-party identity provider.
+Enforce verification before
+activating new accounts.
+Secure reset via time-limited
+email links.
+Maintain display name, bio,
+and connected social
+accounts.
+Implement Standard User and
+Administrator roles.
+Link/unlink Instagram and
+Facebook via OAuth.
+Encrypt OAuth tokens and
+implement auto-refresh logic.
+Table 2 : User Management & Authentication
+3.1.2
+Data Collection & Normalization
+ID
+========================================
+FR-09
+Requirement Name
+Metric Retrieval
+========================================
+FR-10
+Normalization
+========================================
+FR-11
+Data Retention
+========================================
+FR-12
+Sync Status
+Detailed Description
+Retrieve engagement metrics
+every 24 hours.
+Convert platform data into a
+unified internal schema.
+Store historical data for at
+least 12 months.
+Display last successful sync
+timestamp on dashboard.
+Table 3 : Data Collection & Normalization
+3.1.3
+Content Analysis
+ID
+========================================
+FR-13
+Requirement Name
+NLP Analysis
+========================================
+FR-14
+Media Classification
+========================================
+FR-15
+Performance Insights
+========================================
+FR-16
+Performance Scoring
+Detailed Description
+Extract topics, sentiment, and
+terms from captions.
+Classify by type: Image,
+Video, Carousel, Story, Reel.
+Identify top content, hashtags,
+and optimal post times.
+Generate weighted
+engagement scores per post.
+Software Requirements Specification & Design Description for Entangled Echo
+Page 11
+Table 4 : Content anaylsis
+3.1.4
+Quantum-Inspired Optimization
+ID
+Requirement Name
+========================================
+FR-17
+Schedule Generation
+========================================
+FR-18
+User Constraints
+========================================
+FR-19
+Ranked Alternatives
+========================================
+FR-20
+Confidence Metrics
+Detailed Description
+Generate weekly schedules
+using quantum-inspired
+heuristics.
+Support blackout periods,
+platform choice, and post
+caps.
+Provide alternative schedules
+if conflicts arise.
+Show confidence scores for
+each recommendation.
+Table 5 : Quantum-Inspired Optimization
+3.1.5
+AI Recommendations & Task Decomposition
+ID
+Requirement Name
+========================================
+FR-21
+Content Templates
+========================================
+FR-22
+Task Decomposition
+========================================
+FR-23
+AI Drafts
+========================================
+FR-24
+Machine Learning
+Detailed Description
+Suggest hashtags and caption
+templates based on history.
+Break down high-level goals
+into specific post tasks.
+Generate editable AI-written
+caption drafts.
+Learn from accept/reject
+actions to improve future
+results.
+Table 6 : AI Recommendations & Task Decomposition
+3.1.6
+Content Scheduling & Automation
+ID
+Requirement Name
+========================================
+FR-25
+Calendar Interface
+========================================
+FR-26
+Auto-Publishing
+========================================
+FR-27
+Retry Mechanism
+========================================
+FR-28
+Failure Alerts
+Detailed Description
+Drag-and-drop UI for manual
+and AI scheduling.
+Direct publishing to IG and
+FB via official APIs.
+3 retries with exponential
+back-off for failures.
+Immediate user notification
+for publishing failures.
+Table 7 : Content Scheduling & Automation
+3.1.7
+Analytics & Reporting
+ID
+========================================
+FR-29
+Requirement Name
+Trend Visualization
+========================================
+FR-30
+Audience Breakdown
+========================================
+FR-31
+Data Export
+========================================
+FR-32
+Competitive Analysis
+Detailed Description
+Daily, weekly, and monthly
+engagement charts.
+Demographics: age, gender,
+and location.
+Export analytical data to CSV
+format.
+Comparison view for specified
+Software Requirements Specification & Design Description for Entangled Echo
+Page 12
+competitors.
+Table 8 : Analytics & Reporting
+3.1.8
+Notification System
+ID
+========================================
+FR-33
+Requirement Name
+In-App Alerts
+========================================
+FR-34
+Email Digests
+========================================
+FR-35
+Customization
+Detailed Description
+Alerts for posts,
+confirmations, and failures.
+Weekly summaries and major
+engagement milestones.
+Allow users to opt-out or
+customize alert preferences.
+Table 9 : Notification System
+3.2 Behaviour Requirements
+The following use cases encapsulate the primary interactions between users and EntangledEcho. The Use Case
+Diagram below illustrates all actors and their relationships with system use cases.
+UCID
+Use Case Name
+Actor(s)
+Brief Description
+UC01
+Register & Login
+User
+User creates an account, verifies email, and logs in with credentials
+or Google OAuth.
+========================================

@@ -4,6 +4,7 @@ import path from 'path';
 import { config } from '../config.js';
 import { executeNicheAnalysis } from './onboarding.js';
 import { sanitizeAndValidateHandle, createRateLimiter } from '../lib/security.js';
+import { requireAuth, isUserAccountOwnerOrAdmin } from '../lib/auth.js';
 
 export const recommendationsRouter = Router();
 
@@ -182,7 +183,7 @@ export function saveRecPreferences(handle: string, prefs: RecommendationPreferen
 }
 
 // POST /api/recommendations/feedback - FR-24 Accept/Reject Learning Mechanism
-recommendationsRouter.post('/feedback', async (req: Request, res: Response) => {
+recommendationsRouter.post('/feedback', requireAuth, async (req: Request, res: Response) => {
   const { handle, recommendationId, accepted, feedback, mediaType, topic } = req.body;
   if (!handle) {
     return res.status(400).json({ error: 'handle is required' });
@@ -193,6 +194,14 @@ recommendationsRouter.post('/feedback', async (req: Request, res: Response) => {
     cleanHandle = sanitizeAndValidateHandle(handle);
   } catch (err: any) {
     return res.status(400).json({ error: err.message });
+  }
+
+  // Enforce social account ownership
+  if (!isUserAccountOwnerOrAdmin(req, cleanHandle)) {
+    return res.status(403).json({
+      error: `Forbidden: You do not have permission to submit recommendation feedback for account @${cleanHandle}`,
+      status: 403,
+    });
   }
 
   const prefs = getRecPreferences(cleanHandle);
@@ -236,8 +245,8 @@ recommendationsRouter.post('/feedback', async (req: Request, res: Response) => {
   });
 });
 
-// GET /api/recommendations/preferences - View active preference weights
-recommendationsRouter.get('/preferences', (req: Request, res: Response) => {
+// GET /api/recommendations/preferences - View active preference weights (Requires account ownership or admin)
+recommendationsRouter.get('/preferences', requireAuth, (req: Request, res: Response) => {
   const rawHandle = req.query.handle as string;
   if (!rawHandle) return res.status(400).json({ error: 'handle parameter is required' });
   let handle: string;
@@ -246,12 +255,21 @@ recommendationsRouter.get('/preferences', (req: Request, res: Response) => {
   } catch (err: any) {
     return res.status(400).json({ error: err.message });
   }
+
+  // Enforce account ownership: only account owner or administrator may view preferences
+  if (!isUserAccountOwnerOrAdmin(req, handle)) {
+    return res.status(403).json({
+      error: `Forbidden: You do not have permission to view recommendation preferences for @${handle}`,
+      status: 403,
+    });
+  }
+
   const prefs = getRecPreferences(handle);
   return res.json({ success: true, preferences: prefs });
 });
 
 // POST /api/recommendations/generate
-recommendationsRouter.post('/generate', async (req: Request, res: Response) => {
+recommendationsRouter.post('/generate', requireAuth, async (req: Request, res: Response) => {
   const { handle, platform = 'instagram' } = req.body;
   if (!handle) {
     return res.status(400).json({ error: 'handle is required' });
@@ -262,6 +280,14 @@ recommendationsRouter.post('/generate', async (req: Request, res: Response) => {
     cleanHandle = sanitizeAndValidateHandle(handle);
   } catch (err: any) {
     return res.status(400).json({ error: err.message });
+  }
+
+  // Enforce social account ownership
+  if (!isUserAccountOwnerOrAdmin(req, cleanHandle)) {
+    return res.status(403).json({
+      error: `Forbidden: You do not have permission to generate recommendations for account @${cleanHandle}`,
+      status: 403,
+    });
   }
 
   // 1. Load user profile, posts, and niche

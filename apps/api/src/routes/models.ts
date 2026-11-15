@@ -1,32 +1,78 @@
 import { Router, Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { z } from 'zod';
-import { getSupabaseAdmin } from '../lib/supabase.js';
 import { config } from '../config.js';
+import { requireUserOrAdmin, requireAdmin, isUserAccountOwnerOrAdmin } from '../lib/auth.js';
 
 export const modelsRouter = Router();
 
-// GET /api/models - List all trained models
-modelsRouter.get('/', async (req: Request, res: Response) => {
-  const supabase = getSupabaseAdmin();
-  const { data: models, error } = await supabase
-    .from('models')
-    .select(`
-      *,
-      accounts (
-        handle
-      )
-    `)
-    .order('trained_at', { ascending: false });
+// Helper to get local models
+function getLocalModels(): any[] {
+  const modelsJsonPath = path.join(config.localStorageDir, 'models.json');
+  if (fs.existsSync(modelsJsonPath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(modelsJsonPath, 'utf-8'));
+      if (Array.isArray(data)) {
+        return data.map((m: any) => ({
+          ...m,
+          accounts: m.accounts || (m.account_handle ? { handle: m.account_handle } : null),
+        }));
+      }
+    } catch {}
+  }
+  return [];
+}
 
-  if (error) {
-    return res.status(500).json({ error: error.message });
+// Helper to save local models
+function saveLocalModel(modelData: any) {
+  const modelsJsonPath = path.join(config.localStorageDir, 'models.json');
+  let models: any[] = [];
+  if (fs.existsSync(modelsJsonPath)) {
+    try {
+      models = JSON.parse(fs.readFileSync(modelsJsonPath, 'utf-8'));
+      if (!Array.isArray(models)) models = [];
+    } catch {
+      models = [];
+    }
   }
 
-  return res.json({ models });
+  // Remove existing with same id or version
+  models = models.filter((m) => m.id !== modelData.id && m.version !== modelData.version);
+  models.unshift(modelData);
+  fs.writeFileSync(modelsJsonPath, JSON.stringify(models, null, 2));
+}
+
+// Helper to remove local model
+function removeLocalModel(idOrVersion: string) {
+  const modelsJsonPath = path.join(config.localStorageDir, 'models.json');
+  if (fs.existsSync(modelsJsonPath)) {
+    try {
+      let models = JSON.parse(fs.readFileSync(modelsJsonPath, 'utf-8'));
+      if (Array.isArray(models)) {
+        const found = models.find((m) => m.id === idOrVersion || m.version === idOrVersion);
+        if (found?.artifact_path) {
+          const artifactFile = path.join(config.localStorageDir, 'model-artifacts', found.artifact_path);
+          if (fs.existsSync(artifactFile)) {
+            fs.unlinkSync(artifactFile);
+          }
+        }
+        models = models.filter((m) => m.id !== idOrVersion && m.version !== idOrVersion);
+        fs.writeFileSync(modelsJsonPath, JSON.stringify(models, null, 2));
+        return found;
+      }
+    } catch {}
+  }
+  return null;
+}
+
+// GET /api/models - List all trained models
+modelsRouter.get('/', async (req: Request, res: Response) => {
+  return res.json({ models: getLocalModels() });
 });
 
 // POST /api/models/train-global - Trigger training of global model
-modelsRouter.post('/train-global', async (req: Request, res: Response) => {
+modelsRouter.post('/train-global', requireAdmin, async (req: Request, res: Response) => {
   try {
     const mlResponse = await fetch(`${config.mlServiceUrl}/train/global`, {
       method: 'POST',
@@ -40,6 +86,22 @@ modelsRouter.post('/train-global', async (req: Request, res: Response) => {
       });
     }
 
+    if (data.model) {
+      saveLocalModel({
+        id: data.model.id || `model-${data.version}`,
+        model_type: 'global',
+        version: data.version,
+        algorithm: data.algorithm,
+        artifact_path: `global/${data.version}/model.joblib`,
+        metrics: data.metrics || {},
+        feature_importances: data.model.feature_importances || {},
+        training_rows_count: data.rows_used || 0,
+        trained_at: new Date().toISOString(),
+        account_handle: null,
+        accounts: null,
+      });
+    }
+
     return res.json(data);
   } catch (err: any) {
     return res.status(502).json({
@@ -48,10 +110,17 @@ modelsRouter.post('/train-global', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/models/train-personal/:handle - Trigger training of personal model
-modelsRouter.post('/train-personal/:handle', async (req: Request, res: Response) => {
+// POST /api/models/train-personal/:handle - Trigger training of personal model (Requires account ownership or admin)
+modelsRouter.post('/train-personal/:handle', requireUserOrAdmin, async (req: Request, res: Response) => {
   const { handle } = req.params;
   const cleanHandle = handle.toLowerCase().replace(/^@/, '');
+
+  if (!isUserAccountOwnerOrAdmin(req, cleanHandle)) {
+    return res.status(403).json({
+      error: `Forbidden: You do not have permission to train personal model for @${cleanHandle}`,
+      status: 403,
+    });
+  }
 
   try {
     const mlResponse = await fetch(
@@ -66,6 +135,22 @@ modelsRouter.post('/train-personal/:handle', async (req: Request, res: Response)
     if (!mlResponse.ok) {
       return res.status(mlResponse.status).json({
         error: data.detail || data.error || `Failed to train personal model for @${cleanHandle}`,
+      });
+    }
+
+    if (data.model) {
+      saveLocalModel({
+        id: data.model.id || `model-${data.version}`,
+        model_type: 'personal',
+        version: data.version,
+        algorithm: 'stacked_ridge',
+        artifact_path: `personal/${cleanHandle}/${data.version}/model.joblib`,
+        metrics: data.metrics || {},
+        feature_importances: { global_prediction_weight: data.blend_weight },
+        training_rows_count: data.rows_used || 0,
+        trained_at: new Date().toISOString(),
+        account_handle: cleanHandle,
+        accounts: { handle: cleanHandle },
       });
     }
 
@@ -85,7 +170,7 @@ const predictSchema = z.object({
 });
 
 // POST /api/models/predict - Predict engagement rate
-modelsRouter.post('/predict', async (req: Request, res: Response) => {
+modelsRouter.post('/predict', requireUserOrAdmin, async (req: Request, res: Response) => {
   const parseResult = predictSchema.safeParse(req.body);
   if (!parseResult.success) {
     return res.status(400).json({
@@ -116,29 +201,6 @@ modelsRouter.post('/predict', async (req: Request, res: Response) => {
       });
     }
 
-    // Log prediction in database
-    const supabase = getSupabaseAdmin();
-    const { data: account } = await supabase
-      .from('accounts')
-      .select('id')
-      .eq('handle', cleanHandle)
-      .single();
-
-    await supabase.from('predictions').insert({
-      account_id: account?.id || null,
-      model_id: data.model_id || null,
-      input_features: {
-        handle: cleanHandle,
-        caption,
-        media_type: mediaType,
-        planned_time: plannedTime,
-      },
-      predicted_engagement_rate: data.predicted_engagement_rate,
-      model_used: data.model_used,
-      confidence_note: data.confidence_note,
-      top_features: data.top_features,
-    });
-
     return res.json(data);
   } catch (err: any) {
     return res.status(502).json({
@@ -148,42 +210,62 @@ modelsRouter.post('/predict', async (req: Request, res: Response) => {
 });
 
 // DELETE /api/models/:id - Delete a model record and its stored artifact
-modelsRouter.delete('/:id', async (req: Request, res: Response) => {
+modelsRouter.delete('/:id', requireAdmin, async (req: Request, res: Response) => {
   const { id } = req.params;
-  const supabase = getSupabaseAdmin();
 
-  // Find model
-  const { data: model, error: findErr } = await supabase
-    .from('models')
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  if (findErr || !model) {
-    return res.status(404).json({ error: 'Model not found' });
-  }
-
-  // Delete artifact from Supabase Storage
-  if (model.artifact_path) {
-    try {
-      await supabase.storage.from('model-artifacts').remove([model.artifact_path]);
-    } catch (err: any) {
-      console.warn(`[storage] Could not delete model artifact: ${err.message}`);
-    }
-  }
-
-  // Delete model record from models table
-  const { error: delErr } = await supabase
-    .from('models')
-    .delete()
-    .eq('id', id);
-
-  if (delErr) {
-    return res.status(500).json({ error: delErr.message });
-  }
+  // Delete from local models registry and disk
+  const removedLocal = removeLocalModel(id);
 
   return res.json({
     success: true,
-    message: `Model ${model.version} (${model.model_type}) deleted successfully.`,
+    message: `Model ${removedLocal?.version || id} deleted successfully.`,
   });
+});
+
+// GET /api/models/eval/runs - List all evaluation runs
+modelsRouter.get('/eval/runs', async (req: Request, res: Response) => {
+  try {
+    const mlResponse = await fetch(`${config.mlServiceUrl}/eval/runs`);
+    if (!mlResponse.ok) {
+      return res.status(mlResponse.status).json({ error: 'Failed to fetch eval runs from ML service' });
+    }
+    const data = await mlResponse.json();
+    return res.json(data);
+  } catch (err: any) {
+    return res.status(502).json({ error: `Could not reach ML service: ${err.message}` });
+  }
+});
+
+// GET /api/models/eval/latest - Get latest evaluation run and report markdown
+modelsRouter.get('/eval/latest', async (req: Request, res: Response) => {
+  try {
+    const mlResponse = await fetch(`${config.mlServiceUrl}/eval/latest`);
+    if (!mlResponse.ok) {
+      const errData = await mlResponse.json().catch(() => ({}));
+      return res.status(mlResponse.status).json({ error: errData.detail || 'Failed to fetch latest eval report' });
+    }
+    const data = await mlResponse.json();
+    return res.json(data);
+  } catch (err: any) {
+    return res.status(502).json({ error: `Could not reach ML service: ${err.message}` });
+  }
+});
+
+// POST /api/models/eval/run - Trigger evaluation harness run
+modelsRouter.post('/eval/run', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { snapshot, min_personal } = req.body || {};
+    const mlResponse = await fetch(`${config.mlServiceUrl}/eval/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        snapshot: snapshot || '2026-11-02',
+        min_personal: min_personal !== undefined ? Number(min_personal) : 30,
+      }),
+    });
+    const data = await mlResponse.json();
+    return res.json(data);
+  } catch (err: any) {
+    return res.status(502).json({ error: `Could not reach ML service: ${err.message}` });
+  }
 });

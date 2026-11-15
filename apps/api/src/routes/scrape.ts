@@ -3,8 +3,12 @@ import { z } from 'zod';
 import { normalizeTarget } from '../scraper/normalize.js';
 import { localJobQueue } from '../lib/local-queue.js';
 import { createRateLimiter } from '../lib/security.js';
+import { requireUserOrAdmin } from '../lib/auth.js';
 
 export const scrapeRouter = Router();
+
+// Require authenticated user session or admin authorization to trigger scrapes
+scrapeRouter.use(requireUserOrAdmin);
 
 // Rate limit scrape submissions (max 20 requests per minute per IP)
 scrapeRouter.use(createRateLimiter({ windowMs: 60000, maxRequests: 20, message: 'Scrape job submission rate limit exceeded' }));

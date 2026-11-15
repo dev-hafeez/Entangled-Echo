@@ -1,12 +1,48 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const getBaseUrl = () => {
+  // In the browser, use the same-site Next.js proxy route so HttpOnly cookies are passed seamlessly
+  if (typeof window !== 'undefined') {
+    return '/api/proxy';
+  }
+  return process.env.INTERNAL_API_URL || process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+};
+
+let clerkTokenGetter: (() => Promise<string | null>) | null = null;
+
+/**
+ * Configure dynamic session token retrieval for client-side API calls.
+ */
+export function setClerkTokenGetter(getter: () => Promise<string | null>) {
+  clerkTokenGetter = getter;
+}
 
 export async function fetchFromApi(endpoint: string, options: RequestInit = {}) {
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...((options.headers as Record<string, string>) || {}),
+  };
+
+  // If Authorization header is not already explicitly supplied, attempt to attach active Clerk JWT for user requests
+  if (!headers['Authorization'] && !headers['authorization']) {
+    let token: string | null = null;
+    if (clerkTokenGetter) {
+      try {
+        token = await clerkTokenGetter();
+      } catch {}
+    } else if (typeof window !== 'undefined' && (window as any).Clerk?.session?.getToken) {
+      try {
+        token = await (window as any).Clerk.session.getToken();
+      } catch {}
+    }
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
+  const res = await fetch(`${getBaseUrl()}${endpoint}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    credentials: 'include',
+    headers,
   });
 
   const data = await res.json().catch(() => ({}));
@@ -144,7 +180,7 @@ export const api = {
 
   // FR-31 Data Export (CSV)
   getCsvExportUrl: (handle: string) =>
-    `${API_BASE}/api/accounts/${encodeURIComponent(handle)}/export/csv`,
+    `${getBaseUrl()}/api/accounts/${encodeURIComponent(handle)}/export/csv`,
 
   // FR-32 Competitive Analysis
   compareCompetitors: (handles: string[]) =>

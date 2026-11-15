@@ -1,180 +1,65 @@
 import { Router, Request, Response } from 'express';
-import { z } from 'zod';
+import { localJobQueue } from '../lib/local-queue.js';
 import { getSupabaseAdmin } from '../lib/supabase.js';
+import { requireUserOrAdmin, requireAdmin } from '../lib/auth.js';
 
 export const jobsRouter = Router();
 
-// GET /api/jobs - List jobs with filtering, pagination, and status summaries
-jobsRouter.get('/', async (req: Request, res: Response) => {
-  const supabase = getSupabaseAdmin();
-
+// GET /api/jobs - List jobs with filtering, pagination, and status summaries (instant local lookup)
+jobsRouter.get('/', requireUserOrAdmin, async (req: Request, res: Response) => {
   const status = (req.query.status as string) || 'all';
   const search = ((req.query.search as string) || '').trim();
   const page = Math.max(1, parseInt((req.query.page as string) || '1', 10));
   const limit = Math.min(500, Math.max(10, parseInt((req.query.limit as string) || '100', 10)));
-  const offset = (page - 1) * limit;
 
-  // 1. Fetch live queue summary counts across all statuses
-  const [totalRes, queuedRes, runningRes, doneRes, failedRes, cancelledRes] = await Promise.all([
-    supabase.from('jobs').select('*', { count: 'exact', head: true }),
-    supabase.from('jobs').select('*', { count: 'exact', head: true }).eq('status', 'queued'),
-    supabase.from('jobs').select('*', { count: 'exact', head: true }).eq('status', 'running'),
-    supabase.from('jobs').select('*', { count: 'exact', head: true }).eq('status', 'done'),
-    supabase.from('jobs').select('*', { count: 'exact', head: true }).in('status', ['failed', 'partial']),
-    supabase.from('jobs').select('*', { count: 'exact', head: true }).eq('status', 'cancelled'),
-  ]);
-
-  // 2. Build filtered and paginated jobs query
-  let query = supabase.from('jobs').select('*', { count: 'exact' });
-
-  if (status && status !== 'all') {
-    if (status === 'failed') {
-      query = query.in('status', ['failed', 'partial']);
-    } else {
-      query = query.eq('status', status);
-    }
-  }
-
-  if (search.length > 0) {
-    const term = `%${search}%`;
-    query = query.or(`target_input.ilike.${term},normalized_handle.ilike.${term}`);
-  }
-
-  query = query
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
-
-  const { data, error, count: filteredCount } = await query;
-
-  if (error) {
-    return res.status(500).json({ error: error.message });
-  }
-
-  const total = filteredCount ?? data?.length ?? 0;
-  const totalPages = Math.ceil(total / limit);
-
+  const result = localJobQueue.queryJobs({ status, search, page, limit });
   return res.json({
-    jobs: data || [],
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: totalPages > 0 ? totalPages : 1,
-    },
-    summary: {
-      total: totalRes.count ?? 0,
-      queued: queuedRes.count ?? 0,
-      running: runningRes.count ?? 0,
-      done: doneRes.count ?? 0,
-      failed: failedRes.count ?? 0,
-      cancelled: cancelledRes.count ?? 0,
-    },
+    ...result,
+    isPaused: localJobQueue.getPaused(),
   });
 });
 
+// POST /api/jobs/pause - Pause queue processing
+jobsRouter.post('/pause', requireAdmin, (req: Request, res: Response) => {
+  localJobQueue.setPaused(true);
+  return res.json({ success: true, isPaused: true, message: 'Scrape queue paused. No more queued jobs will be claimed.' });
+});
+
+// POST /api/jobs/resume - Resume queue processing
+jobsRouter.post('/resume', requireAdmin, (req: Request, res: Response) => {
+  localJobQueue.setPaused(false);
+  return res.json({ success: true, isPaused: false, message: 'Scrape queue resumed.' });
+});
+
 // POST /api/jobs/:id/retry - Retry a failed or cancelled job
-jobsRouter.post('/:id/retry', async (req: Request, res: Response) => {
+jobsRouter.post('/:id/retry', requireUserOrAdmin, async (req: Request, res: Response) => {
   const { id } = req.params;
-  const supabase = getSupabaseAdmin();
-
-  const { data, error } = await supabase
-    .from('jobs')
-    .update({
-      status: 'queued',
-      error: null,
-      failure_reason: null,
-      locked_at: null,
-      heartbeat_at: null,
-      started_at: null,
-      finished_at: null,
-    })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) {
-    return res.status(500).json({ error: error.message });
-  }
-
-  return res.json({ success: true, job: data });
+  const success = localJobQueue.retryJob(id);
+  return res.json({ success, message: `Job ${id} queued for retry.` });
 });
 
 // POST /api/jobs/:id/cancel - Cancel a queued or running job
-jobsRouter.post('/:id/cancel', async (req: Request, res: Response) => {
+jobsRouter.post('/:id/cancel', requireUserOrAdmin, async (req: Request, res: Response) => {
   const { id } = req.params;
-  const supabase = getSupabaseAdmin();
-
-  const { data, error } = await supabase
-    .from('jobs')
-    .update({
-      status: 'cancelled',
-      finished_at: new Date().toISOString(),
-    })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) {
-    return res.status(500).json({ error: error.message });
-  }
-
-  return res.json({ success: true, job: data });
+  const success = localJobQueue.cancelJob(id);
+  return res.json({ success, message: `Job ${id} cancelled.` });
 });
 
 // DELETE /api/jobs/:id - Delete a single job from the queue
-jobsRouter.delete('/:id', async (req: Request, res: Response) => {
+jobsRouter.delete('/:id', requireAdmin, async (req: Request, res: Response) => {
   const { id } = req.params;
-  const supabase = getSupabaseAdmin();
-
-  const { error } = await supabase
-    .from('jobs')
-    .delete()
-    .eq('id', id);
-
-  if (error) {
-    return res.status(500).json({ error: error.message });
-  }
-
-  return res.json({ success: true, message: `Job ${id} deleted.` });
+  const success = localJobQueue.deleteJob(id);
+  return res.json({ success, message: `Job ${id} deleted.` });
 });
 
 // DELETE /api/jobs - Clear jobs (supports type=completed | queued | all)
-jobsRouter.delete('/', async (req: Request, res: Response) => {
-  const type = ((req.query.type as string) || 'completed').toLowerCase();
-  const supabase = getSupabaseAdmin();
+jobsRouter.delete('/', requireAdmin, async (req: Request, res: Response) => {
+  const type = ((req.query.type as string) || 'completed').toLowerCase() as 'completed' | 'queued' | 'all';
+  const deletedCount = localJobQueue.clearJobs(type);
 
-  let statuses: string[] = ['done', 'failed', 'cancelled'];
-  if (type === 'queued') {
-    statuses = ['queued'];
-  } else if (type === 'all') {
-    statuses = ['queued', 'running', 'done', 'failed', 'partial', 'cancelled'];
-  }
-
-  try {
-    let deletedCount = 0;
-    while (true) {
-      const { data, error } = await supabase
-        .from('jobs')
-        .delete()
-        .in('status', statuses)
-        .select('id')
-        .limit(1000);
-
-      if (error) {
-        return res.status(500).json({ error: error.message });
-      }
-
-      const count = data?.length || 0;
-      deletedCount += count;
-      if (count === 0 || count < 1000) break;
-    }
-
-    return res.json({
-      success: true,
-      message: `Cleared ${deletedCount} job(s) (${type}).`,
-      deletedCount,
-    });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
+  return res.json({
+    success: true,
+    message: `Cleared ${deletedCount} job(s) (${type}).`,
+    deletedCount,
+  });
 });

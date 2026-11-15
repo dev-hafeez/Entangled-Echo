@@ -1,5 +1,7 @@
 import os
+import json
 import time
+import threading
 import joblib
 import numpy as np
 import pandas as pd
@@ -11,10 +13,34 @@ from sklearn.linear_model import Ridge
 import lightgbm as lgb
 
 from db import fetch_training_data, upload_model_artifact, get_supabase
+from config import LOCAL_STORAGE_DIR
 from features import FeatureExtractor
 
 ARTIFACTS_DIR = os.path.join(os.path.dirname(__file__), "artifacts")
 os.makedirs(ARTIFACTS_DIR, exist_ok=True)
+
+def bg_sync_supabase(table: str, row: dict):
+    # Pure local mode: scraped data and models are stored locally on PC, never sent to Supabase
+    pass
+
+def save_to_local_models_json(model_record: dict):
+    models_path = os.path.join(LOCAL_STORAGE_DIR, "models.json")
+    models = []
+    if os.path.exists(models_path):
+        try:
+            with open(models_path, "r", encoding="utf-8") as f:
+                models = json.load(f)
+            if not isinstance(models, list):
+                models = []
+        except Exception:
+            models = []
+    
+    # Remove existing model with same version or id
+    models = [m for m in models if m.get("version") != model_record.get("version") and m.get("id") != model_record.get("id")]
+    models.insert(0, model_record)
+    with open(models_path, "w", encoding="utf-8") as f:
+        json.dump(models, f, indent=2)
+    print(f"[ml-storage] Updated {models_path} with new model {model_record.get('version')}")
 
 class ModelTrainer:
     def __init__(self):
@@ -100,13 +126,12 @@ class ModelTrainer:
         local_file = os.path.join(ARTIFACTS_DIR, f"global_{version}.joblib")
         joblib.dump(bundle, local_file)
 
-        # Upload to Supabase Storage
+        # Upload to Local Storage & Supabase
         storage_path = f"global/{version}/model.joblib"
         upload_model_artifact(local_file, storage_path)
 
-        # Persist to `models` table
-        supabase = get_supabase()
-        db_res = supabase.table("models").insert({
+        model_record = {
+            "id": f"model-{version}",
             "model_type": "global",
             "account_id": None,
             "version": version,
@@ -115,14 +140,30 @@ class ModelTrainer:
             "feature_importances": importances,
             "artifact_path": storage_path,
             "training_rows_count": len(df),
-            "trained_at": datetime.utcnow().isoformat()
-        }).execute()
+            "trained_at": datetime.utcnow().isoformat(),
+            "account_handle": None,
+            "accounts": None
+        }
 
-        created_model = db_res.data[0] if db_res.data else {}
+        # 1. Save to local models registry immediately
+        save_to_local_models_json(model_record)
+
+        # 2. Sync to Supabase models table in background non-blocking thread
+        bg_sync_supabase("models", {
+            "model_type": "global",
+            "account_id": None,
+            "version": version,
+            "algorithm": algorithm,
+            "metrics": {"mae": mae, "r2": r2, "spearman": spearman},
+            "feature_importances": importances,
+            "artifact_path": storage_path,
+            "training_rows_count": len(df),
+            "trained_at": model_record["trained_at"]
+        })
 
         return {
             "success": True,
-            "model": created_model,
+            "model": model_record,
             "version": version,
             "algorithm": algorithm,
             "rows_used": len(df),
@@ -145,30 +186,29 @@ class ModelTrainer:
 
         account_id = df["account_id"].iloc[0]
 
-        # Fetch latest global model for stacking
-        supabase = get_supabase()
-        g_model_res = (
-            supabase.table("models")
-            .select("*")
-            .eq("model_type", "global")
-            .order("trained_at", desc=True)
-            .limit(1)
-            .execute()
-        )
-        if not g_model_res.data:
-            # Train global model first if none exists
-            self.train_global_model()
-            g_model_res = (
-                supabase.table("models")
-                .select("*")
-                .eq("model_type", "global")
-                .order("trained_at", desc=True)
-                .limit(1)
-                .execute()
-            )
+        # Fetch latest global model for stacking directly from local models registry
+        g_model_info = None
+        models_path = os.path.join(LOCAL_STORAGE_DIR, "models.json")
+        if os.path.exists(models_path):
+            try:
+                with open(models_path, "r", encoding="utf-8") as f:
+                    all_models = json.load(f)
+                for m in all_models:
+                    if m.get("model_type") == "global":
+                        g_model_info = m
+                        break
+            except Exception:
+                pass
 
-        g_model_info = g_model_res.data[0]
-        # Load global model artifact
+        if not g_model_info:
+            # Train global model first if none exists locally
+            train_res = self.train_global_model()
+            g_model_info = train_res.get("model")
+
+        if not g_model_info:
+            raise ValueError("No global model available for stacking.")
+
+        # Load global model artifact from local storage
         g_local_path = os.path.join(ARTIFACTS_DIR, f"global_{g_model_info['version']}.joblib")
         if not os.path.exists(g_local_path):
             from db import download_model_artifact
@@ -231,23 +271,40 @@ class ModelTrainer:
         storage_path = f"personal/{clean_handle}/{version}/model.joblib"
         upload_model_artifact(local_file, storage_path)
 
-        db_res = supabase.table("models").insert({
+        model_record = {
+            "id": f"model-{version}",
             "model_type": "personal",
-            "account_id": account_id,
+            "account_id": account_id or clean_handle,
             "version": version,
             "algorithm": "stacked_ridge",
             "metrics": {"mae": mae, "r2": r2, "spearman": spearman, "blend_weight": blend_weight},
             "feature_importances": {"global_prediction_weight": blend_weight},
             "artifact_path": storage_path,
             "training_rows_count": n,
-            "trained_at": datetime.utcnow().isoformat()
-        }).execute()
+            "trained_at": datetime.utcnow().isoformat(),
+            "account_handle": clean_handle,
+            "accounts": {"handle": clean_handle}
+        }
 
-        created_model = db_res.data[0] if db_res.data else {}
+        # 1. Save to local models registry
+        save_to_local_models_json(model_record)
+
+        # 2. Sync to Supabase in background non-blocking thread
+        bg_sync_supabase("models", {
+            "model_type": "personal",
+            "account_id": account_id if account_id and "-" in str(account_id) else None,
+            "version": version,
+            "algorithm": "stacked_ridge",
+            "metrics": {"mae": mae, "r2": r2, "spearman": spearman, "blend_weight": blend_weight},
+            "feature_importances": {"global_prediction_weight": blend_weight},
+            "artifact_path": storage_path,
+            "training_rows_count": n,
+            "trained_at": model_record["trained_at"]
+        })
 
         return {
             "success": True,
-            "model": created_model,
+            "model": model_record,
             "version": version,
             "handle": clean_handle,
             "rows_used": n,

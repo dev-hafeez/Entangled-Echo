@@ -10,7 +10,7 @@ export default function AdminPage() {
 
   // Scraper Form
   const [targetsText, setTargetsText] = useState('');
-  const [maxPosts, setMaxPosts] = useState<string>('12');
+  const [maxPosts, setMaxPosts] = useState<string>('60');
   const [headless, setHeadless] = useState<boolean>(true);
   const [scrapeLoading, setScrapeLoading] = useState(false);
   const [scrapeMsg, setScrapeMsg] = useState('');
@@ -43,6 +43,11 @@ export default function AdminPage() {
     totalPages: 1,
   });
 
+  // Accounts pagination & search
+  const [accountPage, setAccountPage] = useState<number>(1);
+  const [accountSearch, setAccountSearch] = useState<string>('');
+  const accountsPerPage = 20;
+
   const showNotice = (msg: string) => {
     setActionNotice(msg);
     setTimeout(() => {
@@ -64,41 +69,76 @@ export default function AdminPage() {
   const [predLoading, setPredLoading] = useState(false);
   const [predResult, setPredResult] = useState<any>(null);
 
+  // Session Auth & Canary State
+  const [sessionInfo, setSessionInfo] = useState<{ authenticated: boolean; cookieNames: string[]; reason?: string } | null>(null);
+  const [canaryResult, setCanaryResult] = useState<any>(null);
+  const [canaryLoading, setCanaryLoading] = useState(false);
+  const [isQueuePaused, setIsQueuePaused] = useState<boolean>(true);
+  const [curatedListSummary, setCuratedListSummary] = useState<any>(null);
+  const [loadingCurated, setLoadingCurated] = useState(false);
+  const [evalLoading, setEvalLoading] = useState(false);
+  const [evalMsg, setEvalMsg] = useState('');
+  const [latestEval, setLatestEval] = useState<any>(null);
+  const [evalMarkdown, setEvalMarkdown] = useState<string>('');
+  const [evalSnapshot, setEvalSnapshot] = useState('2026-11-03-clean-v2');
+
   // Check auth
   useEffect(() => {
-    const isAuth = document.cookie.includes('admin_auth=true');
-    setIsAuthenticated(isAuth);
+    let isMounted = true;
+    fetch('/api/auth/session')
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted) {
+          setIsAuthenticated(Boolean(data.authenticated));
+        }
+      })
+      .catch(() => {
+        if (isMounted) setIsAuthenticated(false);
+      });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Fetch data with active filters and pagination
+  // Fetch data with active filters and pagination (decoupled so fast local data renders immediately)
   const loadData = async (
     filter: string = jobStatusFilter,
     search: string = jobSearch,
     page: number = jobPage,
     limit: number = jobLimit
   ) => {
-    try {
-      const [jRes, aRes, mRes] = await Promise.allSettled([
-        api.getJobs({ status: filter, search, page, limit }),
-        api.getAccounts(),
-        api.getModels(),
-      ]);
+    // 1. Fetch Accounts immediately from local storage
+    api.getAccounts().then((a) => {
+      if (a?.accounts) setAccounts(a.accounts);
+    }).catch((e) => console.error('Failed to load accounts:', e));
 
-      if (jRes.status === 'fulfilled') {
-        setJobs(jRes.value.jobs || []);
-        if (jRes.value.pagination) setJobPagination(jRes.value.pagination);
-        if (jRes.value.summary) {
-          setJobSummary(jRes.value.summary);
-          setTotalJobs(jRes.value.summary.total);
-        } else {
-          setTotalJobs(jRes.value.total ?? (jRes.value.jobs?.length || 0));
-        }
+    // 2. Fetch Models immediately from local storage
+    api.getModels().then((m) => {
+      if (m?.models) setModels(m.models);
+    }).catch((e) => console.error('Failed to load models:', e));
+
+    // 3. Fetch Jobs independently
+    api.getJobs({ status: filter, search, page, limit }).then((j) => {
+      if (j?.jobs) setJobs(j.jobs);
+      if (j?.pagination) setJobPagination(j.pagination);
+      if (j?.isPaused !== undefined) setIsQueuePaused(j.isPaused);
+      if (j?.summary) {
+        setJobSummary(j.summary);
+        setTotalJobs(j.summary.total);
+      } else {
+        setTotalJobs(j.total ?? (j.jobs?.length || 0));
       }
-      if (aRes.status === 'fulfilled') setAccounts(aRes.value.accounts || []);
-      if (mRes.status === 'fulfilled') setModels(mRes.value.models || []);
-    } catch (e) {
-      console.error('Failed to load admin data:', e);
-    }
+    }).catch((e) => console.error('Failed to load jobs:', e));
+
+    // 4. Fetch Latest Evaluation
+    api.getLatestEval().then((res) => {
+      if (res?.run) setLatestEval(res.run);
+      if (res?.markdown) setEvalMarkdown(res.markdown);
+    }).catch(() => {});
+
+    // 5. Fetch Session Status & Curated List
+    api.getSessionStatus().then((s) => setSessionInfo(s)).catch(() => {});
+    api.getCuratedList().then((c) => setCuratedListSummary(c.summary)).catch(() => {});
   };
 
   useEffect(() => {
@@ -121,10 +161,12 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
       });
-      if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
         setIsAuthenticated(true);
+        loadData(jobStatusFilter, jobSearch, jobPage, jobLimit);
       } else {
-        setAuthError('Invalid administrator password');
+        setAuthError(data.error || 'Invalid administrator password');
       }
     } catch {
       setAuthError('Connection error logging in');
@@ -284,6 +326,27 @@ export default function AdminPage() {
     }
   };
 
+  const handleRunEvaluation = async () => {
+    setEvalLoading(true);
+    setEvalMsg('');
+    try {
+      const res = await api.runEval(evalSnapshot, 30);
+      setEvalMsg(res.message || 'Evaluation started in background.');
+      showNotice('Evaluation harness started. Refreshing in a few moments...');
+      setTimeout(async () => {
+        try {
+          const latest = await api.getLatestEval();
+          if (latest?.run) setLatestEval(latest.run);
+          if (latest?.markdown) setEvalMarkdown(latest.markdown);
+        } catch {}
+      }, 5000);
+    } catch (err: any) {
+      setEvalMsg(`Evaluation error: ${err.message}`);
+    } finally {
+      setEvalLoading(false);
+    }
+  };
+
   const handleTrainPersonal = async () => {
     if (!selectedAccountForTrain) {
       alert('Please select an account first');
@@ -379,17 +442,111 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="flex justify-between items-center border-b pb-4">
+      <div className="flex flex-wrap justify-between items-center border-b pb-4 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">EntangledEcho Admin Console</h1>
           <p className="text-sm text-slate-500">Instagram Scraper, Job Queue, and ML Engine</p>
         </div>
-        <button
-          onClick={() => loadData()}
-          className="text-xs bg-slate-100 hover:bg-slate-200 border border-slate-300 px-3 py-1.5 rounded font-medium"
-        >
-          ↻ Refresh Data
-        </button>
+        <div className="flex items-center space-x-3">
+          {sessionInfo && (
+            <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold border ${
+              sessionInfo.authenticated
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                : 'bg-rose-50 text-rose-800 border-rose-200'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${sessionInfo.authenticated ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+              <span>{sessionInfo.authenticated ? 'Session: Active' : 'Session: Missing'}</span>
+            </div>
+          )}
+          <button
+            onClick={() => loadData()}
+            className="text-xs bg-slate-100 hover:bg-slate-200 border border-slate-300 px-3 py-1.5 rounded font-medium"
+          >
+            ↻ Refresh Data
+          </button>
+        </div>
+      </div>
+
+      {/* QUICK PRESETS & SESSION BAR */}
+      <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center space-x-4">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Depth Presets:</span>
+          <button
+            onClick={() => setMaxPosts('12')}
+            className={`px-2.5 py-1 text-xs rounded border transition-colors ${
+              maxPosts === '12' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            12 (Fast Audit)
+          </button>
+          <button
+            onClick={() => setMaxPosts('60')}
+            className={`px-2.5 py-1 text-xs rounded border transition-colors ${
+              maxPosts === '60' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            60 (ML Model Ready)
+          </button>
+          <button
+            onClick={() => setMaxPosts('100')}
+            className={`px-2.5 py-1 text-xs rounded border transition-colors ${
+              maxPosts === '100' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            100 (Deep Archive)
+          </button>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          <button
+            disabled={canaryLoading}
+            onClick={async () => {
+              setCanaryLoading(true);
+              try {
+                const res = await api.runCanaryCheck();
+                setCanaryResult(res);
+                showNotice(res.passed ? '✓ Canary passed (all 3 posts extracted)' : `✗ Canary failed: ${res.error}`);
+              } catch (e: any) {
+                showNotice(`Canary error: ${e.message}`);
+              } finally {
+                setCanaryLoading(false);
+              }
+            }}
+            className="text-xs bg-white hover:bg-slate-100 border border-slate-300 px-3 py-1 rounded font-medium flex items-center space-x-1"
+          >
+            <span>{canaryLoading ? 'Testing...' : 'Test Canary Posts'}</span>
+            {canaryResult && (
+              <span className={`w-2 h-2 rounded-full ${canaryResult.passed ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+            )}
+          </button>
+
+          {/* Queue Pause/Resume toggle */}
+          <button
+            onClick={async () => {
+              try {
+                if (isQueuePaused) {
+                  await api.resumeQueue();
+                  setIsQueuePaused(false);
+                  showNotice('Scrape queue resumed.');
+                } else {
+                  await api.pauseQueue();
+                  setIsQueuePaused(true);
+                  showNotice('Scrape queue paused.');
+                }
+                loadData();
+              } catch (e: any) {
+                showNotice(`Queue error: ${e.message}`);
+              }
+            }}
+            className={`text-xs px-3 py-1 rounded font-bold border transition-colors ${
+              isQueuePaused
+                ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600'
+                : 'bg-rose-600 hover:bg-rose-700 text-white border-rose-700'
+            }`}
+          >
+            {isQueuePaused ? '▶ Resume Queue' : '⏸ Pause Queue'}
+          </button>
+        </div>
       </div>
 
       {/* 1. SCRAPER SECTION */}
@@ -669,94 +826,149 @@ export default function AdminPage() {
       </section>
 
       {/* 3. ACCOUNTS TABLE */}
-      <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-slate-800">3. Ingested Accounts & Data Completeness</h2>
-          <span className="text-xs text-slate-500">{accounts.length} accounts in database</span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr className="border-b bg-slate-50 text-slate-600 font-medium">
-                <th className="p-3">Handle</th>
-                <th className="p-3">Followers</th>
-                <th className="p-3">Following</th>
-                <th className="p-3">Posts Collected</th>
-                <th className="p-3">Data Completeness Rate</th>
-                <th className="p-3">Last Scraped</th>
-                <th className="p-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {accounts.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="p-4 text-center text-slate-400">
-                    No accounts stored in database yet.
-                  </td>
-                </tr>
-              ) : (
-                accounts.map((acc) => (
-                  <tr key={acc.id} className="border-b hover:bg-slate-50">
-                    <td className="p-3 font-medium text-slate-900">
-                      <a
-                        href={`/admin/accounts/${acc.handle}`}
-                        className="text-blue-600 hover:underline font-mono"
-                      >
-                        @{acc.handle}
-                      </a>
-                      {acc.is_verified && <span className="ml-1 text-blue-500">✓</span>}
-                    </td>
-                    <td className="p-3 font-mono text-xs">
-                      {acc.followers_count?.toLocaleString() ?? 'NULL'}
-                      <span className="text-slate-400 block text-[10px]">
-                        [{acc.followers_source || 'NULL'}]
-                      </span>
-                    </td>
-                    <td className="p-3 font-mono text-xs">
-                      {acc.following_count?.toLocaleString() ?? 'NULL'}
-                    </td>
-                    <td className="p-3 font-mono text-xs">
-                      {acc.total_posts_collected ?? 0}
-                    </td>
-                    <td className="p-3 text-xs">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-semibold text-slate-700">
-                            {acc.completeness?.overall_rate ?? 0}% overall
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-500">
-                          Likes: {acc.completeness?.likes_rate ?? 0}% | Times: {acc.completeness?.timestamp_rate ?? 0}% | Captions: {acc.completeness?.caption_rate ?? 0}%
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-3 text-xs text-slate-500">
-                      {acc.last_scraped_at
-                        ? new Date(acc.last_scraped_at).toLocaleString()
-                        : 'Never'}
-                    </td>
-                    <td className="p-3 text-right space-x-2">
-                      <a
-                        href={`/admin/accounts/${acc.handle}`}
-                        className="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 border rounded font-medium"
-                      >
-                        View Posts →
-                      </a>
-                      <button
-                        onClick={() => handleDeleteAccount(acc.id, acc.handle)}
-                        disabled={deletingId === acc.id}
-                        className="px-2 py-1 text-xs text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded font-medium transition-colors disabled:opacity-50"
-                      >
-                        {deletingId === acc.id ? 'Deleting...' : 'Delete'}
-                      </button>
-                    </td>
+      {(() => {
+        const filteredAccounts = accounts.filter((acc) =>
+          acc.handle.toLowerCase().includes(accountSearch.toLowerCase().trim())
+        );
+        const totalAccountPages = Math.max(1, Math.ceil(filteredAccounts.length / accountsPerPage));
+        const paginatedAccounts = filteredAccounts.slice(
+          (accountPage - 1) * accountsPerPage,
+          accountPage * accountsPerPage
+        );
+
+        return (
+          <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-800">3. Ingested Accounts & Data Completeness</h2>
+                <span className="text-xs text-slate-500">
+                  Showing {paginatedAccounts.length} of {filteredAccounts.length} accounts (Page {accountPage} of {totalAccountPages})
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  placeholder="Filter by @handle..."
+                  value={accountSearch}
+                  onChange={(e) => {
+                    setAccountSearch(e.target.value);
+                    setAccountPage(1);
+                  }}
+                  className="px-3 py-1.5 text-xs border rounded-md focus:outline-none focus:ring-1 focus:ring-slate-500 w-48 font-mono"
+                />
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr className="border-b bg-slate-50 text-slate-600 font-medium">
+                    <th className="p-3">Handle</th>
+                    <th className="p-3">Followers</th>
+                    <th className="p-3">Following</th>
+                    <th className="p-3">Posts Collected</th>
+                    <th className="p-3">Data Completeness Rate</th>
+                    <th className="p-3">Last Scraped</th>
+                    <th className="p-3 text-right">Actions</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                </thead>
+                <tbody>
+                  {paginatedAccounts.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-4 text-center text-slate-400">
+                        {accountSearch ? 'No accounts match your filter.' : 'No accounts stored in database yet.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedAccounts.map((acc) => (
+                      <tr key={acc.id} className="border-b hover:bg-slate-50">
+                        <td className="p-3 font-medium text-slate-900">
+                          <a
+                            href={`/admin/accounts/${acc.handle}`}
+                            className="text-blue-600 hover:underline font-mono"
+                          >
+                            @{acc.handle}
+                          </a>
+                          {acc.is_verified && <span className="ml-1 text-blue-500">✓</span>}
+                        </td>
+                        <td className="p-3 font-mono text-xs">
+                          {acc.followers_count?.toLocaleString() ?? 'NULL'}
+                          <span className="text-slate-400 block text-[10px]">
+                            [{acc.followers_source || 'NULL'}]
+                          </span>
+                        </td>
+                        <td className="p-3 font-mono text-xs">
+                          {acc.following_count?.toLocaleString() ?? 'NULL'}
+                        </td>
+                        <td className="p-3 font-mono text-xs">
+                          {acc.total_posts_collected ?? 0}
+                        </td>
+                        <td className="p-3 text-xs">
+                          <div className="space-y-1">
+                            <div className="flex items-center space-x-2">
+                              <span className="font-semibold text-slate-700">
+                                {acc.completeness?.overall_rate ?? 0}% overall
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-500">
+                              Likes: {acc.completeness?.likes_rate ?? 0}% | Times: {acc.completeness?.timestamp_rate ?? 0}% | Captions: {acc.completeness?.caption_rate ?? 0}%
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-3 text-xs text-slate-500">
+                          {acc.last_scraped_at
+                            ? new Date(acc.last_scraped_at).toLocaleString()
+                            : 'Never'}
+                        </td>
+                        <td className="p-3 text-right space-x-2">
+                          <a
+                            href={`/admin/accounts/${acc.handle}`}
+                            className="px-2 py-1 text-xs bg-slate-100 hover:bg-slate-200 border rounded font-medium"
+                          >
+                            View Posts →
+                          </a>
+                          <button
+                            onClick={() => handleDeleteAccount(acc.id, acc.handle)}
+                            disabled={deletingId === acc.id}
+                            className="px-2 py-1 text-xs text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-300 rounded font-medium transition-colors disabled:opacity-50"
+                          >
+                            {deletingId === acc.id ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            {totalAccountPages > 1 && (
+              <div className="flex justify-between items-center pt-3 border-t text-xs text-slate-600">
+                <span>
+                  Page {accountPage} of {totalAccountPages} ({filteredAccounts.length} creators)
+                </span>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setAccountPage((p) => Math.max(1, p - 1))}
+                    disabled={accountPage === 1}
+                    className="px-3 py-1 border rounded bg-slate-50 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    ← Previous
+                  </button>
+                  <span className="font-mono">{accountPage}</span>
+                  <button
+                    onClick={() => setAccountPage((p) => Math.min(totalAccountPages, p + 1))}
+                    disabled={accountPage === totalAccountPages}
+                    className="px-3 py-1 border rounded bg-slate-50 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        );
+      })()}
 
       {/* 4. MODELS & PREDICTION */}
       <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-6">
@@ -947,6 +1159,121 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+      </section>
+
+      {/* 5. MODEL EVALUATION HARNESS */}
+      <section className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">5. Model Evaluation Harness</h2>
+            <p className="text-sm text-slate-500">
+              Rigorous GroupKFold cross-validation against baselines on frozen dataset snapshots.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={evalSnapshot}
+              onChange={(e) => setEvalSnapshot(e.target.value)}
+              placeholder="Snapshot (e.g. 2026-11-02)"
+              className="px-3 py-1.5 text-xs font-mono border border-slate-300 rounded w-36"
+            />
+            <button
+              onClick={handleRunEvaluation}
+              disabled={evalLoading}
+              className="px-4 py-2 bg-slate-900 text-white rounded text-xs font-semibold hover:bg-black disabled:opacity-50 transition"
+            >
+              {evalLoading ? 'Running...' : 'Run Evaluation Harness'}
+            </button>
+          </div>
+        </div>
+
+        {evalMsg && (
+          <div className="text-xs px-3 py-2 bg-blue-50 text-blue-700 rounded border border-blue-200 font-mono">
+            {evalMsg}
+          </div>
+        )}
+
+        {latestEval ? (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-3 bg-slate-50 border rounded text-xs">
+                <span className="text-slate-500 block">Run ID</span>
+                <span className="font-mono font-bold text-slate-800">{latestEval.run_id}</span>
+              </div>
+              <div className="p-3 bg-slate-50 border rounded text-xs">
+                <span className="text-slate-500 block">Snapshot</span>
+                <span className="font-mono font-bold text-slate-800">{latestEval.snapshot}</span>
+              </div>
+              <div className="p-3 bg-slate-50 border rounded text-xs">
+                <span className="text-slate-500 block">Posts / Creators</span>
+                <span className="font-mono font-bold text-slate-800">{latestEval.posts_count} / {latestEval.creators_count}</span>
+              </div>
+              <div className="p-3 bg-slate-50 border rounded text-xs">
+                <span className="text-slate-500 block">Runtime</span>
+                <span className="font-mono font-bold text-slate-800">{latestEval.runtime_s}s</span>
+              </div>
+            </div>
+
+            {/* Benchmark Summary Table */}
+            <div className="overflow-x-auto border rounded-lg">
+              <table className="min-w-full text-xs text-left">
+                <thead className="bg-slate-100 font-semibold text-slate-700 border-b">
+                  <tr>
+                    <th className="px-4 py-2.5">Model / Baseline</th>
+                    <th className="px-4 py-2.5">MAE</th>
+                    <th className="px-4 py-2.5">RMSE</th>
+                    <th className="px-4 py-2.5">R²</th>
+                    <th className="px-4 py-2.5">Overall Spearman</th>
+                    <th className="px-4 py-2.5">Within-Account Spearman</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  <tr className="hover:bg-slate-50">
+                    <td className="px-4 py-2 font-medium">Global Mean Baseline</td>
+                    <td className="px-4 py-2 font-mono">{latestEval.baselines?.global_mean?.mae?.toFixed(5)}</td>
+                    <td className="px-4 py-2 font-mono">{latestEval.baselines?.global_mean?.rmse?.toFixed(5)}</td>
+                    <td className="px-4 py-2 font-mono">{latestEval.baselines?.global_mean?.r2?.toFixed(4)}</td>
+                    <td className="px-4 py-2 font-mono">{latestEval.baselines?.global_mean?.spearman?.toFixed(4)}</td>
+                    <td className="px-4 py-2 font-mono">0.0000</td>
+                  </tr>
+                  <tr className="hover:bg-slate-50">
+                    <td className="px-4 py-2 font-medium">Follower Bucket Mean</td>
+                    <td className="px-4 py-2 font-mono">{latestEval.baselines?.follower_bucket_mean?.mae?.toFixed(5)}</td>
+                    <td className="px-4 py-2 font-mono">{latestEval.baselines?.follower_bucket_mean?.rmse?.toFixed(5)}</td>
+                    <td className="px-4 py-2 font-mono">{latestEval.baselines?.follower_bucket_mean?.r2?.toFixed(4)}</td>
+                    <td className="px-4 py-2 font-mono">{latestEval.baselines?.follower_bucket_mean?.spearman?.toFixed(4)}</td>
+                    <td className="px-4 py-2 font-mono">0.0000</td>
+                  </tr>
+                  <tr className="bg-slate-50/80 font-bold text-slate-900 border-t">
+                    <td className="px-4 py-2.5">Global LightGBM Model</td>
+                    <td className="px-4 py-2.5 font-mono">{latestEval.global_model?.mae?.toFixed(5)}</td>
+                    <td className="px-4 py-2.5 font-mono">{latestEval.global_model?.rmse?.toFixed(5)}</td>
+                    <td className="px-4 py-2.5 font-mono">{latestEval.global_model?.r2?.toFixed(4)}</td>
+                    <td className="px-4 py-2.5 font-mono">{latestEval.global_model?.spearman?.toFixed(4)}</td>
+                    <td className="px-4 py-2.5 font-mono text-indigo-700">{latestEval.global_model?.within_account_spearman?.toFixed(4)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Full Markdown Report Rendering */}
+            {evalMarkdown && (
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  Full Markdown Report Output:
+                </div>
+                <div className="p-4 bg-slate-900 text-slate-100 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre-wrap max-h-96">
+                  {evalMarkdown}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="p-8 text-center text-xs text-slate-500 bg-slate-50 rounded border border-dashed">
+            No evaluation runs found yet. Click &quot;Run Evaluation Harness&quot; above to execute the 5-fold cross-validation.
+          </div>
+        )}
       </section>
     </div>
   );

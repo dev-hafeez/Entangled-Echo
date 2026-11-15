@@ -1,5 +1,26 @@
 [
   {
+    "id": "model-v_personal_20261112_174743",
+    "model_type": "personal",
+    "version": "v_personal_20261112_174743",
+    "algorithm": "stacked_ridge",
+    "artifact_path": "personal/damn_you_a_sexy_fish/v_personal_20261112_174743/model.joblib",
+    "metrics": {
+      "mae": 4.667497532598414,
+      "r2": 0,
+      "spearman": 0
+    },
+    "feature_importances": {
+      "global_prediction_weight": 0
+    },
+    "training_rows_count": 4,
+    "trained_at": "2026-11-12T17:47:43.822Z",
+    "account_handle": "damn_you_a_sexy_fish",
+    "accounts": {
+      "handle": "damn_you_a_sexy_fish"
+    }
+  },
+  {
     "id": "model-v_personal_20261107_111435",
     "model_type": "personal",
     "version": "v_personal_20261107_111435",

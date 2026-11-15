@@ -16,6 +16,7 @@ import { calendarRouter } from './routes/calendar.js';
 import { adminRouter } from './routes/admin.js';
 import { schedulerService } from './services/scheduler.js';
 import { JobWorker } from './lib/queue.js';
+import { verifyTickSecret } from './lib/auth.js';
 
 const logger = pino({
   transport: {
@@ -62,8 +63,17 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/calendar', calendarRouter);
 app.use('/api/admin', adminRouter);
 app.use('/internal/tick', async (req: Request, res: Response) => {
-  const result = await schedulerService.runTick();
-  res.json({ success: true, ...result });
+  const tickAuth = verifyTickSecret(req);
+  if (!tickAuth.authorized) {
+    return res.status(tickAuth.status || 401).json({ error: tickAuth.error });
+  }
+
+  try {
+    const result = await schedulerService.runTick();
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Centralized error handler

@@ -1,31 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { config } from '../config.js';
 import { localJobQueue } from '../lib/local-queue.js';
+import { requireAdmin } from '../lib/auth.js';
 import fs from 'fs';
 import path from 'path';
 
 export const adminRouter = Router();
 
-// Middleware: Admin role check (FR-06)
-adminRouter.use((req: Request, res: Response, next) => {
-  const adminPassword = config.adminPassword || 'admin123';
-  const authHeader = req.headers['authorization'] || req.headers['x-admin-password'];
-  const cookieHeader = req.headers['cookie'] || '';
-  const hasCookie = cookieHeader.includes('admin_auth=true');
-
-  const isAuthorized =
-    hasCookie ||
-    authHeader === adminPassword ||
-    authHeader === `Bearer ${adminPassword}`;
-
-  if (!isAuthorized) {
-    return res.status(403).json({
-      error: 'Forbidden: Administrator privileges required (FR-06)',
-      status: 403,
-    });
-  }
-  next();
-});
+// Middleware: Strict verified Admin role check (FR-06)
+adminRouter.use(requireAdmin);
 
 /**
  * GET /api/admin/status

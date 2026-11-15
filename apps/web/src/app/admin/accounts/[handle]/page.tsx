@@ -161,6 +161,37 @@ export default function AccountDetailPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {posts.map((post) => {
               const thumbnail = getThumbnailSrc(post);
+              const likesCount =
+                post.likes_count ??
+                post.likesCount ??
+                post.post_snapshots?.[0]?.likes_count ??
+                null;
+              const likesSource =
+                post.likes_source ??
+                post.likesSource ??
+                post.post_snapshots?.[0]?.likes_source ??
+                (likesCount != null ? 'network_json' : null);
+              const commentsCount =
+                post.comments_count ??
+                post.commentsCount ??
+                post.post_snapshots?.[0]?.comments_count ??
+                null;
+              const commentsSource =
+                post.comments_source ??
+                post.commentsSource ??
+                post.post_snapshots?.[0]?.comments_source ??
+                (commentsCount != null ? 'network_json' : null);
+              const viewsCount =
+                post.views_count ??
+                post.viewsCount ??
+                post.post_snapshots?.[0]?.views_count ??
+                null;
+              const viewsSource =
+                post.views_source ??
+                post.viewsSource ??
+                post.post_snapshots?.[0]?.views_source ??
+                null;
+
               return (
                 <div
                   key={post.id}
@@ -242,10 +273,10 @@ export default function AccountDetailPage() {
                       <span className="text-slate-500">Likes:</span>
                       <div className="text-right">
                         <span className="font-bold text-slate-800">
-                          {post.likes_count !== null ? post.likes_count.toLocaleString() : 'NULL'}
+                          {likesCount != null ? likesCount.toLocaleString() : 'NULL'}
                         </span>
                         <span className="ml-1 text-[10px] text-slate-400">
-                          [{post.likes_source || 'NULL'}]
+                          [{likesSource || 'NULL'}]
                         </span>
                       </div>
                     </div>
@@ -254,23 +285,23 @@ export default function AccountDetailPage() {
                       <span className="text-slate-500">Comments:</span>
                       <div className="text-right">
                         <span className="font-bold text-slate-800">
-                          {post.comments_count !== null ? post.comments_count.toLocaleString() : 'NULL'}
+                          {commentsCount != null ? commentsCount.toLocaleString() : 'NULL'}
                         </span>
                         <span className="ml-1 text-[10px] text-slate-400">
-                          [{post.comments_source || 'NULL'}]
+                          [{commentsSource || 'NULL'}]
                         </span>
                       </div>
                     </div>
 
-                    {post.views_count !== null && (
+                    {viewsCount != null && (
                       <div className="flex justify-between items-center">
                         <span className="text-slate-500">Views (Reels):</span>
                         <div className="text-right">
                           <span className="font-bold text-slate-800">
-                            {post.views_count.toLocaleString()}
+                            {viewsCount.toLocaleString()}
                           </span>
                           <span className="ml-1 text-[10px] text-slate-400">
-                            [{post.views_source || 'NULL'}]
+                            [{viewsSource || 'NULL'}]
                           </span>
                         </div>
                       </div>

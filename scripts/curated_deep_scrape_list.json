@@ -1,0 +1,685 @@
+{
+  "summary": {
+    "total": 112,
+    "under100k": 43,
+    "bucket100k_1m": 49,
+    "over1m": 20,
+    "max_posts": 60,
+    "batch_size": 20,
+    "cooldown_min": 10
+  },
+  "list": [
+    {
+      "handle": "abdulkhaleque261",
+      "followers": 830,
+      "postsCount": 114,
+      "savedPosts": 0
+    },
+    {
+      "handle": "brandonrouth",
+      "followers": 26,
+      "postsCount": 0,
+      "savedPosts": 0
+    },
+    {
+      "handle": "hafeezisnt",
+      "followers": 208,
+      "postsCount": 1,
+      "savedPosts": 0
+    },
+    {
+      "handle": "kaleem._.abbasi830",
+      "followers": 256,
+      "postsCount": 4,
+      "savedPosts": 0
+    },
+    {
+      "handle": "ronhoward",
+      "followers": 11000,
+      "postsCount": 478,
+      "savedPosts": 0
+    },
+    {
+      "handle": "ryanreynolds",
+      "followers": 2936,
+      "postsCount": 6,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sapnap",
+      "followers": 184,
+      "postsCount": 191,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sarahsafari",
+      "followers": 198,
+      "postsCount": 21,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sarvash_yadav1",
+      "followers": 81000,
+      "postsCount": 6770,
+      "savedPosts": 0
+    },
+    {
+      "handle": "saurabhs.builds",
+      "followers": 18000,
+      "postsCount": 50,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sb_haeun01",
+      "followers": 11000,
+      "postsCount": 93,
+      "savedPosts": 0
+    },
+    {
+      "handle": "seduu.beduu.memes",
+      "followers": 3694,
+      "postsCount": 123,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sergioperez",
+      "followers": 1373,
+      "postsCount": 46,
+      "savedPosts": 0
+    },
+    {
+      "handle": "shazykhann_",
+      "followers": 77000,
+      "postsCount": 68,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sheikh.dng",
+      "followers": 21000,
+      "postsCount": 475,
+      "savedPosts": 0
+    },
+    {
+      "handle": "shitposts.pk",
+      "followers": 43000,
+      "postsCount": 394,
+      "savedPosts": 0
+    },
+    {
+      "handle": "shonenjump",
+      "followers": 80,
+      "postsCount": 0,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sialkotstallionzpsl",
+      "followers": 74000,
+      "postsCount": 51,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sinna",
+      "followers": 319,
+      "postsCount": 106,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sinnan_hussain",
+      "followers": 247,
+      "postsCount": 7,
+      "savedPosts": 0
+    },
+    {
+      "handle": "skateboarding",
+      "followers": 35000,
+      "postsCount": 441,
+      "savedPosts": 0
+    },
+    {
+      "handle": "squidgame",
+      "followers": 34000,
+      "postsCount": 1106,
+      "savedPosts": 0
+    },
+    {
+      "handle": "steveharvey",
+      "followers": 1237,
+      "postsCount": 453,
+      "savedPosts": 0
+    },
+    {
+      "handle": "studio_ghibli",
+      "followers": 1058,
+      "postsCount": 207,
+      "savedPosts": 0
+    },
+    {
+      "handle": "subaru",
+      "followers": 11000,
+      "postsCount": 1,
+      "savedPosts": 0
+    },
+    {
+      "handle": "tasty",
+      "followers": 4814,
+      "postsCount": 5,
+      "savedPosts": 0
+    },
+    {
+      "handle": "tedtalks",
+      "followers": 1582,
+      "postsCount": 1,
+      "savedPosts": 0
+    },
+    {
+      "handle": "teenage_mutant_ninja_turtles",
+      "followers": 12,
+      "postsCount": 1,
+      "savedPosts": 0
+    },
+    {
+      "handle": "thebulletpunjabi",
+      "followers": 4633,
+      "postsCount": 96,
+      "savedPosts": 0
+    },
+    {
+      "handle": "theellenshow",
+      "followers": 18000,
+      "postsCount": 1,
+      "savedPosts": 0
+    },
+    {
+      "handle": "thehiddencry",
+      "followers": 1925,
+      "postsCount": 174,
+      "savedPosts": 0
+    },
+    {
+      "handle": "thepomegranatearchive",
+      "followers": 37000,
+      "postsCount": 224,
+      "savedPosts": 0
+    },
+    {
+      "handle": "triumphmotorcycles",
+      "followers": 108,
+      "postsCount": 1,
+      "savedPosts": 0
+    },
+    {
+      "handle": "usmantariq.1995",
+      "followers": 66000,
+      "postsCount": 356,
+      "savedPosts": 0
+    },
+    {
+      "handle": "valentino",
+      "followers": 8717,
+      "postsCount": 141,
+      "savedPosts": 0
+    },
+    {
+      "handle": "vanossgaming",
+      "followers": 26,
+      "postsCount": 6,
+      "savedPosts": 0
+    },
+    {
+      "handle": "viliconsalleyy",
+      "followers": 1344,
+      "postsCount": 13,
+      "savedPosts": 0
+    },
+    {
+      "handle": "williamsracing",
+      "followers": 84,
+      "postsCount": 18,
+      "savedPosts": 0
+    },
+    {
+      "handle": "winter.sed",
+      "followers": 55000,
+      "postsCount": 70,
+      "savedPosts": 0
+    },
+    {
+      "handle": "yasirshahofficial86",
+      "followers": 95000,
+      "postsCount": 169,
+      "savedPosts": 0
+    },
+    {
+      "handle": "youngthug",
+      "followers": 2605,
+      "postsCount": 4,
+      "savedPosts": 0
+    },
+    {
+      "handle": "zhepsage",
+      "followers": 69000,
+      "postsCount": 53,
+      "savedPosts": 0
+    },
+    {
+      "handle": "zoobs_g",
+      "followers": 57,
+      "postsCount": 5,
+      "savedPosts": 0
+    },
+    {
+      "handle": "smartereveryday",
+      "followers": 249000,
+      "postsCount": 2057,
+      "savedPosts": 0
+    },
+    {
+      "handle": "saadahashmani",
+      "followers": 860000,
+      "postsCount": 1500,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sentinels",
+      "followers": 684000,
+      "postsCount": 1321,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sharumkisketchbook",
+      "followers": 563000,
+      "postsCount": 485,
+      "savedPosts": 0
+    },
+    {
+      "handle": "zalmiplayz",
+      "followers": 899000,
+      "postsCount": 96,
+      "savedPosts": 0
+    },
+    {
+      "handle": "thefilmmemes",
+      "followers": 326000,
+      "postsCount": 1507,
+      "savedPosts": 0
+    },
+    {
+      "handle": "surinderkaur_ji",
+      "followers": 170000,
+      "postsCount": 328,
+      "savedPosts": 0
+    },
+    {
+      "handle": "huztory",
+      "followers": 426000,
+      "postsCount": 395,
+      "savedPosts": 0
+    },
+    {
+      "handle": "veritasium",
+      "followers": 363000,
+      "postsCount": 710,
+      "savedPosts": 0
+    },
+    {
+      "handle": "waniaaanadeem",
+      "followers": 685000,
+      "postsCount": 97,
+      "savedPosts": 0
+    },
+    {
+      "handle": "usman_khawajy",
+      "followers": 795000,
+      "postsCount": 1485,
+      "savedPosts": 0
+    },
+    {
+      "handle": "srazab24",
+      "followers": 442000,
+      "postsCount": 1071,
+      "savedPosts": 0
+    },
+    {
+      "handle": "therawknee",
+      "followers": 734000,
+      "postsCount": 708,
+      "savedPosts": 0
+    },
+    {
+      "handle": "thefoodloverfromcapital",
+      "followers": 293000,
+      "postsCount": 1292,
+      "savedPosts": 0
+    },
+    {
+      "handle": "tabishhashmi",
+      "followers": 846000,
+      "postsCount": 329,
+      "savedPosts": 0
+    },
+    {
+      "handle": "weirdmedievalguys",
+      "followers": 148000,
+      "postsCount": 332,
+      "savedPosts": 0
+    },
+    {
+      "handle": "thebatman",
+      "followers": 725000,
+      "postsCount": 452,
+      "savedPosts": 0
+    },
+    {
+      "handle": "ukhano",
+      "followers": 818000,
+      "postsCount": 2059,
+      "savedPosts": 0
+    },
+    {
+      "handle": "shandarmobiles",
+      "followers": 469000,
+      "postsCount": 7459,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sajawalusmani1",
+      "followers": 339000,
+      "postsCount": 1015,
+      "savedPosts": 0
+    },
+    {
+      "handle": "webspherx",
+      "followers": 136000,
+      "postsCount": 872,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sarcaxxm",
+      "followers": 515000,
+      "postsCount": 706,
+      "savedPosts": 0
+    },
+    {
+      "handle": "softwarewithnick",
+      "followers": 304000,
+      "postsCount": 854,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sidsityy",
+      "followers": 543000,
+      "postsCount": 47,
+      "savedPosts": 0
+    },
+    {
+      "handle": "talhahyunus",
+      "followers": 931000,
+      "postsCount": 617,
+      "savedPosts": 0
+    },
+    {
+      "handle": "saimrehmannn",
+      "followers": 480000,
+      "postsCount": 446,
+      "savedPosts": 0
+    },
+    {
+      "handle": "skeppy",
+      "followers": 647000,
+      "postsCount": 3,
+      "savedPosts": 0
+    },
+    {
+      "handle": "waqas_gm_",
+      "followers": 663000,
+      "postsCount": 1035,
+      "savedPosts": 0
+    },
+    {
+      "handle": "tembabavuma",
+      "followers": 444000,
+      "postsCount": 759,
+      "savedPosts": 0
+    },
+    {
+      "handle": "waqyounis",
+      "followers": 104000,
+      "postsCount": 106,
+      "savedPosts": 0
+    },
+    {
+      "handle": "vizmedia",
+      "followers": 703000,
+      "postsCount": 13000,
+      "savedPosts": 0
+    },
+    {
+      "handle": "seriouseats",
+      "followers": 577000,
+      "postsCount": 8950,
+      "savedPosts": 0
+    },
+    {
+      "handle": "wazir.patar",
+      "followers": 718000,
+      "postsCount": 140,
+      "savedPosts": 0
+    },
+    {
+      "handle": "tenochhuerta",
+      "followers": 958000,
+      "postsCount": 467,
+      "savedPosts": 0
+    },
+    {
+      "handle": "trollmajha",
+      "followers": 137000,
+      "postsCount": 1743,
+      "savedPosts": 0
+    },
+    {
+      "handle": "theofficialnusrat",
+      "followers": 812000,
+      "postsCount": 231,
+      "savedPosts": 0
+    },
+    {
+      "handle": "wildlensbyabrar",
+      "followers": 780000,
+      "postsCount": 365,
+      "savedPosts": 0
+    },
+    {
+      "handle": "theshehzadshow",
+      "followers": 530000,
+      "postsCount": 57,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sahibzadafarhanofficial",
+      "followers": 310000,
+      "postsCount": 290,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sahibabali",
+      "followers": 873000,
+      "postsCount": 1304,
+      "savedPosts": 0
+    },
+    {
+      "handle": "therussianliteraturesociety",
+      "followers": 100000,
+      "postsCount": 471,
+      "savedPosts": 0
+    },
+    {
+      "handle": "soya__sass",
+      "followers": 131000,
+      "postsCount": 28,
+      "savedPosts": 0
+    },
+    {
+      "handle": "100xengineers",
+      "followers": 979000,
+      "postsCount": 1509,
+      "savedPosts": 0
+    },
+    {
+      "handle": "tana",
+      "followers": 415000,
+      "postsCount": 18,
+      "savedPosts": 0
+    },
+    {
+      "handle": "zeeshan_eating01",
+      "followers": 363000,
+      "postsCount": 557,
+      "savedPosts": 0
+    },
+    {
+      "handle": "thelastshadowpuppets",
+      "followers": 204000,
+      "postsCount": 174,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sanidhya.ai",
+      "followers": 924000,
+      "postsCount": 440,
+      "savedPosts": 0
+    },
+    {
+      "handle": "iamharis63",
+      "followers": 443000,
+      "postsCount": 59,
+      "savedPosts": 0
+    },
+    {
+      "handle": "suneelsarfarazmunj",
+      "followers": 418000,
+      "postsCount": 2196,
+      "savedPosts": 0
+    },
+    {
+      "handle": "ysl",
+      "followers": 14000000,
+      "postsCount": 3286,
+      "savedPosts": 0
+    },
+    {
+      "handle": "yuvisofficial",
+      "followers": 21000000,
+      "postsCount": 1449,
+      "savedPosts": 0
+    },
+    {
+      "handle": "troyesivan",
+      "followers": 15000000,
+      "postsCount": 1915,
+      "savedPosts": 0
+    },
+    {
+      "handle": "vinijr",
+      "followers": 64000000,
+      "postsCount": 705,
+      "savedPosts": 0
+    },
+    {
+      "handle": "stevengerrard",
+      "followers": 11000000,
+      "postsCount": 1574,
+      "savedPosts": 0
+    },
+    {
+      "handle": "salomon",
+      "followers": 2000000,
+      "postsCount": 1014,
+      "savedPosts": 0
+    },
+    {
+      "handle": "selenagomez",
+      "followers": 402000000,
+      "postsCount": 2190,
+      "savedPosts": 0
+    },
+    {
+      "handle": "usher",
+      "followers": 14000000,
+      "postsCount": 710,
+      "savedPosts": 0
+    },
+    {
+      "handle": "simonebiles",
+      "followers": 12000000,
+      "postsCount": 3085,
+      "savedPosts": 0
+    },
+    {
+      "handle": "tonyrobbins",
+      "followers": 8000000,
+      "postsCount": 2057,
+      "savedPosts": 0
+    },
+    {
+      "handle": "wimbledon",
+      "followers": 8000000,
+      "postsCount": 11000,
+      "savedPosts": 0
+    },
+    {
+      "handle": "thomasrhettakins",
+      "followers": 5000000,
+      "postsCount": 3135,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sidhu_moosewala",
+      "followers": 19000000,
+      "postsCount": 320,
+      "savedPosts": 0
+    },
+    {
+      "handle": "salmahayek",
+      "followers": 29000000,
+      "postsCount": 2565,
+      "savedPosts": 0
+    },
+    {
+      "handle": "the_political_compass",
+      "followers": 1000000,
+      "postsCount": 13000,
+      "savedPosts": 0
+    },
+    {
+      "handle": "waynerooney",
+      "followers": 16000000,
+      "postsCount": 1592,
+      "savedPosts": 0
+    },
+    {
+      "handle": "sebastianvettel",
+      "followers": 4000000,
+      "postsCount": 513,
+      "savedPosts": 0
+    },
+    {
+      "handle": "summerwalker",
+      "followers": 6000000,
+      "postsCount": 93,
+      "savedPosts": 0
+    },
+    {
+      "handle": "terrycrews",
+      "followers": 17000000,
+      "postsCount": 2915,
+      "savedPosts": 0
+    },
+    {
+      "handle": "stephenamell",
+      "followers": 6000000,
+      "postsCount": 148,
+      "savedPosts": 0
+    }
+  ]
+}
