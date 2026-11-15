@@ -21,21 +21,20 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  const sessionToken = req.cookies.get('admin_session')?.value;
+  const adminSecret = process.env.ADMIN_SECRET_KEY || process.env.ADMIN_PASSWORD;
+
+  let isAdmin = false;
+  if (sessionToken && adminSecret) {
+    const v = await verifyAdminSessionToken(sessionToken, adminSecret);
+    if (v.valid) {
+      isAdmin = true;
+    }
+  }
+
   // Enforce FR-06: Restrict administrative actions; return 403 Forbidden for non-admin session
   if (isAdminRoute(req)) {
-    const sessionToken = req.cookies.get('admin_session')?.value;
     const authHeader = req.headers.get('authorization') || req.headers.get('x-admin-password');
-    const adminSecret = process.env.ADMIN_SECRET_KEY || process.env.ADMIN_PASSWORD;
-
-    let isAdmin = false;
-
-    // Check 1: Cryptographically signed admin session token in cookie
-    if (sessionToken && adminSecret) {
-      const v = await verifyAdminSessionToken(sessionToken, adminSecret);
-      if (v.valid) {
-        isAdmin = true;
-      }
-    }
 
     // Check 2: Direct secret header (only if non-empty secret is configured)
     if (!isAdmin && adminSecret && adminSecret.length > 0) {
@@ -76,7 +75,7 @@ export default clerkMiddleware(async (auth, req) => {
     }
   }
 
-  if (!isPublicRoute(req)) {
+  if (!isPublicRoute(req) && !isAdmin) {
     await auth.protect();
   }
 });
