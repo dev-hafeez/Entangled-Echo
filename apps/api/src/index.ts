@@ -39,6 +39,19 @@ app.use(
       if (!origin || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
+      if (process.env.NODE_ENV !== 'production') {
+        try {
+          const url = new URL(origin);
+          if (
+            url.hostname === 'localhost' ||
+            url.hostname === '127.0.0.1' ||
+            url.hostname === '::1' ||
+            url.hostname.endsWith('.local')
+          ) {
+            return callback(null, true);
+          }
+        } catch {}
+      }
       return callback(null, false);
     },
     credentials: true,
@@ -104,6 +117,13 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 
 const server = app.listen(config.port, () => {
   logger.info(`EntangledEcho API server running on port ${config.port}`);
+});
+server.on('error', (err: any) => {
+  if (err.code === 'EADDRINUSE') {
+    logger.warn(`Port ${config.port} is already in use; skipping default listener.`);
+  } else {
+    logger.error(err, 'Server listen error');
+  }
 });
 
 // Start background JobWorker inside the API process

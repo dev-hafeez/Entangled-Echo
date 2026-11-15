@@ -9,8 +9,18 @@ const getBaseUrl = (endpoint: string = '') => {
     endpoint.startsWith('/api/scrape') ||
     endpoint.startsWith('/api/models');
 
-  if (typeof window !== 'undefined' && isAdminEndpoint) {
-    return '/api/proxy';
+  if (typeof window !== 'undefined') {
+    if (isAdminEndpoint) {
+      return '/api/proxy';
+    }
+    const configuredApi = process.env.NEXT_PUBLIC_API_URL;
+    if (configuredApi && !configuredApi.includes('localhost') && !configuredApi.includes('127.0.0.1')) {
+      return configuredApi;
+    }
+    // Match current window protocol and hostname to prevent cross-origin/IPv4-IPv6 mismatch
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:4000`;
   }
   return process.env.NEXT_PUBLIC_API_URL || process.env.INTERNAL_API_URL || process.env.API_URL || 'http://localhost:4000';
 };
@@ -48,17 +58,25 @@ export async function fetchFromApi(endpoint: string, options: RequestInit = {}) 
     }
   }
 
-  const res = await fetch(`${getBaseUrl(endpoint)}${endpoint}`, {
-    ...options,
-    credentials: 'include',
-    headers,
-  });
+  const targetUrl = `${getBaseUrl(endpoint)}${endpoint}`;
+  try {
+    const res = await fetch(targetUrl, {
+      ...options,
+      credentials: 'include',
+      headers,
+    });
 
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data.error || `API error: ${res.statusText}`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || `API error: ${res.statusText}`);
+    }
+    return data;
+  } catch (err: any) {
+    if (err?.name === 'TypeError' && (err?.message?.includes('fetch') || err?.message?.includes('NetworkError'))) {
+      throw new Error(`NetworkError: Unable to connect to backend API server at ${targetUrl}. Please ensure the API server is running on port 4000.`);
+    }
+    throw err;
   }
-  return data;
 }
 
 export const api = {
