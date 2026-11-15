@@ -295,12 +295,20 @@ export async function authenticateClerkToken(
       };
     }
 
+    const claims = payload as Record<string, any>;
+    const role =
+      claims.role ||
+      claims.public_metadata?.role ||
+      claims.metadata?.role ||
+      claims.org_role;
+
     return {
       success: true,
       auth: {
         userId: payload.sub,
         sessionId: payload.sid as string | undefined,
         claims: payload,
+        isAdmin: role === 'admin',
       },
     };
   } catch (err: any) {

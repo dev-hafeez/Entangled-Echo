@@ -4,7 +4,7 @@ import path from 'path';
 import { config } from '../config.js';
 import { executeNicheAnalysis } from './onboarding.js';
 import { sanitizeAndValidateHandle, createRateLimiter } from '../lib/security.js';
-import { requireAuth, isUserAccountOwnerOrAdmin } from '../lib/auth.js';
+import { requireAuth, requireUserOrAdmin, isUserAccountOwnerOrAdmin } from '../lib/auth.js';
 
 export const recommendationsRouter = Router();
 
@@ -183,7 +183,7 @@ export function saveRecPreferences(handle: string, prefs: RecommendationPreferen
 }
 
 // POST /api/recommendations/feedback - FR-24 Accept/Reject Learning Mechanism
-recommendationsRouter.post('/feedback', requireAuth, async (req: Request, res: Response) => {
+recommendationsRouter.post('/feedback', requireUserOrAdmin, async (req: Request, res: Response) => {
   const { handle, recommendationId, accepted, feedback, mediaType, topic } = req.body;
   if (!handle) {
     return res.status(400).json({ error: 'handle is required' });
@@ -269,7 +269,7 @@ recommendationsRouter.get('/preferences', requireAuth, (req: Request, res: Respo
 });
 
 // POST /api/recommendations/generate
-recommendationsRouter.post('/generate', requireAuth, async (req: Request, res: Response) => {
+recommendationsRouter.post('/generate', requireUserOrAdmin, async (req: Request, res: Response) => {
   const { handle, platform = 'instagram' } = req.body;
   if (!handle) {
     return res.status(400).json({ error: 'handle is required' });

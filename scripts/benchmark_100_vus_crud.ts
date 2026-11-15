@@ -1,8 +1,37 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { performance } from 'perf_hooks';
 import app from '../apps/api/src/index.js';
+import { config } from '../apps/api/src/config.js';
+
+// Setup hermetic RSA verification keys for load testing
+const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+  modulusLength: 2048,
+  publicKeyEncoding: { type: 'spki', format: 'pem' },
+  privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+});
+config.clerkJwtKey = publicKey;
+config.clerkAuthorizedParties = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
+const b64 = (obj: any) => Buffer.from(JSON.stringify(obj)).toString('base64url');
+
+function createToken(userId: string): string {
+  const header = b64({ alg: 'RS256', typ: 'JWT' });
+  const payload = b64({
+    sub: userId,
+    sid: `sess_${Date.now()}_${userId}`,
+    azp: 'http://localhost:3000',
+    role: 'admin',
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    iat: Math.floor(Date.now() / 1000),
+  });
+  const data = `${header}.${payload}`;
+  const sign = crypto.createSign('RSA-SHA256');
+  sign.update(data);
+  return `${data}.${sign.sign(privateKey).toString('base64url')}`;
+}
 
 async function run() {
   console.log('================================================================');
@@ -29,6 +58,11 @@ async function run() {
 
   const vuWorkers = Array.from({ length: CONCURRENT_VUS }, async (_, vuId) => {
     const userId = `vu_user_${vuId.toString().padStart(3, '0')}`;
+    const token = createToken(userId);
+    const authHeaders = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
 
     for (let iter = 0; iter < ITERATIONS_PER_VU; iter++) {
       // 1. CREATE: Schedule a post
@@ -37,7 +71,7 @@ async function run() {
         const t0 = performance.now();
         const createRes = await fetch(`${baseUrl}/api/calendar/posts`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders,
           body: JSON.stringify({
             userId,
             accountHandle: 'cristiano',
@@ -66,7 +100,9 @@ async function run() {
       // 2. READ: Fetch scheduled posts
       try {
         const t0 = performance.now();
-        const readRes = await fetch(`${baseUrl}/api/calendar/posts?userId=${userId}`);
+        const readRes = await fetch(`${baseUrl}/api/calendar/posts`, {
+          headers: authHeaders,
+        });
         const t1 = performance.now();
         latencies.push(t1 - t0);
 
@@ -82,7 +118,7 @@ async function run() {
           const t0 = performance.now();
           const updateRes = await fetch(`${baseUrl}/api/calendar/posts/${createdPostId}/reschedule`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders,
             body: JSON.stringify({
               userId,
               newScheduledTime: new Date(Date.now() + 7200000).toISOString(),
@@ -100,8 +136,9 @@ async function run() {
         // 4. DELETE: Cancel/delete scheduled post
         try {
           const t0 = performance.now();
-          const deleteRes = await fetch(`${baseUrl}/api/calendar/posts/${createdPostId}?userId=${userId}`, {
+          const deleteRes = await fetch(`${baseUrl}/api/calendar/posts/${createdPostId}`, {
             method: 'DELETE',
+            headers: authHeaders,
           });
           const t1 = performance.now();
           latencies.push(t1 - t0);

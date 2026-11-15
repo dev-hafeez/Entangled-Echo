@@ -33,7 +33,10 @@ async function run() {
       const t0 = performance.now();
       const res = await fetch(`${baseUrl}/api/recommendations/generate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': config.adminPassword,
+        },
         body: JSON.stringify({ handle: testHandle, platform: 'instagram' }),
       });
       const t1 = performance.now();
