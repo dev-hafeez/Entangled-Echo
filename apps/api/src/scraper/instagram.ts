@@ -17,7 +17,7 @@ import {
   parseExactNumber,
 } from './parser.js';
 import { normalizeTarget } from './normalize.js';
-import { uploadPostMedia } from './media-storage.js';
+import { uploadPostMedia, uploadAvatar } from './media-storage.js';
 import { BrowserProfileLock } from './browser-lock.js';
 import { extractRelayPayloads } from './relay-parser.js';
 
@@ -261,6 +261,19 @@ export class InstagramScraper {
 
       // Extract Profile Data
       const profile = await this.extractProfileData(page, handle, profileNetworkData);
+
+      // Cache avatar locally to prevent CDN link expiration
+      if (profile.avatarUrl) {
+        try {
+          const avatarRes = await page.request.get(profile.avatarUrl, { timeout: 10000 });
+          if (avatarRes.ok()) {
+            const buffer = await avatarRes.body();
+            await uploadAvatar(handle, buffer);
+          }
+        } catch (err: any) {
+          console.warn(`[scraper] Avatar cache download failed for ${handle}: ${err.message}`);
+        }
+      }
 
       // Determine target post limit: if profile has fewer than 60 posts, scrape exactly that number (or at most 60)
       const requestedMax = options?.maxPosts ?? 60;

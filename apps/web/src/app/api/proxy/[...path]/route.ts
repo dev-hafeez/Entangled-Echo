@@ -34,7 +34,7 @@ const ALLOWED_USER_PATHS = [
   /^api\/calendar\/slots\/recommended$/,
   /^api\/notifications(\/.*)?$/,
   /^api\/graph\/connect$/,
-  /^api\/media\/signed-url$/,
+  /^api\/media(\/.*)?$/,
   /^health$/,
 ];
 

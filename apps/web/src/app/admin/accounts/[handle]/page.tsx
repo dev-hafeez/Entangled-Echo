@@ -6,9 +6,22 @@ import { api } from '@/lib/api';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-function getThumbnailSrc(post: any): string | null {
+function getApiBase(): string {
+  if (typeof window !== 'undefined') {
+    const configuredApi = process.env.NEXT_PUBLIC_API_URL;
+    if (configuredApi && !configuredApi.includes('localhost') && !configuredApi.includes('127.0.0.1')) {
+      return configuredApi;
+    }
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:4000`;
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+}
+
+function getThumbnailSrc(post: any, apiBase: string): string | null {
   if (post.storage_paths && post.storage_paths.length > 0) {
-    return `${API_BASE}/api/media/image?path=${encodeURIComponent(post.storage_paths[0])}`;
+    return `${apiBase}/api/media/image?path=${encodeURIComponent(post.storage_paths[0])}`;
   }
   if (post.media_urls && post.media_urls.length > 0) {
     return post.media_urls[0];
@@ -25,6 +38,12 @@ export default function AccountDetailPage() {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [apiBase, setApiBase] = useState('http://localhost:4000');
+  const [avatarFailed, setAvatarFailed] = useState(false);
+
+  useEffect(() => {
+    setApiBase(getApiBase());
+  }, []);
 
   useEffect(() => {
     if (!handle) return;
@@ -79,13 +98,27 @@ export default function AccountDetailPage() {
       {/* PROFILE DETAILS CARD */}
       <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="flex items-start space-x-4 col-span-1 md:col-span-2">
-          {account.avatar_url && (
-            <img
-              src={account.avatar_url}
-              alt={account.handle}
-              className="w-16 h-16 rounded-full object-cover border"
-            />
-          )}
+          <div className="flex-shrink-0">
+            {!avatarFailed ? (
+              <img
+                src={account.avatar_url || `${apiBase}/api/media/avatar?handle=${encodeURIComponent(account.handle)}`}
+                alt={account.handle}
+                className="w-16 h-16 rounded-full object-cover border"
+                onError={(e) => {
+                  const fallback = `${apiBase}/api/media/avatar?handle=${encodeURIComponent(account.handle)}`;
+                  if (e.currentTarget.src !== fallback) {
+                    e.currentTarget.src = fallback;
+                  } else {
+                    setAvatarFailed(true);
+                  }
+                }}
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-[#373E3E] text-white border flex items-center justify-center font-bold text-xl uppercase font-mono shadow-sm">
+                {account.handle?.slice(0, 2).toUpperCase() || '?'}
+              </div>
+            )}
+          </div>
           <div className="space-y-1">
             <h2 className="text-lg font-bold text-slate-800 flex items-center">
               {account.full_name || `@${account.handle}`}
@@ -160,7 +193,7 @@ export default function AccountDetailPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {posts.map((post) => {
-              const thumbnail = getThumbnailSrc(post);
+              const thumbnail = getThumbnailSrc(post, apiBase);
               const likesCount =
                 post.likes_count ??
                 post.likesCount ??
@@ -204,7 +237,7 @@ export default function AccountDetailPage() {
                         href={post.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="w-full h-full block group"
+                        className="w-full h-full block group relative"
                       >
                         <img
                           src={thumbnail}
@@ -212,17 +245,28 @@ export default function AccountDetailPage() {
                           loading="lazy"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                           onError={(e) => {
-                            if (post.media_urls?.[0] && e.currentTarget.src !== post.media_urls[0]) {
-                              e.currentTarget.src = post.media_urls[0];
+                            const currentSrc = e.currentTarget.src;
+                            const externalFallback = post.media_urls?.[0];
+                            if (externalFallback && currentSrc !== externalFallback) {
+                              e.currentTarget.src = externalFallback;
                             } else {
                               e.currentTarget.style.display = 'none';
+                              const fallbackBox = e.currentTarget.parentElement?.querySelector('.post-media-fallback');
+                              if (fallbackBox) {
+                                (fallbackBox as HTMLElement).style.display = 'flex';
+                              }
                             }
                           }}
                         />
+                        <div className="post-media-fallback hidden absolute inset-0 text-slate-400 text-xs font-mono flex-col items-center justify-center p-3 text-center bg-slate-100">
+                          <span className="font-semibold text-slate-600 mb-1">Preview Unavailable</span>
+                          <span className="text-[10px] text-slate-400">#{post.shortcode}</span>
+                        </div>
                       </a>
                     ) : (
-                      <div className="text-slate-400 text-xs font-mono flex flex-col items-center">
-                        <span>No image cached</span>
+                      <div className="text-slate-400 text-xs font-mono flex flex-col items-center justify-center p-3 text-center bg-slate-100 w-full h-full">
+                        <span className="font-semibold text-slate-600 mb-1">No Image Cached</span>
+                        <span className="text-[10px] text-slate-400">#{post.shortcode}</span>
                       </div>
                     )}
 
