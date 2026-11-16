@@ -66,8 +66,14 @@ export default function AdminPage() {
 
   // Check auth
   useEffect(() => {
-    const isAuth = document.cookie.includes('admin_auth=true');
-    setIsAuthenticated(isAuth);
+    fetch('/api/auth/login')
+      .then((res) => res.json())
+      .then((data) => {
+        setIsAuthenticated(!!data.authenticated);
+      })
+      .catch(() => {
+        setIsAuthenticated(false);
+      });
   }, []);
 
   // Fetch data with active filters and pagination
@@ -121,14 +127,24 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
       });
-      if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
         setIsAuthenticated(true);
       } else {
-        setAuthError('Invalid administrator password');
+        setAuthError(data.error || 'Invalid administrator password');
       }
     } catch {
       setAuthError('Connection error logging in');
     }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // ignore
+    }
+    setIsAuthenticated(false);
   };
 
   const handleStartScrape = async () => {
@@ -384,12 +400,20 @@ export default function AdminPage() {
           <h1 className="text-2xl font-bold text-slate-900">EntangledEcho Admin Console</h1>
           <p className="text-sm text-slate-500">Instagram Scraper, Job Queue, and ML Engine</p>
         </div>
-        <button
-          onClick={() => loadData()}
-          className="text-xs bg-slate-100 hover:bg-slate-200 border border-slate-300 px-3 py-1.5 rounded font-medium"
-        >
-          ↻ Refresh Data
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => loadData()}
+            className="text-xs bg-slate-100 hover:bg-slate-200 border border-slate-300 px-3 py-1.5 rounded font-medium"
+          >
+            ↻ Refresh Data
+          </button>
+          <button
+            onClick={handleLogout}
+            className="text-xs bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-3 py-1.5 rounded font-medium"
+          >
+            Sign Out
+          </button>
+        </div>
       </div>
 
       {/* 1. SCRAPER SECTION */}

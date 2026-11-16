@@ -1,34 +1,39 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
-const isAdminRoute = createRouteMatcher([
-  '/admin',
-  '/admin/((?!login).*)',
+// Protected admin subroutes requiring active administrator session
+const isAdminSubRoute = createRouteMatcher([
+  '/admin/(.+)',
 ]);
 
 // Public routes accessible without signing in
 const isPublicRoute = createRouteMatcher([
   '/',
+  '/admin',
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/login(.*)',
   '/signup(.*)',
-  '/admin/login',
   '/api/auth(.*)',
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
-  // Enforce FR-06: Restrict administrative actions; return 403 Forbidden for non-admin session
-  if (isAdminRoute(req)) {
-    const adminCookie = req.cookies.get('admin_auth')?.value;
-    const authHeader = req.headers.get('authorization') || req.headers.get('x-admin-password');
-    const expectedPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  const adminCookie = req.cookies.get('admin_auth')?.value;
+  const authHeader = req.headers.get('authorization') || req.headers.get('x-admin-password');
+  const expectedPassword = process.env.ADMIN_PASSWORD || 'admin123';
 
-    const isAdmin =
-      adminCookie === 'true' ||
-      authHeader === expectedPassword ||
-      authHeader === `Bearer ${expectedPassword}`;
+  const isAdmin =
+    adminCookie === 'true' ||
+    authHeader === expectedPassword ||
+    authHeader === `Bearer ${expectedPassword}`;
 
+  const { pathname } = req.nextUrl;
+  const isJsonRequest =
+    req.headers.get('accept')?.includes('application/json') ||
+    req.headers.get('content-type')?.includes('application/json');
+
+  // Enforce FR-06: Restrict administrative API actions; return 403 Forbidden for non-admin session
+  if (pathname.startsWith('/api/admin')) {
     if (!isAdmin) {
       return new NextResponse(
         JSON.stringify({
@@ -41,6 +46,37 @@ export default clerkMiddleware(async (auth, req) => {
         }
       );
     }
+  }
+
+  // If accessing admin subroutes (e.g. /admin/accounts/...) without admin privileges:
+  if (isAdminSubRoute(req) && !isAdmin) {
+    if (isJsonRequest) {
+      return new NextResponse(
+        JSON.stringify({
+          error: 'Forbidden: Administrator privileges required (FR-06)',
+          status: 403,
+        }),
+        {
+          status: 403,
+          headers: { 'content-type': 'application/json' },
+        }
+      );
+    }
+    return NextResponse.redirect(new URL('/admin', req.url));
+  }
+
+  // Programmatic API requests to /admin without credentials receive 403
+  if (pathname === '/admin' && !isAdmin && isJsonRequest) {
+    return new NextResponse(
+      JSON.stringify({
+        error: 'Forbidden: Administrator privileges required (FR-06)',
+        status: 403,
+      }),
+      {
+        status: 403,
+        headers: { 'content-type': 'application/json' },
+      }
+    );
   }
 
   if (!isPublicRoute(req)) {
