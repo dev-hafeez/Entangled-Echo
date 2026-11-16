@@ -520,9 +520,30 @@ Output ONLY a valid JSON array of 3 objects. No markdown backticks.`;
   const candidateTrends = filteredLiveTrends.length >= 3 ? filteredLiveTrends : liveTrends;
   const topTrends = candidateTrends.slice(0, 3);
   const fallbackTrends = topTrends.length >= 3 ? topTrends : [
-    { title: 'Public Policy and Healthcare Access', traffic: '50K+ searches', source: 'Google Trends (US)', geo: 'US', news_title: 'National healthcare reform and infrastructure focus', news_source: 'National News' },
-    { title: 'Community Organizing and Civic Action', traffic: '20K+ searches', source: 'Google Trends (US)', geo: 'US', news_title: 'Voter turnout and grassroots community development', news_source: 'Civic Report' },
-    { title: 'Accountability in Leadership', traffic: '10K+ searches', source: 'Google Trends (US)', geo: 'US', news_title: 'Oversight and transparent governance standards', news_source: 'Policy Review' },
+    {
+      title: `${contentPillars[0] || userNiche} Strategies & Insights`,
+      traffic: 'High Search Interest',
+      source: `${userNiche} Trend Intelligence`,
+      geo: 'Global',
+      news_title: `Key advancements and strategies in ${userNiche}`,
+      news_source: 'Industry Insights',
+    },
+    {
+      title: `${contentPillars[1] || subNiche} Frameworks`,
+      traffic: 'Trending in Niche',
+      source: `${userNiche} Community Pulse`,
+      geo: 'Global',
+      news_title: `Practical applications for ${subNiche}`,
+      news_source: 'Field Insights',
+    },
+    {
+      title: `${contentPillars[2] || 'Community & Industry Growth'}`,
+      traffic: 'High Engagement',
+      source: `${userNiche} Authority`,
+      geo: 'Global',
+      news_title: `Emerging discussions in ${userNiche}`,
+      news_source: 'Community Focus',
+    },
   ];
 
   const recommendations = fallbackTrends.slice(0, 3).map((trend, idx) => {

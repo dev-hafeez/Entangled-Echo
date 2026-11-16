@@ -24,18 +24,14 @@ import {
   Instagram,
   Facebook,
   Brain,
-  Layers,
   ArrowUpRight,
   RefreshCw,
-  Calendar,
   Heart,
   MessageCircle,
   Users,
-  Bell,
   Download,
   Key,
   Swords,
-  PieChart as PieIcon,
   Globe,
   Plus,
   Trash2,
@@ -133,9 +129,6 @@ export default function DashboardPage() {
   const [graphTokenInput, setGraphTokenInput] = useState('');
   const [graphAccountIdInput, setGraphAccountIdInput] = useState('');
   const [isValidatingToken, setIsValidatingToken] = useState(false);
-
-  // Notification unread count (FR-33)
-  const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0);
 
   // Background auto-refresher when scraping is ongoing
   useEffect(() => {
@@ -308,13 +301,6 @@ export default function DashboardPage() {
       api.getAudience(clean).then((res) => {
         if (res?.audience) setAudience(res.audience);
       }).catch(() => {});
-
-      // Fetch unread notifications count (FR-33)
-      if (user?.id) {
-        api.getNotifications(user.id).then((nRes) => {
-          if (nRes?.unreadCount !== undefined) setUnreadNotifCount(nRes.unreadCount);
-        }).catch(() => {});
-      }
     } catch (e) {
       console.error('Error loading creator dashboard:', e);
     } finally {
@@ -609,11 +595,10 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 pb-16">
-      {/* Top Bar with Profile Info */}
+      {/* Creator Context Bar */}
       <div className="border-b border-slate-100 bg-white sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">EntangledEcho</h1>
             {activeHandle && (
               <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 px-2.5 py-0.5 rounded-full text-xs font-medium text-slate-700">
                 <Instagram className="w-3.5 h-3.5 text-pink-500" />
@@ -632,6 +617,12 @@ export default function DashboardPage() {
                 Meta Graph API Verified
               </span>
             )}
+            {isBackgroundScraping && (
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-mono animate-pulse border border-slate-200">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" />
+                <span>Live Scraping: {posts.length} posts ({backgroundCount} detailed)...</span>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -647,30 +638,6 @@ export default function DashboardPage() {
                 </Button>
               </a>
             )}
-            <Link href="/recommendations">
-              <Button size="sm" className="flex items-center gap-1.5 text-xs">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>AI Recommendations</span>
-              </Button>
-            </Link>
-            {isBackgroundScraping && (
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-mono animate-pulse border border-slate-200">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" />
-                <span>Live Scraping: {posts.length} posts ({backgroundCount} detailed)...</span>
-              </div>
-            )}
-            <Link
-              href="/notifications"
-              className="relative p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition border border-slate-200"
-              title="Notifications & Alerts (FR-33)"
-            >
-              <Bell className="w-4 h-4" />
-              {unreadNotifCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white shadow">
-                  {unreadNotifCount}
-                </span>
-              )}
-            </Link>
             <Button
               size="sm"
               onClick={() => setShowModal(true)}
