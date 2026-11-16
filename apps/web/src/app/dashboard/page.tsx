@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { api } from '@/lib/api';
+import { computePostAnalysis } from '@/lib/post-analysis';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -625,50 +626,75 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3 flex-1">
+                {/* Name, Handle & Verified Status */}
                 <div className="flex flex-wrap items-center gap-2.5">
                   <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
                     {profile?.full_name || profile?.fullName || `@${activeHandle}`}
                   </h1>
-                  <span className="text-xs bg-neutral-100 text-neutral-600 font-mono px-2 py-0.5 rounded border border-neutral-200">
+                  <span className="text-xs bg-neutral-100 text-neutral-700 font-mono px-2.5 py-0.5 rounded border border-neutral-200">
                     @{activeHandle}
                   </span>
                   {profile?.is_verified && (
-                    <span className="text-xs text-neutral-700 font-medium px-2 py-0.5 rounded border border-neutral-200">
+                    <span className="text-xs text-neutral-800 font-medium px-2 py-0.5 rounded border border-neutral-200">
                       ✓ Verified
                     </span>
                   )}
                   {nicheData?.language_preference && (
-                    <span className="text-xs text-neutral-600 font-medium px-2 py-0.5 rounded border border-neutral-200">
+                    <span className="text-xs text-neutral-600 font-mono px-2 py-0.5 rounded border border-neutral-200">
                       Language: {nicheData.language_preference}
                     </span>
                   )}
                 </div>
 
-                <p className="text-sm text-neutral-600 max-w-2xl leading-relaxed whitespace-pre-line">
-                  {nicheData?.summary ||
-                    profile?.biography ||
-                    profile?.bio ||
-                    'Creator profile and performance analytics.'}
-                </p>
+                {/* Creator Niche */}
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500 font-mono">
+                    Niche:
+                  </span>
+                  <span className="text-xs font-bold text-neutral-950 bg-neutral-100 px-3 py-1 rounded border border-neutral-300 font-sans">
+                    {nicheData?.niche || profile?.category || 'Content Creator'}
+                  </span>
+                  {nicheData?.sub_niche && (
+                    <span className="text-xs text-neutral-700 bg-neutral-50 px-2.5 py-1 rounded border border-neutral-200 font-mono">
+                      {nicheData.sub_niche}
+                    </span>
+                  )}
+                  {nicheData?.target_audience && (
+                    <span className="text-xs text-neutral-500 font-mono truncate max-w-md" title={nicheData.target_audience}>
+                      • Audience: {nicheData.target_audience}
+                    </span>
+                  )}
+                </div>
+
+                {/* Creator Bio */}
+                <div className="space-y-1 pt-1 max-w-2xl">
+                  <span className="text-[11px] font-semibold text-neutral-500 font-mono uppercase tracking-wider block">
+                    Bio
+                  </span>
+                  <p className="text-xs text-neutral-800 leading-relaxed whitespace-pre-line bg-neutral-50 p-3 rounded-lg border border-neutral-200 font-sans">
+                    {profile?.biography || profile?.bio || 'No public bio provided on profile.'}
+                  </p>
+                </div>
 
                 {profile?.external_link && (
                   <a
                     href={profile.external_link}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs text-neutral-700 hover:text-black hover:underline block pt-0.5 font-mono"
+                    className="text-xs text-neutral-700 hover:text-black hover:underline inline-flex items-center gap-1 font-mono pt-0.5"
                   >
-                    🔗 {profile.external_link}
+                    <span>🔗 {profile.external_link}</span>
                   </a>
                 )}
 
+                {/* Content Pillars */}
                 {nicheData?.content_pillars && (
-                  <div className="flex flex-wrap gap-1.5 pt-2">
+                  <div className="flex flex-wrap gap-1.5 pt-1">
                     {nicheData.content_pillars.map((pillar: string, i: number) => (
                       <span
                         key={i}
-                        className="text-xs px-2.5 py-1 rounded bg-neutral-100 text-neutral-800 border border-neutral-200 font-mono"
+                        className="text-xs px-2.5 py-0.5 rounded bg-neutral-100 text-neutral-800 border border-neutral-200 font-mono"
                       >
                         #{pillar}
                       </span>
@@ -1015,6 +1041,7 @@ export default function DashboardPage() {
                   const thumbnail = getPostThumbnail(post, activeHandle);
                   const isVideo = post.media_type === 'video' || post.media_type === 'reel';
                   const isCarousel = post.media_type === 'carousel' || (post.carousel_size && post.carousel_size > 1);
+                  const analysis = computePostAnalysis(post, posts, nicheData);
 
                   return (
                     <div
@@ -1070,27 +1097,30 @@ export default function DashboardPage() {
                         )}
 
                         {/* Media Type & Carousel Badge Overlay */}
-                        <div className="absolute top-2.5 right-2.5 pointer-events-none flex items-center gap-1.5">
+                        <div className="absolute top-2.5 right-2.5 pointer-events-none flex items-center gap-1.5 z-10">
                           <span className="bg-black/75 backdrop-blur-md text-white px-2 py-0.5 rounded text-[10px] font-semibold uppercase font-mono tracking-wider shadow">
                             {isVideo ? '🎥 Reel' : isCarousel ? `📑 Carousel (${post.carousel_size || 2})` : '📷 Photo'}
                           </span>
                         </div>
 
-                        {/* Shortcode Badge on top left */}
-                        {post.shortcode && (
-                          <div className="absolute top-2.5 left-2.5 pointer-events-none">
-                            <span className="bg-white/90 backdrop-blur-md text-slate-800 px-2 py-0.5 rounded text-[10px] font-mono font-medium shadow-sm border border-slate-200">
-                              #{post.shortcode}
-                            </span>
-                          </div>
-                        )}
+                        {/* Performance Score Badge on top left */}
+                        <div className="absolute top-2.5 left-2.5 pointer-events-none flex items-center gap-1.5 z-10">
+                          <span className="bg-black/90 backdrop-blur-md text-white px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-tight shadow">
+                            Score: {analysis.score}/100
+                          </span>
+                          <span className="bg-white/95 backdrop-blur-md text-neutral-900 border border-neutral-300 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium">
+                            {analysis.ratingLabel}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Post Body: Meta, Caption & Hashtags */}
                       <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
                         <div className="space-y-2">
                           <div className="flex items-center justify-between text-xs text-slate-400">
-                            <span className="font-mono text-[11px]">{pDate}</span>
+                            <span className="font-mono text-[11px]">
+                              {pDate} {post.shortcode && `• #${post.shortcode}`}
+                            </span>
                             {post.location_tag && (
                               <span className="truncate max-w-[140px] text-slate-500 text-[11px]" title={post.location_tag}>
                                 📍 {post.location_tag}
@@ -1115,6 +1145,43 @@ export default function DashboardPage() {
                               )}
                             </div>
                           )}
+                        </div>
+
+                        {/* Performance Diagnostic & Actionable Changes */}
+                        <div className="mt-3 pt-3 border-t border-neutral-200 space-y-2 bg-neutral-50/80 p-3 rounded-lg border border-neutral-200">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-mono font-bold text-neutral-900 uppercase tracking-wider">
+                              Performance Score
+                            </span>
+                            <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-neutral-900 text-white">
+                              {analysis.score} / 100
+                            </span>
+                          </div>
+
+                          {/* Why it scored like this */}
+                          <div className="space-y-0.5">
+                            <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-neutral-500 block">
+                              Why it's scored like this:
+                            </span>
+                            <p className="text-xs text-neutral-700 leading-relaxed font-sans">
+                              {analysis.whyDescription}
+                            </p>
+                          </div>
+
+                          {/* What needs to be changed */}
+                          <div className="space-y-0.5 pt-1.5 border-t border-neutral-200/60">
+                            <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-neutral-500 block">
+                              What needs to be changed:
+                            </span>
+                            <ul className="text-xs text-neutral-800 space-y-1">
+                              {analysis.whatNeedsToBeChanged.map((tip: string, tidx: number) => (
+                                <li key={tidx} className="flex items-start gap-1.5 leading-relaxed">
+                                  <span className="text-neutral-400 font-mono select-none">→</span>
+                                  <span>{tip}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         </div>
 
                         {/* Post Footer: Engagement Metrics & Link */}
