@@ -103,6 +103,44 @@ mediaRouter.get('/image', async (req: Request, res: Response) => {
     }
   } catch {}
 
+  // 3. Fallback: try fetching from media_urls in storage/posts/{handle}.json if available
+  try {
+    const clean = filePath.replace(/^\/+/, '').replace(/^post-media\//, '');
+    const parts = clean.split('/');
+    if (parts.length >= 2) {
+      const handle = parts[0];
+      const shortcode = parts[1];
+      const postsFile = path.join(config.localStorageDir, 'posts', `${handle}.json`);
+      if (fs.existsSync(postsFile)) {
+        const posts = JSON.parse(fs.readFileSync(postsFile, 'utf-8'));
+        if (Array.isArray(posts)) {
+          const match = posts.find((p: any) => p.shortcode === shortcode);
+          const mediaUrl = match?.mediaUrls?.[0] || match?.media_urls?.[0];
+          if (mediaUrl && typeof mediaUrl === 'string' && mediaUrl.startsWith('http')) {
+            const fetchRes = await fetch(mediaUrl, {
+              headers: { 'User-Agent': 'Mozilla/5.0' },
+              signal: AbortSignal.timeout(4000),
+            });
+            if (fetchRes.ok) {
+              const buffer = Buffer.from(await fetchRes.arrayBuffer());
+              const baseMediaDir = path.resolve(config.localStorageDir, 'post-media');
+              const cachePath = path.join(baseMediaDir, handle, shortcode, '0.jpg');
+              if (cachePath.startsWith(baseMediaDir)) {
+                try {
+                  fs.mkdirSync(path.dirname(cachePath), { recursive: true });
+                  fs.writeFileSync(cachePath, buffer);
+                } catch {}
+              }
+              res.setHeader('Content-Type', fetchRes.headers.get('content-type') || 'image/jpeg');
+              res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+              return res.send(buffer);
+            }
+          }
+        }
+      }
+    }
+  } catch {}
+
   return res.status(404).send('Image not found in post-media storage');
 });
 
@@ -129,6 +167,29 @@ mediaRouter.get('/avatar', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'image/jpeg');
     res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
     return fs.createReadStream(avatarPath).pipe(res);
+  }
+
+  // 1.5. Fallback: if avatar.jpg does not exist, try downloading from profile avatar_url
+  const profileFile = path.join(config.localStorageDir, 'profiles', `${cleanHandle}.json`);
+  if (fs.existsSync(profileFile)) {
+    try {
+      const pData = JSON.parse(fs.readFileSync(profileFile, 'utf-8'));
+      const avatarUrl = pData.avatarUrl || pData.avatar_url;
+      if (avatarUrl && typeof avatarUrl === 'string' && avatarUrl.startsWith('http')) {
+        const fetchRes = await fetch(avatarUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0' },
+          signal: AbortSignal.timeout(4000),
+        });
+        if (fetchRes.ok) {
+          const buffer = Buffer.from(await fetchRes.arrayBuffer());
+          fs.mkdirSync(path.dirname(avatarPath), { recursive: true });
+          fs.writeFileSync(avatarPath, buffer);
+          res.setHeader('Content-Type', fetchRes.headers.get('content-type') || 'image/jpeg');
+          res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+          return res.send(buffer);
+        }
+      }
+    } catch {}
   }
 
   // 2. Fallback: check if the creator has any post thumbnail on disk

@@ -39,7 +39,44 @@ import {
   Globe,
   Plus,
   Trash2,
+  Eye,
 } from 'lucide-react';
+
+function getApiBase(): string {
+  if (typeof window !== 'undefined') {
+    const configuredApi = process.env.NEXT_PUBLIC_API_URL;
+    if (configuredApi && !configuredApi.includes('localhost') && !configuredApi.includes('127.0.0.1')) {
+      return configuredApi;
+    }
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:4000`;
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+}
+
+function getPostThumbnail(post: any, handle: string): string | null {
+  if (post.storage_paths && Array.isArray(post.storage_paths) && post.storage_paths.length > 0) {
+    return `/api/proxy/api/media/image?path=${encodeURIComponent(post.storage_paths[0])}`;
+  }
+  if (post.storage_path) {
+    return `/api/proxy/api/media/image?path=${encodeURIComponent(post.storage_path)}`;
+  }
+  if (post.storagePaths && Array.isArray(post.storagePaths) && post.storagePaths.length > 0) {
+    return `/api/proxy/api/media/image?path=${encodeURIComponent(post.storagePaths[0])}`;
+  }
+  if (post.shortcode && handle) {
+    const clean = handle.toLowerCase().replace(/^@/, '');
+    return `/api/proxy/api/media/image?path=${encodeURIComponent(`${clean}/${post.shortcode}/0.jpg`)}`;
+  }
+  if (post.media_urls && Array.isArray(post.media_urls) && post.media_urls.length > 0) {
+    return post.media_urls[0];
+  }
+  if (post.mediaUrls && Array.isArray(post.mediaUrls) && post.mediaUrls.length > 0) {
+    return post.mediaUrls[0];
+  }
+  return null;
+}
 
 export default function DashboardPage() {
   const { user, isLoaded } = useUser();
@@ -64,6 +101,11 @@ export default function DashboardPage() {
   const [loadingDashboard, setLoadingDashboard] = useState(true);
   const [isBackgroundScraping, setIsBackgroundScraping] = useState(false);
   const [backgroundCount, setBackgroundCount] = useState<number>(0);
+  const [apiBase, setApiBase] = useState('http://localhost:4000');
+
+  useEffect(() => {
+    setApiBase(getApiBase());
+  }, []);
 
   // Tab navigation: 'overview' | 'audience' | 'competitors'
   const [activeTab, setActiveTab] = useState<'overview' | 'audience' | 'competitors'>('overview');
@@ -532,8 +574,22 @@ export default function DashboardPage() {
           <div className="flex items-center space-x-4">
             <h1 className="text-xl font-bold tracking-tight text-slate-900">EntangledEcho</h1>
             {activeHandle && (
-              <div className="flex items-center space-x-2 bg-slate-50 border border-slate-200 px-3 py-1 rounded-full text-xs font-medium text-slate-700">
-                <Instagram className="w-3.5 h-3.5 text-pink-500" />
+              <div className="flex items-center space-x-2 bg-slate-50 border border-slate-200 pl-1.5 pr-3 py-1 rounded-full text-xs font-medium text-slate-700 shadow-xs">
+                <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-200 flex-shrink-0 border border-slate-300">
+                  <img
+                    src={`/api/proxy/api/media/avatar?handle=${encodeURIComponent(activeHandle.toLowerCase().replace(/^@/, ''))}`}
+                    alt={activeHandle}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const fallback = `${apiBase}/api/media/avatar?handle=${encodeURIComponent(activeHandle.toLowerCase().replace(/^@/, ''))}`;
+                      if (e.currentTarget.src !== fallback && !e.currentTarget.src.includes(':4000/api/media/avatar')) {
+                        e.currentTarget.src = fallback;
+                      } else {
+                        e.currentTarget.style.display = 'none';
+                      }
+                    }}
+                  />
+                </div>
                 <span>@{activeHandle}</span>
               </div>
             )}
@@ -608,28 +664,77 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            {/* Header Niche & Bio Card */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-                    {profile?.full_name || profile?.fullName || `@${activeHandle}`}
-                  </h2>
-                  <span className="text-xs bg-slate-100 text-slate-600 font-mono px-2 py-0.5 rounded">
-                    {profile?.data_source === 'official_graph_api' ? 'Official Graph API Data' : 'Verified Public Analytics'}
-                  </span>
-                  {nicheData?.language_preference && (
-                    <span className="text-xs bg-indigo-50 text-indigo-700 font-medium px-2.5 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
-                      🌐 Preferred Language: <strong>{nicheData.language_preference}</strong>
-                    </span>
+            {/* Header Niche & Bio Card with Scraped Creator Avatar */}
+            <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6">
+              <div className="flex flex-col sm:flex-row items-start gap-5">
+                {/* Scraped Creator Profile Avatar */}
+                <div className="relative flex-shrink-0">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 border-slate-200 shadow-md bg-slate-100 relative group ring-2 ring-slate-100">
+                    <img
+                      src={`/api/proxy/api/media/avatar?handle=${encodeURIComponent(activeHandle.toLowerCase().replace(/^@/, ''))}`}
+                      alt={profile?.full_name || activeHandle}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      onError={(e) => {
+                        const cleanH = activeHandle.toLowerCase().replace(/^@/, '');
+                        const directFallback = `${apiBase}/api/media/avatar?handle=${encodeURIComponent(cleanH)}`;
+                        const extFallback = profile?.avatar_url || profile?.avatarUrl;
+                        if (e.currentTarget.src !== directFallback && !e.currentTarget.src.includes(':4000/api/media/avatar')) {
+                          e.currentTarget.src = directFallback;
+                        } else if (extFallback && e.currentTarget.src !== extFallback) {
+                          e.currentTarget.src = extFallback;
+                        } else {
+                          e.currentTarget.style.display = 'none';
+                          const fb = e.currentTarget.parentElement?.querySelector('.avatar-fallback');
+                          if (fb) (fb as HTMLElement).style.display = 'flex';
+                        }
+                      }}
+                    />
+                    <div className="avatar-fallback hidden w-full h-full bg-[#373E3E] text-white items-center justify-center font-bold text-2xl uppercase font-mono">
+                      {activeHandle?.replace(/^@/, '').slice(0, 2).toUpperCase() || '?'}
+                    </div>
+                  </div>
+                  {profile?.is_verified && (
+                    <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white rounded-full p-1 shadow border-2 border-white" title="Verified Creator">
+                      <CheckCircle2 className="w-4 h-4 fill-blue-500 text-white" />
+                    </div>
                   )}
                 </div>
-                <p className="text-sm text-slate-600 max-w-2xl leading-relaxed">
-                  {nicheData?.summary ||
-                    profile?.biography ||
-                    profile?.bio ||
-                    'AI-powered creator insights and historical reach analysis.'}
-                </p>
+
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+                      {profile?.full_name || profile?.fullName || `@${activeHandle}`}
+                    </h2>
+                    <span className="text-xs bg-slate-100 text-slate-600 font-mono px-2 py-0.5 rounded">
+                      {profile?.data_source === 'official_graph_api' ? 'Official Graph API Data' : 'Verified Public Analytics'}
+                    </span>
+                    {profile?.is_verified && (
+                      <span className="text-xs bg-blue-50 text-blue-700 font-medium px-2.5 py-0.5 rounded-full border border-blue-200 flex items-center gap-1">
+                        ✓ Verified
+                      </span>
+                    )}
+                    {nicheData?.language_preference && (
+                      <span className="text-xs bg-indigo-50 text-indigo-700 font-medium px-2.5 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
+                        🌐 Preferred Language: <strong>{nicheData.language_preference}</strong>
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-600 max-w-2xl leading-relaxed">
+                    {nicheData?.summary ||
+                      profile?.biography ||
+                      profile?.bio ||
+                      'AI-powered creator insights and historical reach analysis.'}
+                  </p>
+                  {profile?.external_link && (
+                    <a
+                      href={profile.external_link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-blue-600 hover:underline block pt-0.5"
+                    >
+                      🔗 {profile.external_link}
+                    </a>
+                  )}
                 {nicheData?.content_pillars && (
                   <div className="flex flex-wrap gap-2 pt-2">
                     {nicheData.content_pillars.map((pillar: string, i: number) => (
@@ -680,6 +785,7 @@ export default function DashboardPage() {
                     )}
                   </div>
                 )}
+                </div>
               </div>
 
               {/* Personal Smart Predictor Badge */}
@@ -985,48 +1091,144 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {posts.map((post, i) => {
                   const pDate = post.posted_at ? new Date(post.posted_at).toLocaleDateString() : 'N/A';
+                  const thumbnail = getPostThumbnail(post, activeHandle);
+                  const isVideo = post.media_type === 'video' || post.media_type === 'reel';
+                  const isCarousel = post.media_type === 'carousel' || (post.carousel_size && post.carousel_size > 1);
+
                   return (
                     <div
                       key={post.id || i}
-                      className="p-5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition shadow-sm flex flex-col justify-between space-y-4"
+                      className="rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col justify-between group"
                     >
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs text-slate-400">
-                          <span className="font-mono">{pDate}</span>
-                          <span className="capitalize px-2 py-0.5 bg-slate-100 rounded text-slate-600 font-medium">
-                            {post.media_type || 'image'}
-                          </span>
-                        </div>
-                        <p className="text-sm text-slate-800 line-clamp-3 leading-relaxed">
-                          {post.caption || <span className="text-slate-400 italic">No caption</span>}
-                        </p>
-                      </div>
-
-                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
-                        <div className="flex items-center gap-3">
-                          <span className="flex items-center gap-1 font-medium">
-                            <Heart className="w-3.5 h-3.5 text-rose-500" />
-                            {formatCompactNumber(post.likes_count ?? 0)}
-                          </span>
-                          <span className="flex items-center gap-1 font-medium">
-                            <MessageCircle className="w-3.5 h-3.5 text-blue-500" />
-                            {formatCompactNumber(post.comments_count ?? 0)}
-                          </span>
-                        </div>
-                        {post.url && (
+                      {/* Scraped Post Image Preview */}
+                      <div className="relative aspect-square w-full bg-slate-100 overflow-hidden border-b border-slate-100 flex items-center justify-center">
+                        {thumbnail ? (
                           <a
-                            href={post.url}
+                            href={post.url || '#'}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-slate-400 hover:text-slate-800 flex items-center gap-0.5"
+                            className="w-full h-full block group/img relative overflow-hidden"
+                            title={post.caption ? post.caption.slice(0, 100) : 'View post'}
                           >
-                            <span>View</span>
-                            <ArrowUpRight className="w-3 h-3" />
+                            <img
+                              src={thumbnail}
+                              alt={`Post #${post.shortcode || i}`}
+                              loading="lazy"
+                              className="w-full h-full object-cover transition-transform duration-300 group-hover/img:scale-105"
+                              onError={(e) => {
+                                const currentSrc = e.currentTarget.src;
+                                const cleanH = activeHandle.toLowerCase().replace(/^@/, '');
+                                const directFallback = post.shortcode
+                                  ? `${apiBase}/api/media/image?path=${encodeURIComponent(`${cleanH}/${post.shortcode}/0.jpg`)}`
+                                  : null;
+                                const externalFallback = post.media_urls?.[0] || post.mediaUrls?.[0];
+
+                                if (directFallback && currentSrc !== directFallback && !currentSrc.includes(':4000/api/media/image')) {
+                                  e.currentTarget.src = directFallback;
+                                } else if (externalFallback && currentSrc !== externalFallback) {
+                                  e.currentTarget.src = externalFallback;
+                                } else {
+                                  e.currentTarget.style.display = 'none';
+                                  const fallbackBox = e.currentTarget.parentElement?.querySelector('.post-media-fallback');
+                                  if (fallbackBox) {
+                                    (fallbackBox as HTMLElement).style.display = 'flex';
+                                  }
+                                }
+                              }}
+                            />
+                            <div className="post-media-fallback hidden absolute inset-0 text-slate-400 text-xs font-mono flex-col items-center justify-center p-4 text-center bg-slate-100">
+                              <span className="font-semibold text-slate-600 mb-1">Image Preview</span>
+                              <span className="text-[10px] text-slate-400">#{post.shortcode || 'scraped'}</span>
+                            </div>
                           </a>
+                        ) : (
+                          <div className="text-slate-400 text-xs font-mono flex flex-col items-center justify-center p-4 text-center bg-slate-50 w-full h-full">
+                            <span className="font-semibold text-slate-600 mb-1">Scraped Post</span>
+                            <span className="text-[10px] text-slate-400">#{post.shortcode || 'scraped'}</span>
+                          </div>
                         )}
+
+                        {/* Media Type & Carousel Badge Overlay */}
+                        <div className="absolute top-2.5 right-2.5 pointer-events-none flex items-center gap-1.5">
+                          <span className="bg-black/75 backdrop-blur-md text-white px-2 py-0.5 rounded text-[10px] font-semibold uppercase font-mono tracking-wider shadow">
+                            {isVideo ? '🎥 Reel' : isCarousel ? `📑 Carousel (${post.carousel_size || 2})` : '📷 Photo'}
+                          </span>
+                        </div>
+
+                        {/* Shortcode Badge on top left */}
+                        {post.shortcode && (
+                          <div className="absolute top-2.5 left-2.5 pointer-events-none">
+                            <span className="bg-white/90 backdrop-blur-md text-slate-800 px-2 py-0.5 rounded text-[10px] font-mono font-medium shadow-sm border border-slate-200">
+                              #{post.shortcode}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Post Body: Meta, Caption & Hashtags */}
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs text-slate-400">
+                            <span className="font-mono text-[11px]">{pDate}</span>
+                            {post.location_tag && (
+                              <span className="truncate max-w-[140px] text-slate-500 text-[11px]" title={post.location_tag}>
+                                📍 {post.location_tag}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-slate-800 line-clamp-3 leading-relaxed">
+                            {post.caption || <span className="text-slate-400 italic font-mono text-xs">No caption provided</span>}
+                          </p>
+                          {/* Hashtags preview */}
+                          {post.hashtags && post.hashtags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 pt-1">
+                              {post.hashtags.slice(0, 3).map((tag: string, tidx: number) => (
+                                <span key={tidx} className="text-[11px] text-blue-600 font-mono">
+                                  #{tag.replace(/^#/, '')}
+                                </span>
+                              ))}
+                              {post.hashtags.length > 3 && (
+                                <span className="text-[10px] text-slate-400 font-mono self-center">
+                                  +{post.hashtags.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Post Footer: Engagement Metrics & Link */}
+                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
+                          <div className="flex items-center gap-3">
+                            <span className="flex items-center gap-1 font-medium text-slate-700" title={`${post.likes_count ?? 0} likes`}>
+                              <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-50" />
+                              {formatCompactNumber(post.likes_count ?? 0)}
+                            </span>
+                            <span className="flex items-center gap-1 font-medium text-slate-700" title={`${post.comments_count ?? 0} comments`}>
+                              <MessageCircle className="w-3.5 h-3.5 text-blue-500 fill-blue-50" />
+                              {formatCompactNumber(post.comments_count ?? 0)}
+                            </span>
+                            {post.views_count != null && (
+                              <span className="flex items-center gap-1 font-medium text-slate-700" title={`${post.views_count} views`}>
+                                <Eye className="w-3.5 h-3.5 text-emerald-500" />
+                                {formatCompactNumber(post.views_count)}
+                              </span>
+                            )}
+                          </div>
+                          {post.url && (
+                            <a
+                              href={post.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs font-medium text-slate-500 hover:text-black flex items-center gap-1 transition"
+                            >
+                              <span>View</span>
+                              <ArrowUpRight className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
