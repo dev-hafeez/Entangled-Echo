@@ -34,8 +34,6 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
-const POPULAR_HANDLES = ['kaleem._.abbasi830', '100xengineers', 'nightcreeper24', 'cristiano', 'leomessi'];
-
 export default function RecommendationsPage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
@@ -364,24 +362,6 @@ export default function RecommendationsPage() {
             Calendar
           </Link>
         </div>
-      </div>
-
-      {/* Account Quick Switch Bar */}
-      <div className="flex items-center gap-2 overflow-x-auto text-xs pb-1 no-scrollbar">
-        <span className="text-neutral-500 font-medium shrink-0">Sample Accounts:</span>
-        {POPULAR_HANDLES.map((h) => (
-          <button
-            key={h}
-            onClick={() => handleSelectHandle(h)}
-            className={`px-2.5 py-1 rounded transition font-mono shrink-0 ${
-              handle === h
-                ? 'bg-black text-white font-semibold'
-                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-            }`}
-          >
-            @{h}
-          </button>
-        ))}
       </div>
 
       {/* Error Message */}
@@ -975,14 +955,16 @@ export default function RecommendationsPage() {
             No recommendations loaded for @{handle}
           </p>
           <p className="text-xs text-neutral-500 max-w-md mx-auto">
-            Select a sample account or enter your Instagram handle above to generate live content blueprints.
+            Click below or enter your Instagram handle above to generate live content blueprints.
           </p>
-          <button
-            onClick={() => handleSelectHandle(handle || 'kaleem._.abbasi830')}
-            className="px-4 py-2 border border-black bg-white text-black hover:bg-black hover:text-white rounded text-xs font-semibold transition"
-          >
-            Generate Recommendations for @{handle || 'your account'}
-          </button>
+          {handle && (
+            <button
+              onClick={() => fetchRecommendations(handle, true)}
+              className="px-4 py-2 border border-black bg-white text-black hover:bg-black hover:text-white rounded text-xs font-semibold transition"
+            >
+              Generate Recommendations for @{handle}
+            </button>
+          )}
         </div>
       )}
     </div>

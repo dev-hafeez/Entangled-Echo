@@ -145,8 +145,9 @@ export default function CalendarPage() {
   const fetchRecommendations = async () => {
     try {
       const res = await api.getRecommendedSlots(activeHandle);
-      if (res?.recommendations) {
-        setRecommendedSlots(res.recommendations);
+      const slots = res?.slots || res?.recommendations;
+      if (slots && Array.isArray(slots)) {
+        setRecommendedSlots(slots);
       }
     } catch (err) {
       console.warn('Could not load schedule recommendations:', err);

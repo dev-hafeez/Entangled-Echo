@@ -12,7 +12,7 @@ export default function SettingsPage() {
   const [connectedAccounts, setConnectedAccounts] = useState<Array<{
     platform: string;
     handle: string;
-    status: 'connected' | 'needs_reauth' | 'mock_mode';
+    status: 'connected' | 'needs_reauth' | 'not_connected';
     mode: string;
   }>>([]);
 
@@ -33,22 +33,23 @@ export default function SettingsPage() {
     const activeHandle =
       localStorage.getItem('ee_active_handle') ||
       (user?.id ? localStorage.getItem(`ee_handle_${user.id}`) : null) ||
-      'creator';
+      '';
+
     setConnectedAccounts([
       {
         platform: 'Instagram Business',
-        handle: `@${activeHandle}`,
-        status: 'connected',
-        mode: process.env.NEXT_PUBLIC_DATA_MODE === 'live' ? 'Live Meta Graph API' : 'Seed / Local Normalized Fixture',
+        handle: activeHandle ? `@${activeHandle}` : 'No account linked',
+        status: activeHandle ? 'connected' : 'not_connected',
+        mode: activeHandle ? 'Active Connected Social Profile' : 'Link via Dashboard to ingest posts',
       },
       {
         platform: 'Facebook Page',
-        handle: `@${activeHandle}_fb`,
-        status: 'mock_mode',
-        mode: 'Mock Provider (SRDS Rule 3 / Offline Mode)',
+        handle: 'Not Connected',
+        status: 'not_connected',
+        mode: 'Link a Facebook Page via Meta Graph API for cross-posting',
       },
     ]);
-  }, []);
+  }, [user]);
 
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,8 +182,8 @@ export default function SettingsPage() {
                     Active • Connected
                   </span>
                 ) : (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono text-neutral-600 bg-neutral-50 border border-neutral-200">
-                    Mock / Offline Provider
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono text-neutral-500 bg-neutral-50 border border-neutral-200">
+                    Not Connected
                   </span>
                 )}
               </div>

@@ -352,7 +352,7 @@ recommendationsRouter.post('/generate', optionalAuth, async (req: Request, res: 
     } catch {}
   }
 
-  const followersCount = profile.followers_count || profile.followersCount || 10000;
+  const followersCount = profile.followers_count ?? profile.followersCount ?? 0;
   const userNiche = nicheData.niche || 'Digital Creator';
   const subNiche = nicheData.sub_niche || 'Audience Growth & Visual Media';
   const userLanguage = nicheData.language_preference || 'English';

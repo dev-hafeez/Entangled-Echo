@@ -44,17 +44,6 @@ import {
   Eye,
 } from 'lucide-react';
 
-const POPULAR_CREATORS = [
-  'kaleem._.abbasi830',
-  '100xengineers',
-  'nightcreeper24',
-  'cristiano',
-  'leomessi',
-  'abdevilliers17',
-  'abdulelsayed',
-  'adidas',
-];
-
 function getApiBase(): string {
   if (typeof window !== 'undefined') {
     const configuredApi = process.env.NEXT_PUBLIC_API_URL;
@@ -138,7 +127,7 @@ export default function DashboardPage() {
   // FR-32 Competitor Analysis state
   const [competitors, setCompetitors] = useState<any[]>([]);
   const [competitorInput, setCompetitorInput] = useState('');
-  const [competitorList, setCompetitorList] = useState<string[]>(['adidas', 'nike']);
+  const [competitorList, setCompetitorList] = useState<string[]>([]);
   const [loadingCompetitors, setLoadingCompetitors] = useState(false);
 
   // Graph API connection modal fields
@@ -560,13 +549,13 @@ export default function DashboardPage() {
   const totalPosts = posts.length;
   const totalLikes = posts.reduce((acc, p) => acc + (p.likes_count || 0), 0);
   const totalComments = posts.reduce((acc, p) => acc + (p.comments_count || 0), 0);
-  const followersCount = profile?.followers_count || profile?.followersCount || 150000;
+  const followersCount = profile?.followers_count ?? profile?.followersCount ?? 0;
   const avgLikes = totalPosts > 0 ? Math.round(totalLikes / totalPosts) : 0;
   const avgComments = totalPosts > 0 ? Math.round(totalComments / totalPosts) : 0;
   const avgER =
     followersCount > 0 && totalPosts > 0
       ? (((totalLikes + totalComments) / (followersCount * totalPosts)) * 100).toFixed(2)
-      : '3.42';
+      : '0.00';
 
   // Analytics Graph View Modes: 'absolute' (raw numbers) vs 'rate' (ER % of audience) vs 'reach'
   const [metricMode, setMetricMode] = useState<'engagement_rate' | 'absolute' | 'reach'>('engagement_rate');
@@ -581,8 +570,8 @@ export default function DashboardPage() {
       const likes = p.likes_count || 0;
       const comments = p.comments_count || 0;
       const views = p.views_count || 0;
-      // Estimated Reach: views if available, otherwise likes * multiplier or followers-normalized
-      const reach = views > 0 ? views : Math.round(likes * 1.35 + comments * 3);
+      // Real recorded views if video/reel, otherwise total interactions (likes + comments)
+      const reach = views > 0 ? views : (likes + comments);
       // Normalized Engagement Rate (%) for this individual post relative to followers
       const erRate = followersCount > 0 ? Number((((likes + comments) / followersCount) * 100).toFixed(2)) : 0;
 
@@ -1601,36 +1590,6 @@ export default function DashboardPage() {
                         className="w-full px-3 py-2 text-xs font-mono border border-neutral-300 rounded focus:outline-none focus:border-black"
                         autoFocus
                       />
-                    </div>
-
-                    {/* Quick Switch to Ingested Creators */}
-                    <div className="space-y-1.5 pt-1">
-                      <span className="text-[11px] font-mono text-neutral-500 uppercase tracking-wider block">
-                        Or switch instantly to an existing creator:
-                      </span>
-                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
-                        {POPULAR_CREATORS.map((h) => (
-                          <button
-                            key={h}
-                            type="button"
-                            onClick={() => {
-                              setAccountInput(h);
-                              loadCreatorDashboard(h, true);
-                              setShowModal(false);
-                              if (user?.id) {
-                                api.saveUserProfile({ userId: user.id, handle: h }).catch(() => {});
-                              }
-                            }}
-                            className={`text-xs font-mono px-2 py-0.5 rounded border transition ${
-                              activeHandle.toLowerCase() === h.toLowerCase()
-                                ? 'border-black bg-black text-white font-bold'
-                                : 'border-neutral-200 bg-neutral-50 text-neutral-700 hover:border-black hover:bg-white'
-                            }`}
-                          >
-                            @{h}
-                          </button>
-                        ))}
-                      </div>
                     </div>
 
                     {modalError && (

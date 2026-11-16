@@ -227,7 +227,7 @@ export class SchedulerService {
     if (fs.existsSync(postFile)) {
       try {
         const posts = JSON.parse(fs.readFileSync(postFile, 'utf-8'));
-        if (Array.isArray(posts) && posts.length >= 5) {
+        if (Array.isArray(posts) && posts.length >= 1) {
           // Aggregate by (dayOfWeek, hour)
           const slotMap = new Map<string, { totalEng: number; count: number; day: number; hour: number }>();
 
