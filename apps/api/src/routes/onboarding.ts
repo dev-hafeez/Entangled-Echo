@@ -132,6 +132,21 @@ onboardingRouter.get('/user-profile', requireAuth, (req: Request, res: Response)
   return res.status(404).json({ error: 'User profile not found' });
 });
 
+// ── DELETE /api/onboarding/user-profile (Disconnect account) ─────────────────
+onboardingRouter.delete('/user-profile', requireAuth, (req: Request, res: Response) => {
+  const userId = req.auth!.userId;
+  const file = getUserAccountFile(userId);
+  if (fs.existsSync(file)) {
+    try {
+      fs.unlinkSync(file);
+      return res.json({ success: true, message: 'Account disconnected successfully' });
+    } catch (e: any) {
+      return res.status(500).json({ error: 'Failed to disconnect account' });
+    }
+  }
+  return res.json({ success: true, message: 'No linked account found' });
+});
+
 // ── Signal extraction helpers (pure computation — no AI, no guessing) ────────
 
 interface PostSignals {

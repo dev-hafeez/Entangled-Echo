@@ -53,11 +53,24 @@ interface RecommendedSlot {
   rationale: string;
 }
 
+const SAMPLE_HANDLES = new Set([
+  'kaleem._.abbasi830',
+  'tahirabbas_ca',
+  'tahir_abbas',
+  'nightcreeper24',
+  'cristiano',
+  'leomessi',
+  '100xengineers',
+  'abdevilliers17',
+  'abdulelsayed',
+  'adidas',
+]);
+
 export default function CalendarPage() {
   const { user, isLoaded } = useUser();
   const userId = user?.id || 'default_user';
 
-  const [activeHandle, setActiveHandle] = useState<string>('creator');
+  const [activeHandle, setActiveHandle] = useState<string>('');
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
@@ -91,11 +104,18 @@ export default function CalendarPage() {
       const stored = localStorage.getItem(`ee_handle_${userId}`) || localStorage.getItem('ee_active_handle');
       if (stored) {
         const clean = stored.toLowerCase().replace(/^@/, '').trim();
-        setActiveHandle(clean);
-        setFormHandle(clean);
+        if (SAMPLE_HANDLES.has(clean)) {
+          localStorage.removeItem('ee_active_handle');
+          localStorage.removeItem(`ee_handle_${userId}`);
+          setActiveHandle('');
+          setFormHandle('');
+        } else {
+          setActiveHandle(clean);
+          setFormHandle(clean);
+        }
       } else {
-        setActiveHandle('creator');
-        setFormHandle('creator');
+        setActiveHandle('');
+        setFormHandle('');
       }
 
       // Check if a draft was handed over from recommendations
@@ -808,7 +828,7 @@ export default function CalendarPage() {
                     required
                     value={formHandle}
                     onChange={(e) => setFormHandle(e.target.value)}
-                    placeholder="e.g. cristiano"
+                    placeholder="e.g. your_instagram_handle"
                     className="w-full px-3 py-1.5 text-xs border border-neutral-300 rounded focus:outline-none focus:border-black"
                   />
                 </div>

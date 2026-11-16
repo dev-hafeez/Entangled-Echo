@@ -80,6 +80,19 @@ function getPostThumbnail(post: any, handle: string): string | null {
   return null;
 }
 
+const SAMPLE_HANDLES = new Set([
+  'kaleem._.abbasi830',
+  'tahirabbas_ca',
+  'tahir_abbas',
+  'nightcreeper24',
+  'cristiano',
+  'leomessi',
+  '100xengineers',
+  'abdevilliers17',
+  'abdulelsayed',
+  'adidas',
+]);
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoaded, isSignedIn } = useUser();
@@ -242,6 +255,23 @@ export default function DashboardPage() {
 
       if (effectiveHandle) {
         const clean = effectiveHandle.toLowerCase().replace(/^@/, '').trim();
+
+        // Purge legacy sample accounts if stored
+        if (SAMPLE_HANDLES.has(clean)) {
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('ee_active_handle');
+            if (user?.id) localStorage.removeItem(`ee_handle_${user.id}`);
+          }
+          api.disconnectUserProfile().catch(() => {});
+          setActiveHandle('');
+          setProfile(null);
+          setPosts([]);
+          setNicheData(null);
+          setShowModal(true);
+          setLoadingDashboard(false);
+          return;
+        }
+
         setActiveHandle(clean);
         if (
           serverProfile?.profile?.nicheData &&
@@ -336,6 +366,24 @@ export default function DashboardPage() {
     } finally {
       setLoadingDashboard(false);
     }
+  };
+
+  const handleDisconnectAccount = async () => {
+    if (!confirm(`Are you sure you want to disconnect @${activeHandle}?`)) return;
+    try {
+      await api.disconnectUserProfile().catch(() => {});
+    } catch {}
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('ee_active_handle');
+      if (user?.id) localStorage.removeItem(`ee_handle_${user.id}`);
+      window.dispatchEvent(new CustomEvent('ee:handle_changed', { detail: { handle: '', userId: user?.id } }));
+    }
+    setActiveHandle('');
+    setProfile(null);
+    setPosts([]);
+    setNicheData(null);
+    setPersonalModel(null);
+    setShowModal(true);
   };
 
   // Load competitor comparisons (FR-32)
@@ -808,6 +856,15 @@ export default function DashboardPage() {
                 >
                   Switch Account
                 </button>
+                {activeHandle && (
+                  <button
+                    onClick={handleDisconnectAccount}
+                    className="text-xs font-medium px-3 py-1.5 border border-neutral-300 text-neutral-600 bg-white hover:border-black hover:text-black transition rounded"
+                    title="Disconnect current creator account"
+                  >
+                    Disconnect
+                  </button>
+                )}
               </div>
 
               {isBackgroundScraping && (
@@ -1626,7 +1683,7 @@ export default function DashboardPage() {
                       </label>
                       <input
                         type="text"
-                        placeholder={platform === 'instagram' ? 'e.g. @natgeo or profile link' : 'e.g. page name or link'}
+                        placeholder={platform === 'instagram' ? 'e.g. @yourhandle or profile link' : 'e.g. page name or link'}
                         value={accountInput}
                         onChange={(e) => setAccountInput(e.target.value)}
                         className="w-full px-3 py-2 text-xs font-mono border border-neutral-300 rounded focus:outline-none focus:border-black"

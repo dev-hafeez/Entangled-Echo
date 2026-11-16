@@ -34,6 +34,19 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
+const SAMPLE_HANDLES = new Set([
+  'kaleem._.abbasi830',
+  'tahirabbas_ca',
+  'tahir_abbas',
+  'nightcreeper24',
+  'cristiano',
+  'leomessi',
+  '100xengineers',
+  'abdevilliers17',
+  'abdulelsayed',
+  'adidas',
+]);
+
 export default function RecommendationsPage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
@@ -102,6 +115,21 @@ export default function RecommendationsPage() {
 
       if (targetHandle) {
         const clean = targetHandle.trim().toLowerCase().replace(/^@/, '');
+
+        // Purge legacy sample accounts if stored
+        if (SAMPLE_HANDLES.has(clean)) {
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('ee_active_handle');
+            if (user?.id) localStorage.removeItem(`ee_handle_${user.id}`);
+          }
+          api.disconnectUserProfile().catch(() => {});
+          setHandle('');
+          setCustomHandleInput('');
+          setRecsData(null);
+          setLoading(false);
+          return;
+        }
+
         if (typeof window !== 'undefined') {
           localStorage.setItem('ee_active_handle', clean);
           if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, clean);
@@ -402,7 +430,7 @@ export default function RecommendationsPage() {
           ) : (
             <div className="flex items-center gap-2 bg-neutral-50 border border-neutral-200 px-3 py-1.5 rounded-md text-xs text-neutral-800">
               <User className="w-3.5 h-3.5 text-neutral-400" />
-              <span className="font-mono font-medium">@{handle || 'creator'}</span>
+              <span className="font-mono font-medium">{handle ? `@${handle}` : 'No account linked'}</span>
               <button
                 onClick={() => setIsEditingHandle(true)}
                 className="text-[11px] text-neutral-600 hover:text-black underline font-medium ml-1"
@@ -1053,7 +1081,7 @@ export default function RecommendationsPage() {
                 type="text"
                 value={customHandleInput}
                 onChange={(e) => setCustomHandleInput(e.target.value)}
-                placeholder="e.g. creator_handle"
+                placeholder="e.g. your_instagram_handle"
                 className="px-3 py-1.5 text-xs rounded border border-neutral-300 focus:outline-none focus:border-black text-neutral-900 flex-1"
               />
               <button
