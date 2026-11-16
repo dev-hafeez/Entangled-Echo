@@ -1,0 +1,42 @@
+===============================================================
+ENTANGLED ECHO - RECOMMENDATION ENGINE TEST SUITE
+Timestamp: 2026-11-16T18:27:24.925Z
+Configured Similarity Threshold: 0.15
+===============================================================
+
+TEST 1: Off-niche trend is rejected
+  [PASS] Sports trend "slovaquie foot" rejected for tech creator @100xengineers (score: 0.0114 < 0.15)
+  [PASS] Sports trend "la liga el clasico" rejected for tech creator @100xengineers (score: 0.0265 < 0.15)
+  [PASS] Off-niche trend "snl sister sketch" rejected for photo creator @kaleem._.abbasi830 (score: 0.008 < 0.15)
+  [PASS] Off-niche trend "microsoft outlook global outage causes" rejected for photo creator @kaleem._.abbasi830 (score: 0 < 0.15)
+  [PASS] Off-niche trend "us employment based green card proposal" rejected for photo creator @kaleem._.abbasi830 (score: 0.0238 < 0.15)
+
+TEST 2: Language selection from caption history
+  [PASS] Portuguese caption history selects Portuguese for @cristiano (detected: Portuguese, conf: 0.86)
+  [PASS] Roman Urdu caption history selects Urdu for @ezsnippet (detected: Urdu, conf: 0.95)
+  [PASS] Roman Urdu caption history selects Urdu for @wildlensbyabrar (detected: Urdu, conf: 0.73)
+  [PASS] Roman Urdu caption history selects Urdu for @akbarchaudry (detected: Urdu, conf: 0.95)
+
+TEST 3: No-history creator gets declared-niche results with confidence "low"
+  [PASS] Creator @100xengineers hasHistory is false
+  [PASS] Passing candidates found for @100xengineers (3 passed)
+  [PASS] Passed topic "Builder Community Cohorts" maps directly to declared pillar "Builder Community Cohorts"
+  [PASS] Passed topic "AI Literacy & Career Growth" maps directly to declared pillar "AI Literacy & Career Growth"
+  [PASS] Passed topic "Applied AI Tutorials" maps directly to declared pillar "Applied AI Tutorials"
+  [PASS] Endpoint returned confidence: "low" for no-history creator
+
+TEST 4: Topics in the last 20 posts are not recommended again
+  [PASS] @cristiano recentTopics extracted from last 20 posts: [portugal, years, nacional, sempre, fans]
+  [PASS] Candidate using recent topic "portugal" receives repetition penalty (0.16)
+  [PASS] Fresh unposted topic "Youth Academy Training Methodology" receives zero repetition penalty
+  [PASS] Fresh topic final score (0.2663) is strictly higher than repeated topic score (0.2127)
+
+TEST 5: Two runs with same input and cached trend snapshot return identical results
+  [PASS] Two runs returned identical recommendation count: 3
+  [PASS] Two runs returned byte-for-byte identical recommendation objects
+  [PASS] Identical top recommendation title: "Safar aur Dosti: Motorcycle Collabs ki Asli Kahani"
+  [PASS] Identical top caption draft content: "Jab do mukhtalif raaste aik manzil par miltay hain..."
+
+===============================================================
+TEST SUITE COMPLETE: 23 PASSED, 0 FAILED
+===============================================================
