@@ -567,102 +567,50 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 pb-16">
-      {/* Top Bar with Profile Info */}
-      <div className="border-b border-slate-100 bg-white sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">EntangledEcho</h1>
-            {activeHandle && (
-              <div className="flex items-center space-x-2 bg-slate-50 border border-slate-200 pl-1.5 pr-3 py-1 rounded-full text-xs font-medium text-slate-700 shadow-xs">
-                <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-200 flex-shrink-0 border border-slate-300">
-                  <img
-                    src={`/api/proxy/api/media/avatar?handle=${encodeURIComponent(activeHandle.toLowerCase().replace(/^@/, ''))}`}
-                    alt={activeHandle}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      const fallback = `${apiBase}/api/media/avatar?handle=${encodeURIComponent(activeHandle.toLowerCase().replace(/^@/, ''))}`;
-                      if (e.currentTarget.src !== fallback && !e.currentTarget.src.includes(':4000/api/media/avatar')) {
-                        e.currentTarget.src = fallback;
-                      } else {
-                        e.currentTarget.style.display = 'none';
-                      }
-                    }}
-                  />
-                </div>
-                <span>@{activeHandle}</span>
-              </div>
-            )}
-            {nicheData?.niche && (
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <Sparkles className="w-3 h-3" />
-                {nicheData.niche}
-              </span>
-            )}
-            {profile?.data_source === 'official_graph_api' && (
-              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                <CheckCircle2 className="w-3 h-3 text-blue-600" />
-                Meta Graph API Verified
-              </span>
-            )}
-          </div>
+    <div className="space-y-8">
+      {/* Top Utility Sub-Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-stone-200">
+        <div>
+          <h2 className="text-xl font-bold text-stone-900 tracking-tight">Performance & Ingestion Overview</h2>
+          <p className="text-xs text-stone-500">Live analytics, historical reach patterns, and QUBO schedule status</p>
+        </div>
 
-          <div className="flex items-center space-x-3">
-            {activeHandle && (
-              <a
-                href={api.getCsvExportUrl(activeHandle)}
-                download={`${activeHandle}_metrics_export.csv`}
-                className="text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm"
-                title="Export posts and metrics to CSV (FR-31)"
-              >
-                <Download className="w-3.5 h-3.5 text-slate-600" />
-                <span>Export CSV</span>
-              </a>
-            )}
-            <Link
-              href="/recommendations"
-              className="text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm"
+        <div className="flex items-center space-x-2.5">
+          {activeHandle && (
+            <a
+              href={api.getCsvExportUrl(activeHandle)}
+              download={`${activeHandle}_metrics_export.csv`}
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 transition flex items-center gap-1.5 shadow-xs"
+              title="Export posts and metrics to CSV (FR-31)"
             >
-              <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-              <span>AI Recommendations</span>
-            </Link>
-            {isBackgroundScraping && (
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-mono animate-pulse border border-slate-200">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" />
-                <span>Live Scraping: {posts.length} posts ({backgroundCount} detailed)...</span>
-              </div>
-            )}
-            <Link
-              href="/notifications"
-              className="relative p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition border border-slate-200"
-              title="Notifications & Alerts (FR-33)"
-            >
-              <Bell className="w-4 h-4" />
-              {unreadNotifCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white shadow">
-                  {unreadNotifCount}
-                </span>
-              )}
-            </Link>
-            <button
-              onClick={() => setShowModal(true)}
-              className="text-xs font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded border border-slate-200 hover:bg-slate-50 transition flex items-center gap-1.5"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Switch Account
-            </button>
-          </div>
+              <Download className="w-3.5 h-3.5 text-stone-500" />
+              <span>Export CSV</span>
+            </a>
+          )}
+          <button
+            onClick={() => setShowModal(true)}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-stone-300 bg-white hover:bg-stone-50 text-stone-800 transition flex items-center gap-1.5 shadow-xs"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-stone-500" />
+            <span>Switch Account</span>
+          </button>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 pt-8 space-y-8">
-        {/* Loading Skeleton */}
-        {loadingDashboard ? (
-          <div className="py-24 flex flex-col items-center justify-center space-y-4">
-            <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-            <p className="text-sm text-slate-500">Loading creator analytics & models...</p>
-          </div>
-        ) : (
+      {isBackgroundScraping && (
+        <div className="flex items-center gap-3 p-3.5 rounded-lg bg-stone-100 border border-stone-300 text-stone-800 text-xs font-mono shadow-xs">
+          <Loader2 className="w-4 h-4 animate-spin text-stone-600" />
+          <span>Ingesting creator data: {posts.length} posts ({backgroundCount} detailed)...</span>
+        </div>
+      )}
+
+      {/* Loading Skeleton */}
+      {loadingDashboard ? (
+        <div className="py-24 flex flex-col items-center justify-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin text-stone-400" />
+          <p className="text-sm text-stone-500 font-medium">Loading creator analytics & models...</p>
+        </div>
+      ) : (
           <>
             {/* Header Niche & Bio Card with Scraped Creator Avatar */}
             <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6">
@@ -1488,7 +1436,6 @@ export default function DashboardPage() {
             )}
           </>
         )}
-      </div>
 
       {/* Onboarding Popup Modal */}
       {showModal && (
