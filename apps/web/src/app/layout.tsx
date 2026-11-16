@@ -121,19 +121,22 @@ function NavigationHeader() {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const isLandingPage = pathname === '/';
   const isAuthPage =
     pathname?.startsWith('/sign-in') ||
     pathname?.startsWith('/sign-up') ||
     pathname?.startsWith('/login') ||
     pathname?.startsWith('/signup');
 
+  const isBarePage = isLandingPage || isAuthPage;
+
   return (
     <ClerkProvider>
       <ClerkTokenBridge />
       <html lang="en">
         <body className="min-h-screen bg-white text-neutral-900 antialiased font-sans">
-          {!isAuthPage && <NavigationHeader />}
-          <main className={isAuthPage ? 'min-h-screen w-full' : 'max-w-7xl mx-auto px-6 py-8'}>
+          {!isBarePage && <NavigationHeader />}
+          <main className={isBarePage ? 'min-h-screen w-full' : 'max-w-7xl mx-auto px-6 py-8'}>
             {children}
           </main>
         </body>

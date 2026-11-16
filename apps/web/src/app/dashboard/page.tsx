@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { api } from '@/lib/api';
 import {
@@ -79,7 +80,15 @@ function getPostThumbnail(post: any, handle: string): string | null {
 }
 
 export default function DashboardPage() {
-  const { user, isLoaded } = useUser();
+  const router = useRouter();
+  const { user, isLoaded, isSignedIn } = useUser();
+
+  // Enforce session approval: No unapproved user can access the dashboard
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      router.replace('/sign-in?redirect_url=/dashboard');
+    }
+  }, [isLoaded, isSignedIn, router]);
 
   // Onboarding modal state
   const [showModal, setShowModal] = useState(false);
@@ -565,6 +574,15 @@ export default function DashboardPage() {
     }
     return num.toLocaleString();
   };
+
+  if (!isLoaded || !isSignedIn) {
+    return (
+      <div className="py-24 flex flex-col items-center justify-center space-y-3">
+        <Loader2 className="w-6 h-6 animate-spin text-neutral-400" />
+        <p className="text-xs text-neutral-500 font-mono">Verifying approved session...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

@@ -10,11 +10,6 @@ const isAdminRoute = createRouteMatcher([
 // Public routes accessible without signing in
 const isPublicRoute = createRouteMatcher([
   '/',
-  '/dashboard(.*)',
-  '/recommendations(.*)',
-  '/calendar(.*)',
-  '/notifications(.*)',
-  '/settings(.*)',
   '/admin',
   '/sign-in(.*)',
   '/sign-up(.*)',
@@ -80,8 +75,14 @@ export default clerkMiddleware(async (auth, req) => {
     }
   }
 
+  // Session check for protected routes: no one should access dashboard until their session is approved
   if (!isPublicRoute(req) && !isAdmin) {
-    await auth.protect();
+    const session = await auth();
+    if (!session.userId) {
+      const signInUrl = new URL('/sign-in', req.url);
+      signInUrl.searchParams.set('redirect_url', req.nextUrl.pathname);
+      return NextResponse.redirect(signInUrl);
+    }
   }
 });
 
