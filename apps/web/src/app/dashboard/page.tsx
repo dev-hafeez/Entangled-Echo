@@ -568,224 +568,177 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Top Utility Sub-Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-stone-200">
-        <div>
-          <h2 className="text-xl font-bold text-stone-900 tracking-tight">Performance & Ingestion Overview</h2>
-          <p className="text-xs text-stone-500">Live analytics, historical reach patterns, and QUBO schedule status</p>
-        </div>
-
-        <div className="flex items-center space-x-2.5">
-          {activeHandle && (
-            <a
-              href={api.getCsvExportUrl(activeHandle)}
-              download={`${activeHandle}_metrics_export.csv`}
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 transition flex items-center gap-1.5 shadow-xs"
-              title="Export posts and metrics to CSV (FR-31)"
-            >
-              <Download className="w-3.5 h-3.5 text-stone-500" />
-              <span>Export CSV</span>
-            </a>
-          )}
-          <button
-            onClick={() => setShowModal(true)}
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-stone-300 bg-white hover:bg-stone-50 text-stone-800 transition flex items-center gap-1.5 shadow-xs"
-          >
-            <RefreshCw className="w-3.5 h-3.5 text-stone-500" />
-            <span>Switch Account</span>
-          </button>
-        </div>
-      </div>
-
-      {isBackgroundScraping && (
-        <div className="flex items-center gap-3 p-3.5 rounded-lg bg-stone-100 border border-stone-300 text-stone-800 text-xs font-mono shadow-xs">
-          <Loader2 className="w-4 h-4 animate-spin text-stone-600" />
-          <span>Ingesting creator data: {posts.length} posts ({backgroundCount} detailed)...</span>
-        </div>
-      )}
-
       {/* Loading Skeleton */}
       {loadingDashboard ? (
         <div className="py-24 flex flex-col items-center justify-center space-y-4">
-          <Loader2 className="w-8 h-8 animate-spin text-stone-400" />
-          <p className="text-sm text-stone-500 font-medium">Loading creator analytics & models...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-neutral-400" />
+          <p className="text-sm text-neutral-500">Loading creator analytics...</p>
         </div>
       ) : (
-          <>
-            {/* Header Niche & Bio Card with Scraped Creator Avatar */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6">
-              <div className="flex flex-col sm:flex-row items-start gap-5">
-                {/* Scraped Creator Profile Avatar */}
-                <div className="relative flex-shrink-0">
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 border-slate-200 shadow-md bg-slate-100 relative group ring-2 ring-slate-100">
-                    <img
-                      src={`/api/proxy/api/media/avatar?handle=${encodeURIComponent(activeHandle.toLowerCase().replace(/^@/, ''))}`}
-                      alt={profile?.full_name || activeHandle}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      onError={(e) => {
-                        const cleanH = activeHandle.toLowerCase().replace(/^@/, '');
-                        const directFallback = `${apiBase}/api/media/avatar?handle=${encodeURIComponent(cleanH)}`;
-                        const extFallback = profile?.avatar_url || profile?.avatarUrl;
-                        if (e.currentTarget.src !== directFallback && !e.currentTarget.src.includes(':4000/api/media/avatar')) {
-                          e.currentTarget.src = directFallback;
-                        } else if (extFallback && e.currentTarget.src !== extFallback) {
-                          e.currentTarget.src = extFallback;
-                        } else {
-                          e.currentTarget.style.display = 'none';
-                          const fb = e.currentTarget.parentElement?.querySelector('.avatar-fallback');
-                          if (fb) (fb as HTMLElement).style.display = 'flex';
-                        }
-                      }}
-                    />
-                    <div className="avatar-fallback hidden w-full h-full bg-[#373E3E] text-white items-center justify-center font-bold text-2xl uppercase font-mono">
-                      {activeHandle?.replace(/^@/, '').slice(0, 2).toUpperCase() || '?'}
-                    </div>
+        <>
+          {/* Minimalist Creator Profile Header */}
+          <div className="p-6 rounded-xl border border-neutral-200 bg-white shadow-xs flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+            <div className="flex flex-col sm:flex-row items-start gap-5">
+              {/* Scraped Creator Profile Avatar */}
+              <div className="relative flex-shrink-0">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border border-neutral-300 bg-neutral-100 relative group">
+                  <img
+                    src={`/api/proxy/api/media/avatar?handle=${encodeURIComponent(activeHandle.toLowerCase().replace(/^@/, ''))}`}
+                    alt={profile?.full_name || activeHandle}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    onError={(e) => {
+                      const cleanH = activeHandle.toLowerCase().replace(/^@/, '');
+                      const directFallback = `${apiBase}/api/media/avatar?handle=${encodeURIComponent(cleanH)}`;
+                      const extFallback = profile?.avatar_url || profile?.avatarUrl;
+                      if (e.currentTarget.src !== directFallback && !e.currentTarget.src.includes(':4000/api/media/avatar')) {
+                        e.currentTarget.src = directFallback;
+                      } else if (extFallback && e.currentTarget.src !== extFallback) {
+                        e.currentTarget.src = extFallback;
+                      } else {
+                        e.currentTarget.style.display = 'none';
+                        const fb = e.currentTarget.parentElement?.querySelector('.avatar-fallback');
+                        if (fb) (fb as HTMLElement).style.display = 'flex';
+                      }
+                    }}
+                  />
+                  <div className="avatar-fallback hidden w-full h-full bg-[#373E3E] text-white items-center justify-center font-bold text-2xl uppercase font-mono">
+                    {activeHandle?.replace(/^@/, '').slice(0, 2).toUpperCase() || '?'}
                   </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
+                    {profile?.full_name || profile?.fullName || `@${activeHandle}`}
+                  </h1>
+                  <span className="text-xs bg-neutral-100 text-neutral-600 font-mono px-2 py-0.5 rounded border border-neutral-200">
+                    @{activeHandle}
+                  </span>
                   {profile?.is_verified && (
-                    <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white rounded-full p-1 shadow border-2 border-white" title="Verified Creator">
-                      <CheckCircle2 className="w-4 h-4 fill-blue-500 text-white" />
-                    </div>
+                    <span className="text-xs text-neutral-700 font-medium px-2 py-0.5 rounded border border-neutral-200">
+                      ✓ Verified
+                    </span>
+                  )}
+                  {nicheData?.language_preference && (
+                    <span className="text-xs text-neutral-600 font-medium px-2 py-0.5 rounded border border-neutral-200">
+                      Language: {nicheData.language_preference}
+                    </span>
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-                      {profile?.full_name || profile?.fullName || `@${activeHandle}`}
-                    </h2>
-                    <span className="text-xs bg-slate-100 text-slate-600 font-mono px-2 py-0.5 rounded">
-                      {profile?.data_source === 'official_graph_api' ? 'Official Graph API Data' : 'Verified Public Analytics'}
-                    </span>
-                    {profile?.is_verified && (
-                      <span className="text-xs bg-blue-50 text-blue-700 font-medium px-2.5 py-0.5 rounded-full border border-blue-200 flex items-center gap-1">
-                        ✓ Verified
-                      </span>
-                    )}
-                    {nicheData?.language_preference && (
-                      <span className="text-xs bg-indigo-50 text-indigo-700 font-medium px-2.5 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
-                        🌐 Preferred Language: <strong>{nicheData.language_preference}</strong>
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-slate-600 max-w-2xl leading-relaxed">
-                    {nicheData?.summary ||
-                      profile?.biography ||
-                      profile?.bio ||
-                      'AI-powered creator insights and historical reach analysis.'}
-                  </p>
-                  {profile?.external_link && (
-                    <a
-                      href={profile.external_link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-blue-600 hover:underline block pt-0.5"
-                    >
-                      🔗 {profile.external_link}
-                    </a>
-                  )}
+                <p className="text-sm text-neutral-600 max-w-2xl leading-relaxed whitespace-pre-line">
+                  {nicheData?.summary ||
+                    profile?.biography ||
+                    profile?.bio ||
+                    'Creator profile and performance analytics.'}
+                </p>
+
+                {profile?.external_link && (
+                  <a
+                    href={profile.external_link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-neutral-700 hover:text-black hover:underline block pt-0.5 font-mono"
+                  >
+                    🔗 {profile.external_link}
+                  </a>
+                )}
+
                 {nicheData?.content_pillars && (
-                  <div className="flex flex-wrap gap-2 pt-2">
+                  <div className="flex flex-wrap gap-1.5 pt-2">
                     {nicheData.content_pillars.map((pillar: string, i: number) => (
                       <span
                         key={i}
-                        className="text-xs px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-medium"
+                        className="text-xs px-2.5 py-1 rounded bg-neutral-100 text-neutral-800 border border-neutral-200 font-mono"
                       >
                         #{pillar}
                       </span>
                     ))}
                   </div>
                 )}
-                {nicheData?.evidence_quotes && nicheData.evidence_quotes.length > 0 && (
-                  <div className="pt-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-                    <span className="font-medium text-slate-600">Evidence from posts:</span>
-                    {nicheData.evidence_quotes.slice(0, 3).map((q: string, i: number) => (
-                      <span
-                        key={i}
-                        className="italic bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-slate-600 truncate max-w-xs"
-                      >
-                        &ldquo;{q}&rdquo;
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {/* NicheIQ extra signals row */}
-                {(nicheData?.dominant_format || nicheData?.engagement_level || nicheData?.posting_pattern || nicheData?.follower_tier) && (
-                  <div className="pt-2 flex flex-wrap gap-2 text-xs">
-                    {nicheData?.dominant_format && nicheData.dominant_format !== 'Insufficient data' && (
-                      <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-medium">
-                        📹 {nicheData.dominant_format}
-                      </span>
-                    )}
-                    {nicheData?.engagement_level && nicheData.engagement_level !== 'Insufficient data' && (
-                      <span className={`border px-2.5 py-1 rounded-full font-medium ${nicheData.engagement_level === 'High' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : nicheData.engagement_level === 'Medium' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                        📊 {nicheData.engagement_level} Engagement
-                      </span>
-                    )}
-                    {nicheData?.confidence && (
-                      <span className="bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full font-medium">
-                        🎯 {nicheData.confidence === 'high' ? 'High' : nicheData.confidence === 'medium' ? 'Medium' : nicheData.confidence === 'low' ? 'Low' : 'No'} Confidence
-                      </span>
-                    )}
-                    {nicheData?.posting_pattern && nicheData.posting_pattern !== 'Insufficient data' && (
-                      <span className="bg-slate-50 text-slate-600 border border-slate-200 px-2.5 py-1 rounded-full font-medium truncate max-w-xs" title={nicheData.posting_pattern}>
-                        🕐 {nicheData.posting_pattern.slice(0, 60)}{nicheData.posting_pattern.length > 60 ? '…' : ''}
-                      </span>
-                    )}
-                  </div>
-                )}
-                </div>
-              </div>
-
-              {/* Personal Smart Predictor Badge */}
-              <div className="flex flex-col items-start md:items-end justify-center border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6 min-w-[200px]">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-800">
-                  <Brain className="w-4 h-4 text-emerald-600" />
-                  Smart Post Predictor
-                </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Learned from your past posts
-                </p>
-                <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full font-medium border border-emerald-200">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Ready to optimize timing
-                </div>
               </div>
             </div>
 
-            {/* Navigation Tabs (Performance Overview, FR-30 Audience Demographics, FR-32 Competitive Analysis) */}
-            <div className="flex items-center border-b border-slate-200 space-x-6 text-sm font-semibold">
+            {/* Stats & Actions Panel */}
+            <div className="flex flex-col sm:flex-row lg:flex-col items-start lg:items-end justify-between border-t lg:border-t-0 lg:border-l border-neutral-200 pt-4 lg:pt-0 lg:pl-6 min-w-[220px] gap-4">
+              <div className="grid grid-cols-3 gap-4 w-full text-center lg:text-right font-mono text-xs">
+                <div>
+                  <p className="text-neutral-400 text-[11px]">Followers</p>
+                  <p className="text-base font-bold text-neutral-900">{formatCompactNumber(followersCount)}</p>
+                </div>
+                <div>
+                  <p className="text-neutral-400 text-[11px]">Following</p>
+                  <p className="text-base font-bold text-neutral-900">{profile?.following_count != null ? formatCompactNumber(profile.following_count) : '-'}</p>
+                </div>
+                <div>
+                  <p className="text-neutral-400 text-[11px]">Posts</p>
+                  <p className="text-base font-bold text-neutral-900">{posts.length || profile?.posts_count || '-'}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-2 w-full lg:justify-end">
+                {activeHandle && (
+                  <a
+                    href={api.getCsvExportUrl(activeHandle)}
+                    download={`${activeHandle}_metrics_export.csv`}
+                    className="text-xs font-medium px-3 py-1.5 border border-neutral-300 text-neutral-700 bg-white hover:border-black hover:text-black transition rounded"
+                    title="Export posts and metrics to CSV"
+                  >
+                    Export CSV
+                  </a>
+                )}
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="text-xs font-medium px-3 py-1.5 border border-black text-black bg-white hover:bg-black hover:text-white transition rounded"
+                >
+                  Switch Account
+                </button>
+              </div>
+
+              {isBackgroundScraping && (
+                <div className="flex items-center gap-2 px-3 py-1 rounded bg-neutral-100 text-neutral-800 text-xs font-mono border border-neutral-200">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-600" />
+                  <span>Syncing: {posts.length} posts ({backgroundCount} detailed)...</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+            {/* Minimalist Tabs: Overview, Audience, Competitors */}
+            <div className="flex items-center border-b border-neutral-200 space-x-8 text-xs font-medium">
               <button
                 onClick={() => setActiveTab('overview')}
                 className={`pb-3 flex items-center gap-2 transition border-b-2 ${
                   activeTab === 'overview'
-                    ? 'border-slate-900 text-slate-900'
-                    : 'border-transparent text-slate-400 hover:text-slate-700'
+                    ? 'border-black text-black font-semibold'
+                    : 'border-transparent text-neutral-400 hover:text-black'
                 }`}
               >
-                <TrendingUp className="w-4 h-4" />
-                <span>Performance Overview</span>
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>Overview</span>
               </button>
               <button
                 onClick={() => setActiveTab('audience')}
                 className={`pb-3 flex items-center gap-2 transition border-b-2 ${
                   activeTab === 'audience'
-                    ? 'border-slate-900 text-slate-900'
-                    : 'border-transparent text-slate-400 hover:text-slate-700'
+                    ? 'border-black text-black font-semibold'
+                    : 'border-transparent text-neutral-400 hover:text-black'
                 }`}
               >
-                <Users className="w-4 h-4" />
-                <span>Audience Demographics (FR-30)</span>
+                <Users className="w-3.5 h-3.5" />
+                <span>Audience Demographics</span>
               </button>
               <button
                 onClick={() => setActiveTab('competitors')}
                 className={`pb-3 flex items-center gap-2 transition border-b-2 ${
                   activeTab === 'competitors'
-                    ? 'border-slate-900 text-slate-900'
-                    : 'border-transparent text-slate-400 hover:text-slate-700'
+                    ? 'border-black text-black font-semibold'
+                    : 'border-transparent text-neutral-400 hover:text-black'
                 }`}
               >
-                <Swords className="w-4 h-4" />
-                <span>Competitive Analysis (FR-32)</span>
+                <Swords className="w-3.5 h-3.5" />
+                <span>Competitor Benchmarks</span>
               </button>
             </div>
 
@@ -795,113 +748,109 @@ export default function DashboardPage() {
 
             {/* KPI Cards Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
-                  <span>Audience (Followers)</span>
-                  <Users className="w-4 h-4 text-slate-400" />
+              <div className="p-4 rounded-lg border border-neutral-200 bg-white shadow-2xs">
+                <div className="flex items-center justify-between text-neutral-500 text-xs font-mono">
+                  <span>Audience</span>
+                  <Users className="w-3.5 h-3.5 text-neutral-400" />
                 </div>
-                <div className="mt-2 text-2xl font-bold text-slate-900">
+                <div className="mt-2 text-xl font-bold font-mono text-neutral-900">
                   {formatCompactNumber(followersCount)}
                 </div>
-                <div className="mt-1 text-xs text-slate-400">Total people following</div>
+                <div className="mt-1 text-[11px] text-neutral-400">Total followers</div>
               </div>
 
-              <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
-                  <span>Audience Interaction</span>
-                  <TrendingUp className="w-4 h-4 text-emerald-500" />
+              <div className="p-4 rounded-lg border border-neutral-200 bg-white shadow-2xs">
+                <div className="flex items-center justify-between text-neutral-500 text-xs font-mono">
+                  <span>Interaction Rate</span>
+                  <TrendingUp className="w-3.5 h-3.5 text-neutral-400" />
                 </div>
-                <div className="mt-2 text-2xl font-bold text-slate-900">{avgER}%</div>
-                <div className="mt-1 text-xs text-emerald-600 font-medium flex items-center gap-1">
-                  <span>High audience interest</span>
-                </div>
+                <div className="mt-2 text-xl font-bold font-mono text-neutral-900">{avgER}%</div>
+                <div className="mt-1 text-[11px] text-neutral-400">Avg per post</div>
               </div>
 
-              <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <div className="p-4 rounded-lg border border-neutral-200 bg-white shadow-2xs">
+                <div className="flex items-center justify-between text-neutral-500 text-xs font-mono">
                   <span>Average Likes</span>
-                  <Heart className="w-4 h-4 text-rose-500" />
+                  <Heart className="w-3.5 h-3.5 text-neutral-400" />
                 </div>
-                <div className="mt-2 text-2xl font-bold text-slate-900">
+                <div className="mt-2 text-xl font-bold font-mono text-neutral-900">
                   {formatCompactNumber(avgLikes)}
                 </div>
-                <div className="mt-1 text-xs text-slate-400">per post across {formatCompactNumber(totalPosts)} posts</div>
+                <div className="mt-1 text-[11px] text-neutral-400">Across {formatCompactNumber(totalPosts)} posts</div>
               </div>
 
-              <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <div className="p-4 rounded-lg border border-neutral-200 bg-white shadow-2xs">
+                <div className="flex items-center justify-between text-neutral-500 text-xs font-mono">
                   <span>Average Comments</span>
-                  <MessageCircle className="w-4 h-4 text-blue-500" />
+                  <MessageCircle className="w-3.5 h-3.5 text-neutral-400" />
                 </div>
-                <div className="mt-2 text-2xl font-bold text-slate-900">
+                <div className="mt-2 text-xl font-bold font-mono text-neutral-900">
                   {formatCompactNumber(avgComments)}
                 </div>
-                <div className="mt-1 text-xs text-slate-400">active conversations per post</div>
+                <div className="mt-1 text-[11px] text-neutral-400">Comments per post</div>
               </div>
             </div>
 
-            {/* Engagement Timeline Chart - Plain numbers and lines for laymen */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm">
+            {/* Engagement Timeline Chart - Monochrome Minimalist */}
+            <div className="p-5 rounded-lg border border-neutral-200 bg-white shadow-2xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-semibold text-slate-900">Post Performance Over Time</h3>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    See how your posts performed chronologically from your first post to your latest
+                  <h3 className="text-sm font-semibold text-neutral-900">Post Performance Over Time</h3>
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    Historical metrics across your scraped post history
                   </p>
                 </div>
 
-                {/* Plain-English View Selectors */}
-                <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg text-xs font-medium self-start sm:self-auto">
+                {/* View Selectors */}
+                <div className="flex items-center gap-1 p-0.5 bg-neutral-100 rounded border border-neutral-200 text-xs font-mono self-start sm:self-auto">
                   <button
                     onClick={() => setMetricMode('absolute')}
-                    className={`px-3 py-1.5 rounded-md transition ${
+                    className={`px-2.5 py-1 rounded transition text-xs ${
                       metricMode === 'absolute'
-                        ? 'bg-white text-slate-900 shadow-sm font-semibold'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-white text-black font-semibold shadow-2xs'
+                        : 'text-neutral-500 hover:text-black'
                     }`}
                   >
                     Likes & Comments
                   </button>
                   <button
                     onClick={() => setMetricMode('engagement_rate')}
-                    className={`px-3 py-1.5 rounded-md transition ${
+                    className={`px-2.5 py-1 rounded transition text-xs ${
                       metricMode === 'engagement_rate'
-                        ? 'bg-white text-slate-900 shadow-sm font-semibold'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-white text-black font-semibold shadow-2xs'
+                        : 'text-neutral-500 hover:text-black'
                     }`}
                   >
-                    Interaction Rate (%)
+                    Interaction Rate
                   </button>
                   <button
                     onClick={() => setMetricMode('reach')}
-                    className={`px-3 py-1.5 rounded-md transition ${
+                    className={`px-2.5 py-1 rounded transition text-xs ${
                       metricMode === 'reach'
-                        ? 'bg-white text-slate-900 shadow-sm font-semibold'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-white text-black font-semibold shadow-2xs'
+                        : 'text-neutral-500 hover:text-black'
                     }`}
                   >
-                    People Reached
+                    Reach
                   </button>
                 </div>
               </div>
 
-              <div className="h-72 w-full">
+              <div className="h-64 w-full">
                 {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     {metricMode === 'engagement_rate' ? (
                       <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
                           <linearGradient id="erGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                            <stop offset="5%" stopColor="#18181b" stopOpacity={0.12} />
+                            <stop offset="95%" stopColor="#18181b" stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
+                        <XAxis dataKey="date" stroke="#a1a1aa" fontSize={11} tickLine={false} />
                         <YAxis
-                          stroke="#94a3b8"
+                          stroke="#a1a1aa"
                           fontSize={11}
                           tickLine={false}
                           tickFormatter={(val) => `${val}%`}
@@ -909,11 +858,12 @@ export default function DashboardPage() {
                         <Tooltip
                           contentStyle={{
                             backgroundColor: '#ffffff',
-                            borderRadius: '8px',
-                            border: '1px solid #e2e8f0',
-                            fontSize: '12px',
+                            borderRadius: '6px',
+                            border: '1px solid #e4e4e7',
+                            fontSize: '11px',
+                            fontFamily: 'monospace',
                           }}
-                          formatter={(value: any) => [`${value}% ER`, 'Post Engagement']}
+                          formatter={(value: any) => [`${value}% ER`, 'Engagement Rate']}
                           labelFormatter={(label, items) => {
                             const item = items?.[0]?.payload;
                             return item ? `${label} - ${item.caption}` : label;
@@ -923,8 +873,8 @@ export default function DashboardPage() {
                           type="monotone"
                           dataKey="erRate"
                           name="Engagement Rate"
-                          stroke="#10b981"
-                          strokeWidth={2.5}
+                          stroke="#18181b"
+                          strokeWidth={1.5}
                           fillOpacity={1}
                           fill="url(#erGrad)"
                         />
@@ -933,14 +883,14 @@ export default function DashboardPage() {
                       <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
                           <linearGradient id="likeGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#0f172a" stopOpacity={0.15} />
-                            <stop offset="95%" stopColor="#0f172a" stopOpacity={0} />
+                            <stop offset="5%" stopColor="#18181b" stopOpacity={0.12} />
+                            <stop offset="95%" stopColor="#18181b" stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
+                        <XAxis dataKey="date" stroke="#a1a1aa" fontSize={11} tickLine={false} />
                         <YAxis
-                          stroke="#94a3b8"
+                          stroke="#a1a1aa"
                           fontSize={11}
                           tickLine={false}
                           tickFormatter={formatCompactNumber}
@@ -948,9 +898,10 @@ export default function DashboardPage() {
                         <Tooltip
                           contentStyle={{
                             backgroundColor: '#ffffff',
-                            borderRadius: '8px',
-                            border: '1px solid #e2e8f0',
-                            fontSize: '12px',
+                            borderRadius: '6px',
+                            border: '1px solid #e4e4e7',
+                            fontSize: '11px',
+                            fontFamily: 'monospace',
                           }}
                           formatter={(value: any, name: any) => [
                             formatCompactNumber(Number(value)),
@@ -965,8 +916,8 @@ export default function DashboardPage() {
                           type="monotone"
                           dataKey="likes"
                           name="likes"
-                          stroke="#0f172a"
-                          strokeWidth={2}
+                          stroke="#18181b"
+                          strokeWidth={1.5}
                           fillOpacity={1}
                           fill="url(#likeGrad)"
                         />
@@ -974,7 +925,7 @@ export default function DashboardPage() {
                           type="monotone"
                           dataKey="comments"
                           name="comments"
-                          stroke="#3b82f6"
+                          stroke="#71717a"
                           strokeWidth={1.5}
                           fill="none"
                         />
@@ -983,14 +934,14 @@ export default function DashboardPage() {
                       <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
                           <linearGradient id="reachGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
-                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                            <stop offset="5%" stopColor="#18181b" stopOpacity={0.12} />
+                            <stop offset="95%" stopColor="#18181b" stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
+                        <XAxis dataKey="date" stroke="#a1a1aa" fontSize={11} tickLine={false} />
                         <YAxis
-                          stroke="#94a3b8"
+                          stroke="#a1a1aa"
                           fontSize={11}
                           tickLine={false}
                           tickFormatter={formatCompactNumber}
@@ -998,9 +949,10 @@ export default function DashboardPage() {
                         <Tooltip
                           contentStyle={{
                             backgroundColor: '#ffffff',
-                            borderRadius: '8px',
-                            border: '1px solid #e2e8f0',
-                            fontSize: '12px',
+                            borderRadius: '6px',
+                            border: '1px solid #e4e4e7',
+                            fontSize: '11px',
+                            fontFamily: 'monospace',
                           }}
                           formatter={(value: any) => [formatCompactNumber(Number(value)), 'Estimated Reach']}
                           labelFormatter={(label, items) => {
@@ -1012,8 +964,8 @@ export default function DashboardPage() {
                           type="monotone"
                           dataKey="reach"
                           name="Reach"
-                          stroke="#6366f1"
-                          strokeWidth={2.5}
+                          stroke="#18181b"
+                          strokeWidth={1.5}
                           fillOpacity={1}
                           fill="url(#reachGrad)"
                         />
@@ -1134,12 +1086,12 @@ export default function DashboardPage() {
                           {post.hashtags && post.hashtags.length > 0 && (
                             <div className="flex flex-wrap gap-1 pt-1">
                               {post.hashtags.slice(0, 3).map((tag: string, tidx: number) => (
-                                <span key={tidx} className="text-[11px] text-blue-600 font-mono">
+                                <span key={tidx} className="text-[11px] text-neutral-600 font-mono">
                                   #{tag.replace(/^#/, '')}
                                 </span>
                               ))}
                               {post.hashtags.length > 3 && (
-                                <span className="text-[10px] text-slate-400 font-mono self-center">
+                                <span className="text-[10px] text-neutral-400 font-mono self-center">
                                   +{post.hashtags.length - 3} more
                                 </span>
                               )}
@@ -1148,19 +1100,19 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Post Footer: Engagement Metrics & Link */}
-                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
+                        <div className="pt-3 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-600">
                           <div className="flex items-center gap-3">
-                            <span className="flex items-center gap-1 font-medium text-slate-700" title={`${post.likes_count ?? 0} likes`}>
-                              <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-50" />
+                            <span className="flex items-center gap-1 font-medium text-neutral-800" title={`${post.likes_count ?? 0} likes`}>
+                              <Heart className="w-3.5 h-3.5 text-neutral-700" />
                               {formatCompactNumber(post.likes_count ?? 0)}
                             </span>
-                            <span className="flex items-center gap-1 font-medium text-slate-700" title={`${post.comments_count ?? 0} comments`}>
-                              <MessageCircle className="w-3.5 h-3.5 text-blue-500 fill-blue-50" />
+                            <span className="flex items-center gap-1 font-medium text-neutral-800" title={`${post.comments_count ?? 0} comments`}>
+                              <MessageCircle className="w-3.5 h-3.5 text-neutral-700" />
                               {formatCompactNumber(post.comments_count ?? 0)}
                             </span>
                             {post.views_count != null && (
-                              <span className="flex items-center gap-1 font-medium text-slate-700" title={`${post.views_count} views`}>
-                                <Eye className="w-3.5 h-3.5 text-emerald-500" />
+                              <span className="flex items-center gap-1 font-medium text-neutral-800" title={`${post.views_count} views`}>
+                                <Eye className="w-3.5 h-3.5 text-neutral-700" />
                                 {formatCompactNumber(post.views_count)}
                               </span>
                             )}
@@ -1210,67 +1162,67 @@ export default function DashboardPage() {
                 {audience?.source === 'graph_api' && audience?.ageGender ? (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Age & Gender Distribution Chart */}
-                    <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm space-y-4">
+                    <div className="p-6 rounded-xl border border-neutral-200 bg-white shadow-2xs space-y-4">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-slate-900">Age & Gender Distribution</h4>
-                        <div className="flex items-center gap-4 text-xs">
-                          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Male</span>
-                          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-pink-500" /> Female</span>
+                        <h4 className="text-sm font-semibold text-neutral-900">Age & Gender Distribution</h4>
+                        <div className="flex items-center gap-4 text-xs font-mono">
+                          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-neutral-900" /> Male</span>
+                          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-neutral-400" /> Female</span>
                         </div>
                       </div>
                       <div className="h-64 w-full pt-2">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={audience.ageGender} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis dataKey="ageRange" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                            <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
+                            <XAxis dataKey="ageRange" stroke="#a1a1aa" fontSize={11} tickLine={false} />
+                            <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} tickFormatter={(v) => `${v}%`} />
                             <Tooltip
-                              contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                              contentStyle={{ backgroundColor: '#ffffff', borderRadius: '6px', border: '1px solid #e4e4e7', fontSize: '11px', fontFamily: 'monospace' }}
                               formatter={(val: any, name: any) => [`${val}%`, name === 'male' ? 'Male' : name === 'female' ? 'Female' : 'Other']}
                             />
-                            <Bar dataKey="male" name="male" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="female" name="female" fill="#ec4899" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="male" name="male" fill="#18181b" radius={[2, 2, 0, 0]} />
+                            <Bar dataKey="female" name="female" fill="#a1a1aa" radius={[2, 2, 0, 0]} />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
                     </div>
 
                     {/* Top Countries & Cities Geography */}
-                    <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm space-y-4">
+                    <div className="p-6 rounded-xl border border-neutral-200 bg-white shadow-2xs space-y-4">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-slate-900">Follower Geography</h4>
-                        <Globe className="w-4 h-4 text-slate-400" />
+                        <h4 className="text-sm font-semibold text-neutral-900">Follower Geography</h4>
+                        <Globe className="w-4 h-4 text-neutral-400" />
                       </div>
 
                       <div className="space-y-4 pt-1">
                         <div>
-                          <span className="text-xs font-semibold text-slate-700 block mb-2">Top Countries</span>
+                          <span className="text-xs font-semibold text-neutral-700 block mb-2">Top Countries</span>
                           <div className="space-y-2">
                             {(audience?.countries || []).map((c: any, i: number) => (
                               <div key={i} className="flex items-center justify-between text-xs">
-                                <span className="text-slate-600">{c.country}</span>
+                                <span className="text-neutral-600">{c.country}</span>
                                 <div className="flex items-center gap-2">
-                                  <div className="w-28 bg-slate-100 rounded-full h-2 overflow-hidden">
-                                    <div className="bg-slate-900 h-2 rounded-full" style={{ width: `${c.percentage}%` }} />
+                                  <div className="w-28 bg-neutral-100 rounded-full h-1.5 overflow-hidden">
+                                    <div className="bg-neutral-900 h-1.5 rounded-full" style={{ width: `${c.percentage}%` }} />
                                   </div>
-                                  <span className="font-mono text-slate-700 w-8 text-right font-medium">{c.percentage}%</span>
+                                  <span className="font-mono text-neutral-700 w-8 text-right font-medium">{c.percentage}%</span>
                                 </div>
                               </div>
                             ))}
                           </div>
                         </div>
 
-                        <div className="pt-3 border-t border-slate-100">
-                          <span className="text-xs font-semibold text-slate-700 block mb-2">Top Cities</span>
+                        <div className="pt-3 border-t border-neutral-100">
+                          <span className="text-xs font-semibold text-neutral-700 block mb-2">Top Cities</span>
                           <div className="space-y-2">
                             {(audience?.cities || []).map((ct: any, i: number) => (
                               <div key={i} className="flex items-center justify-between text-xs">
-                                <span className="text-slate-600">{ct.city}</span>
+                                <span className="text-neutral-600">{ct.city}</span>
                                 <div className="flex items-center gap-2">
-                                  <div className="w-28 bg-slate-100 rounded-full h-2 overflow-hidden">
-                                    <div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${ct.percentage}%` }} />
+                                  <div className="w-28 bg-neutral-100 rounded-full h-1.5 overflow-hidden">
+                                    <div className="bg-neutral-700 h-1.5 rounded-full" style={{ width: `${ct.percentage}%` }} />
                                   </div>
-                                  <span className="font-mono text-slate-700 w-8 text-right font-medium">{ct.percentage}%</span>
+                                  <span className="font-mono text-neutral-700 w-8 text-right font-medium">{ct.percentage}%</span>
                                 </div>
                               </div>
                             ))}
@@ -1280,16 +1232,16 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="p-12 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50 space-y-3">
-                    <Globe className="w-10 h-10 text-slate-300 mx-auto" />
-                    <h4 className="text-sm font-semibold text-slate-800">Demographic Insights Unavailable</h4>
-                    <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                  <div className="p-12 text-center border border-dashed border-neutral-200 rounded-xl bg-neutral-50/50 space-y-3">
+                    <Globe className="w-8 h-8 text-neutral-300 mx-auto" />
+                    <h4 className="text-sm font-semibold text-neutral-800">Demographic Insights Unavailable</h4>
+                    <p className="text-xs text-neutral-500 max-w-md mx-auto leading-relaxed">
                       Age, gender, and follower geography require an official Meta Graph API connection with an Instagram Creator or Business account having at least 100 followers.
                     </p>
                     <div className="pt-2">
                       <button
                         onClick={() => setShowModal(true)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-black rounded hover:bg-neutral-800 transition"
                       >
                         <span>Connect Meta Graph API</span>
                         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -1303,11 +1255,11 @@ export default function DashboardPage() {
             {/* TAB 3: FR-32 Competitive Analysis */}
             {activeTab === 'competitors' && (
               <div className="space-y-6">
-                <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm space-y-4">
+                <div className="p-6 rounded-xl border border-neutral-200 bg-white shadow-2xs space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900">Competitive Analysis (FR-32)</h3>
-                      <p className="text-xs text-slate-500">
+                      <h3 className="text-sm font-bold text-neutral-900">Competitive Analysis</h3>
+                      <p className="text-xs text-neutral-500">
                         Compare your account side-by-side with industry competitors on key public metrics
                       </p>
                     </div>
@@ -1319,11 +1271,11 @@ export default function DashboardPage() {
                         placeholder="Add handle (e.g. @nike)"
                         value={competitorInput}
                         onChange={(e) => setCompetitorInput(e.target.value)}
-                        className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        className="px-3 py-1.5 text-xs border border-neutral-300 rounded focus:outline-none focus:border-black font-mono"
                       />
                       <button
                         type="submit"
-                        className="px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition flex items-center gap-1"
+                        className="px-3 py-1.5 text-xs font-medium border border-black bg-white text-black hover:bg-black hover:text-white transition rounded flex items-center gap-1"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         Add
@@ -1333,22 +1285,22 @@ export default function DashboardPage() {
 
                   {/* Competitor Pills */}
                   <div className="flex flex-wrap items-center gap-2 pt-2">
-                    <span className="text-xs text-slate-500 font-medium">Comparing:</span>
+                    <span className="text-xs text-neutral-500 font-mono">Comparing:</span>
                     {activeHandle && (
-                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-900 text-white">
+                      <span className="px-2.5 py-1 rounded text-xs font-mono font-semibold bg-neutral-900 text-white">
                         @{activeHandle} (You)
                       </span>
                     )}
                     {competitorList.map((handle) => (
                       <span
                         key={handle}
-                        className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1.5"
+                        className="px-2.5 py-1 rounded text-xs font-mono font-medium bg-neutral-100 text-neutral-700 border border-neutral-200 flex items-center gap-1.5"
                       >
                         <span>@{handle}</span>
                         <button
                           type="button"
                           onClick={() => removeCompetitor(handle)}
-                          className="hover:text-red-600 transition"
+                          className="hover:text-black transition"
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -1360,8 +1312,8 @@ export default function DashboardPage() {
                 {/* Side-by-Side Comparison Grid */}
                 {loadingCompetitors ? (
                   <div className="py-16 flex flex-col items-center justify-center space-y-3">
-                    <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-                    <p className="text-xs text-slate-500">Benchmarking competitor profiles...</p>
+                    <Loader2 className="w-6 h-6 animate-spin text-neutral-400" />
+                    <p className="text-xs text-neutral-500">Benchmarking competitor profiles...</p>
                   </div>
                 ) : competitors.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1370,57 +1322,57 @@ export default function DashboardPage() {
                       return (
                         <div
                           key={comp.handle}
-                          className={`p-6 rounded-xl border bg-white shadow-sm space-y-4 ${
-                            isMe ? 'border-2 border-slate-900 ring-4 ring-slate-100' : 'border-slate-200'
+                          className={`p-6 rounded-xl border bg-white shadow-2xs space-y-4 ${
+                            isMe ? 'border-neutral-900 ring-1 ring-neutral-900' : 'border-neutral-200'
                           }`}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
                               {comp.avatarUrl ? (
-                                <img src={comp.avatarUrl} alt={comp.handle} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
+                                <img src={comp.avatarUrl} alt={comp.handle} className="w-10 h-10 rounded-full object-cover border border-neutral-200" />
                               ) : (
-                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 text-sm">
+                                <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center font-bold text-neutral-700 text-xs font-mono">
                                   {comp.handle.slice(0, 2).toUpperCase()}
                                 </div>
                               )}
                               <div>
-                                <h4 className="text-sm font-bold text-slate-900">@{comp.handle}</h4>
-                                <span className="text-[11px] text-slate-500 truncate block max-w-[150px]">{comp.fullName}</span>
+                                <h4 className="text-sm font-bold text-neutral-900 font-mono">@{comp.handle}</h4>
+                                <span className="text-[11px] text-neutral-500 truncate block max-w-[150px]">{comp.fullName}</span>
                               </div>
                             </div>
                             {isMe && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-900 text-white uppercase tracking-wider">
+                              <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded border border-neutral-300 text-neutral-800">
                                 Active Profile
                               </span>
                             )}
                           </div>
 
-                          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100 text-xs">
-                            <div className="p-2.5 rounded-lg bg-slate-50">
-                              <span className="text-slate-500 block text-[11px]">Followers</span>
-                              <span className="text-sm font-bold text-slate-900">{formatCompactNumber(comp.followers)}</span>
+                          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-neutral-100 text-xs font-mono">
+                            <div className="p-2.5 rounded bg-neutral-50 border border-neutral-100">
+                              <span className="text-neutral-500 block text-[11px]">Followers</span>
+                              <span className="text-sm font-bold text-neutral-900">{formatCompactNumber(comp.followers)}</span>
                             </div>
-                            <div className="p-2.5 rounded-lg bg-slate-50">
-                              <span className="text-slate-500 block text-[11px]">Avg Engagement</span>
-                              <span className="text-sm font-bold text-emerald-600">{comp.avgEngRate}%</span>
+                            <div className="p-2.5 rounded bg-neutral-50 border border-neutral-100">
+                              <span className="text-neutral-500 block text-[11px]">Avg Engagement</span>
+                              <span className="text-sm font-bold text-neutral-900">{comp.avgEngRate}%</span>
                             </div>
-                            <div className="p-2.5 rounded-lg bg-slate-50">
-                              <span className="text-slate-500 block text-[11px]">Avg Likes / Post</span>
-                              <span className="text-sm font-bold text-slate-900">{formatCompactNumber(comp.avgLikes)}</span>
+                            <div className="p-2.5 rounded bg-neutral-50 border border-neutral-100">
+                              <span className="text-neutral-500 block text-[11px]">Avg Likes / Post</span>
+                              <span className="text-sm font-bold text-neutral-900">{formatCompactNumber(comp.avgLikes)}</span>
                             </div>
-                            <div className="p-2.5 rounded-lg bg-slate-50">
-                              <span className="text-slate-500 block text-[11px]">Avg Comments</span>
-                              <span className="text-sm font-bold text-slate-900">{formatCompactNumber(comp.avgComments)}</span>
+                            <div className="p-2.5 rounded bg-neutral-50 border border-neutral-100">
+                              <span className="text-neutral-500 block text-[11px]">Avg Comments</span>
+                              <span className="text-sm font-bold text-neutral-900">{formatCompactNumber(comp.avgComments)}</span>
                             </div>
                           </div>
 
                           {/* Content format distribution */}
                           <div className="pt-2">
-                            <span className="text-[11px] font-semibold text-slate-600 block mb-1.5">Format Strategy</span>
-                            <div className="flex items-center gap-1.5 text-[11px]">
-                              <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded font-medium">📷 {comp.formatDistribution?.image || 0} Images</span>
-                              <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded font-medium">📚 {comp.formatDistribution?.carousel || 0} Carousels</span>
-                              <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded font-medium">📹 {comp.formatDistribution?.reel || comp.formatDistribution?.video || 0} Videos</span>
+                            <span className="text-[11px] font-mono text-neutral-500 block mb-1.5">Format Strategy</span>
+                            <div className="flex items-center gap-1.5 text-[11px] font-mono">
+                              <span className="px-2 py-0.5 bg-neutral-100 text-neutral-700 rounded border border-neutral-200">📷 {comp.formatDistribution?.image || 0} Images</span>
+                              <span className="px-2 py-0.5 bg-neutral-100 text-neutral-700 rounded border border-neutral-200">📑 {comp.formatDistribution?.carousel || 0} Carousels</span>
+                              <span className="px-2 py-0.5 bg-neutral-100 text-neutral-700 rounded border border-neutral-200">📹 {comp.formatDistribution?.reel || comp.formatDistribution?.video || 0} Videos</span>
                             </div>
                           </div>
                         </div>
@@ -1439,35 +1391,32 @@ export default function DashboardPage() {
 
       {/* Onboarding Popup Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl border border-slate-100 space-y-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-neutral-200 space-y-5">
             {!isProcessing ? (
               <>
-                <div className="text-center space-y-2">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-900 flex items-center justify-center mx-auto">
-                    <Sparkles className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900">Connect Your Social Account</h3>
-                  <p className="text-xs text-slate-500">
-                    Choose how you want to ingest your Instagram account data.
+                <div className="text-center space-y-1">
+                  <h3 className="text-base font-bold text-neutral-900">Connect Social Account</h3>
+                  <p className="text-xs text-neutral-500">
+                    Ingest public posts or connect via official Meta Graph API
                   </p>
                 </div>
 
                 {/* Connection Mode Selector: Handle vs Meta Graph API */}
-                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-lg">
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-neutral-100 rounded border border-neutral-200">
                   <button
                     type="button"
                     onClick={() => {
                       setConnectionMethod('handle');
                       setModalError(null);
                     }}
-                    className={`py-1.5 text-xs font-medium rounded-md transition ${
+                    className={`py-1.5 text-xs font-mono rounded transition ${
                       connectionMethod === 'handle'
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-white text-black font-semibold shadow-2xs'
+                        : 'text-neutral-500 hover:text-black'
                     }`}
                   >
-                    Standard Handle / Link
+                    Public Handle
                   </button>
                   <button
                     type="button"
@@ -1475,64 +1424,64 @@ export default function DashboardPage() {
                       setConnectionMethod('graph_api');
                       setModalError(null);
                     }}
-                    className={`py-1.5 text-xs font-medium rounded-md transition flex items-center justify-center gap-1 ${
+                    className={`py-1.5 text-xs font-mono rounded transition flex items-center justify-center gap-1 ${
                       connectionMethod === 'graph_api'
-                        ? 'bg-white text-blue-700 shadow-sm font-semibold'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-white text-black font-semibold shadow-2xs'
+                        : 'text-neutral-500 hover:text-black'
                     }`}
                   >
-                    <Key className="w-3.5 h-3.5" />
-                    Meta Graph API (Live)
+                    <Key className="w-3 h-3" />
+                    Meta Graph API
                   </button>
                 </div>
 
                 {connectionMethod === 'handle' ? (
                   <form onSubmit={handleStartOnboarding} className="space-y-4">
                     {/* Platform toggle */}
-                    <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-lg">
+                    <div className="grid grid-cols-2 gap-1.5 p-1 bg-neutral-100 rounded border border-neutral-200">
                       <button
                         type="button"
                         onClick={() => setPlatform('instagram')}
-                        className={`flex items-center justify-center gap-2 py-1.5 text-xs font-medium rounded-md transition ${
+                        className={`flex items-center justify-center gap-1.5 py-1.5 text-xs font-mono rounded transition ${
                           platform === 'instagram'
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-800'
+                            ? 'bg-white text-black font-semibold shadow-2xs'
+                            : 'text-neutral-500 hover:text-black'
                         }`}
                       >
-                        <Instagram className="w-3.5 h-3.5 text-pink-500" />
+                        <Instagram className="w-3.5 h-3.5 text-neutral-800" />
                         Instagram
                       </button>
                       <button
                         type="button"
                         onClick={() => setPlatform('facebook')}
-                        className={`flex items-center justify-center gap-2 py-1.5 text-xs font-medium rounded-md transition ${
+                        className={`flex items-center justify-center gap-1.5 py-1.5 text-xs font-mono rounded transition ${
                           platform === 'facebook'
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-800'
+                            ? 'bg-white text-black font-semibold shadow-2xs'
+                            : 'text-neutral-500 hover:text-black'
                         }`}
                       >
-                        <Facebook className="w-3.5 h-3.5 text-blue-600" />
+                        <Facebook className="w-3.5 h-3.5 text-neutral-800" />
                         Facebook
                       </button>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        {platform === 'instagram' ? 'Instagram Handle or Link' : 'Facebook Page or Link'}
+                      <label className="block text-xs font-mono text-neutral-700 mb-1">
+                        {platform === 'instagram' ? 'Instagram Handle or URL' : 'Facebook Page Name or URL'}
                       </label>
                       <input
                         type="text"
                         placeholder={platform === 'instagram' ? 'e.g. @natgeo or profile link' : 'e.g. page name or link'}
                         value={accountInput}
                         onChange={(e) => setAccountInput(e.target.value)}
-                        className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        className="w-full px-3 py-2 text-xs font-mono border border-neutral-300 rounded focus:outline-none focus:border-black"
                         autoFocus
                       />
                     </div>
 
                     {modalError && (
-                      <div className="p-3 text-xs rounded-lg bg-red-50 text-red-600 border border-red-200 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 shrink-0" />
+                      <div className="p-2.5 text-xs rounded bg-neutral-50 text-neutral-900 border border-neutral-300 flex items-center gap-2 font-mono">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                         <span>{modalError}</span>
                       </div>
                     )}
@@ -1542,30 +1491,30 @@ export default function DashboardPage() {
                         <button
                           type="button"
                           onClick={() => setShowModal(false)}
-                          className="flex-1 py-2 text-xs font-medium border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+                          className="flex-1 py-2 text-xs font-medium border border-neutral-300 rounded hover:border-black transition"
                         >
                           Cancel
                         </button>
                       )}
                       <button
                         type="submit"
-                        className="flex-1 py-2.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition shadow-sm"
+                        className="flex-1 py-2 text-xs font-medium border border-black bg-black text-white hover:bg-neutral-800 transition rounded"
                       >
-                        Fetch & Analyze Data
+                        Fetch & Ingest
                       </button>
                     </div>
                   </form>
                 ) : (
                   <form onSubmit={handleConnectGraphApi} className="space-y-4">
-                    <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-800 space-y-1">
-                      <span className="font-semibold block">Official Meta Graph API Ingestion</span>
-                      <p className="text-[11px] text-blue-700">
-                        Enter your Meta User / Page Access Token with <code className="bg-blue-100 px-1 rounded">instagram_basic</code> and <code className="bg-blue-100 px-1 rounded">pages_show_list</code> permissions. Data will be fetched directly from official Meta endpoints instead of web scraping.
+                    <div className="p-3 rounded bg-neutral-50 border border-neutral-200 text-xs text-neutral-700 space-y-1 font-mono">
+                      <span className="font-semibold block text-black">Official Meta Graph API Ingestion</span>
+                      <p className="text-[11px] text-neutral-500">
+                        Enter your Meta User / Page Access Token with instagram_basic permissions. Data will be fetched directly from official Meta endpoints.
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      <label className="block text-xs font-mono text-neutral-700 mb-1">
                         Meta Graph API Access Token *
                       </label>
                       <textarea
@@ -1573,13 +1522,13 @@ export default function DashboardPage() {
                         placeholder="EAABw..."
                         value={graphTokenInput}
                         onChange={(e) => setGraphTokenInput(e.target.value)}
-                        className="w-full px-3.5 py-2 text-xs font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        className="w-full px-3 py-2 text-xs font-mono border border-neutral-300 rounded focus:outline-none focus:border-black"
                         autoFocus
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      <label className="block text-xs font-mono text-neutral-700 mb-1">
                         Instagram Business Account ID (Optional)
                       </label>
                       <input
@@ -1587,13 +1536,13 @@ export default function DashboardPage() {
                         placeholder="Leave blank to auto-detect from linked Facebook page"
                         value={graphAccountIdInput}
                         onChange={(e) => setGraphAccountIdInput(e.target.value)}
-                        className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        className="w-full px-3 py-2 text-xs font-mono border border-neutral-300 rounded focus:outline-none focus:border-black"
                       />
                     </div>
 
                     {modalError && (
-                      <div className="p-3 text-xs rounded-lg bg-red-50 text-red-600 border border-red-200 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 shrink-0" />
+                      <div className="p-2.5 text-xs rounded bg-neutral-50 text-neutral-900 border border-neutral-300 flex items-center gap-2 font-mono">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                         <span>{modalError}</span>
                       </div>
                     )}
@@ -1603,17 +1552,17 @@ export default function DashboardPage() {
                         <button
                           type="button"
                           onClick={() => setShowModal(false)}
-                          className="flex-1 py-2 text-xs font-medium border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+                          className="flex-1 py-2 text-xs font-medium border border-neutral-300 rounded hover:border-black transition"
                         >
                           Cancel
                         </button>
                       )}
                       <button
                         type="submit"
-                        className="flex-1 py-2.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm flex items-center justify-center gap-1.5"
+                        className="flex-1 py-2 text-xs font-medium border border-black bg-black text-white hover:bg-neutral-800 transition rounded flex items-center justify-center gap-1.5"
                       >
                         <Key className="w-3.5 h-3.5" />
-                        <span>Connect Official API</span>
+                        <span>Connect API</span>
                       </button>
                     </div>
                   </form>
@@ -1621,34 +1570,29 @@ export default function DashboardPage() {
               </>
             ) : (
               /* Minimalistic Animated Loading State */
-              <div className="py-6 flex flex-col items-center justify-center space-y-6 text-center">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-full border-4 border-slate-100 border-t-slate-900 animate-spin" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Sparkles className="w-6 h-6 text-slate-900 animate-pulse" />
-                  </div>
-                </div>
+              <div className="py-6 flex flex-col items-center justify-center space-y-4 text-center">
+                <div className="w-10 h-10 rounded-full border-2 border-neutral-200 border-t-black animate-spin" />
 
                 <div className="space-y-1">
-                  <h4 className="text-base font-bold text-slate-900">
-                    {processStep === 'scraping' && 'Fetching Your Posts...'}
-                    {processStep === 'analyzing_niche' && 'Detecting Content Style & Niche...'}
-                    {processStep === 'training_model' && 'Personalizing Your Recommendations...'}
-                    {processStep === 'completed' && 'Dashboard Ready!'}
+                  <h4 className="text-sm font-bold text-neutral-900">
+                    {processStep === 'scraping' && 'Fetching Posts...'}
+                    {processStep === 'analyzing_niche' && 'Analyzing Niche...'}
+                    {processStep === 'training_model' && 'Configuring Schedule Engine...'}
+                    {processStep === 'completed' && 'Account Ready'}
                   </h4>
-                  <p className="text-xs text-slate-500">
-                    {processStep === 'scraping' && 'Getting your photos, captions, likes & comments'}
-                    {processStep === 'analyzing_niche' && 'Understanding your topic, language, and audience'}
-                    {processStep === 'training_model' && 'Learning when your followers interact most'}
+                  <p className="text-xs text-neutral-500">
+                    {processStep === 'scraping' && 'Ingesting captions, metrics, and media'}
+                    {processStep === 'analyzing_niche' && 'Detecting content pillars and tone'}
+                    {processStep === 'training_model' && 'Computing historical engagement signals'}
                     {processStep === 'completed' && 'Opening your overview...'}
                   </p>
                 </div>
 
                 {/* Progress Logs */}
-                <div className="w-full bg-slate-50 border border-slate-100 rounded-lg p-3 text-left font-mono text-[11px] text-slate-600 max-h-36 overflow-y-auto space-y-1">
+                <div className="w-full bg-neutral-50 border border-neutral-200 rounded p-3 text-left font-mono text-[11px] text-neutral-700 max-h-36 overflow-y-auto space-y-1">
                   {processLogs.map((log, i) => (
                     <div key={i} className="flex items-center gap-1.5">
-                      <span className="text-emerald-500 font-bold">✓</span>
+                      <span className="text-black font-bold">✓</span>
                       <span>{log}</span>
                     </div>
                   ))}

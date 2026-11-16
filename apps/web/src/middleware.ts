@@ -10,6 +10,11 @@ const isAdminRoute = createRouteMatcher([
 // Public routes accessible without signing in
 const isPublicRoute = createRouteMatcher([
   '/',
+  '/dashboard(.*)',
+  '/recommendations(.*)',
+  '/calendar(.*)',
+  '/notifications(.*)',
+  '/settings(.*)',
   '/admin',
   '/sign-in(.*)',
   '/sign-up(.*)',

@@ -1052,8 +1052,8 @@ export default function AdminPage() {
                       <span
                         className={`inline-block px-2 py-0.5 rounded text-xs font-semibold uppercase ${
                           m.model_type === 'global'
-                            ? 'bg-purple-100 text-purple-800'
-                            : 'bg-blue-100 text-blue-800'
+                            ? 'bg-neutral-900 text-white'
+                            : 'bg-neutral-100 text-neutral-800 border border-neutral-300'
                         }`}
                       >
                         {m.model_type}
@@ -1251,7 +1251,7 @@ export default function AdminPage() {
                     <td className="px-4 py-2.5 font-mono">{latestEval.global_model?.rmse?.toFixed(5)}</td>
                     <td className="px-4 py-2.5 font-mono">{latestEval.global_model?.r2?.toFixed(4)}</td>
                     <td className="px-4 py-2.5 font-mono">{latestEval.global_model?.spearman?.toFixed(4)}</td>
-                    <td className="px-4 py-2.5 font-mono text-indigo-700">{latestEval.global_model?.within_account_spearman?.toFixed(4)}</td>
+                    <td className="px-4 py-2.5 font-mono text-neutral-900 font-bold">{latestEval.global_model?.within_account_spearman?.toFixed(4)}</td>
                   </tr>
                 </tbody>
               </table>

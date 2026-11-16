@@ -8,14 +8,12 @@ import {
   Bell,
   Check,
   CheckCheck,
-  Settings,
-  Sparkles,
-  AlertTriangle,
   Clock,
   ArrowUpRight,
   ShieldAlert,
   Loader2,
   Sliders,
+  Sparkles,
 } from 'lucide-react';
 
 export default function NotificationsPage() {
@@ -116,54 +114,53 @@ export default function NotificationsPage() {
   const getIconForType = (type: string) => {
     switch (type) {
       case 'publish_success':
-        return <Check className="w-4 h-4 text-emerald-600" />;
+        return <Check className="w-4 h-4 text-neutral-800" />;
       case 'publish_failure':
-        return <ShieldAlert className="w-4 h-4 text-rose-600" />;
+        return <ShieldAlert className="w-4 h-4 text-neutral-800" />;
       case 'reminder':
-        return <Clock className="w-4 h-4 text-blue-600" />;
+        return <Clock className="w-4 h-4 text-neutral-800" />;
       case 'milestone':
-        return <Sparkles className="w-4 h-4 text-amber-500" />;
       case 'ai_insight':
       default:
-        return <Sparkles className="w-4 h-4 text-purple-600" />;
+        return <Sparkles className="w-4 h-4 text-neutral-800" />;
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 pb-20">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
-            <Bell className="w-6 h-6 text-slate-800" />
-            <span>Notifications & Alerts</span>
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-900 flex items-center gap-2">
+            <Bell className="w-5 h-5 text-neutral-900" />
+            <span>Notifications</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Real-time publishing updates, quantum optimization insights, and automated email summaries
+          <p className="text-xs text-neutral-500 mt-0.5">
+            Publishing updates, optimization alerts, and digest preferences.
           </p>
         </div>
 
         {/* Tab switcher */}
-        <div className="flex items-center bg-slate-100 p-1 rounded-lg self-start sm:self-auto text-xs font-semibold">
+        <div className="flex items-center bg-neutral-100 p-0.5 rounded border border-neutral-200 text-xs font-semibold">
           <button
             onClick={() => setActiveTab('alerts')}
-            className={`px-3 py-1.5 rounded-md transition flex items-center gap-1.5 ${
+            className={`px-3 py-1 rounded transition flex items-center gap-1.5 ${
               activeTab === 'alerts'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-black text-white'
+                : 'text-neutral-600 hover:text-black'
             }`}
           >
             <span>Alerts Feed</span>
             {unreadCount > 0 && (
-              <span className="w-2 h-2 rounded-full bg-rose-500" />
+              <span className="w-1.5 h-1.5 rounded-full bg-white" />
             )}
           </button>
           <button
             onClick={() => setActiveTab('preferences')}
-            className={`px-3 py-1.5 rounded-md transition flex items-center gap-1.5 ${
+            className={`px-3 py-1 rounded transition flex items-center gap-1.5 ${
               activeTab === 'preferences'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-black text-white'
+                : 'text-neutral-600 hover:text-black'
             }`}
           >
             <Sliders className="w-3.5 h-3.5" />
@@ -176,23 +173,23 @@ export default function NotificationsPage() {
       {activeTab === 'alerts' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setFilter('all')}
-                className={`px-2.5 py-1 rounded-md font-medium transition ${
+                className={`px-2.5 py-1 rounded font-medium transition ${
                   filter === 'all'
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:text-slate-900'
+                    ? 'bg-black text-white'
+                    : 'bg-neutral-100 text-neutral-600 hover:text-black'
                 }`}
               >
                 All ({notifications.length})
               </button>
               <button
                 onClick={() => setFilter('unread')}
-                className={`px-2.5 py-1 rounded-md font-medium transition ${
+                className={`px-2.5 py-1 rounded font-medium transition ${
                   filter === 'unread'
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:text-slate-900'
+                    ? 'bg-black text-white'
+                    : 'bg-neutral-100 text-neutral-600 hover:text-black'
                 }`}
               >
                 Unread ({unreadCount})
@@ -202,7 +199,7 @@ export default function NotificationsPage() {
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllRead}
-                className="text-slate-500 hover:text-slate-800 transition flex items-center gap-1 font-medium"
+                className="text-neutral-600 hover:text-black transition flex items-center gap-1 font-medium"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
                 <span>Mark all as read</span>
@@ -212,14 +209,14 @@ export default function NotificationsPage() {
 
           {loading ? (
             <div className="py-16 text-center">
-              <Loader2 className="w-6 h-6 animate-spin text-slate-400 mx-auto mb-2" />
-              <p className="text-xs text-slate-400">Loading alerts...</p>
+              <Loader2 className="w-5 h-5 animate-spin text-neutral-400 mx-auto mb-2" />
+              <p className="text-xs text-neutral-400">Loading alerts...</p>
             </div>
           ) : filteredNotifications.length === 0 ? (
-            <div className="py-16 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-              <Bell className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-              <p className="text-xs text-slate-500 font-medium">No alerts found</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">
+            <div className="py-16 text-center border border-dashed border-neutral-200 rounded-lg bg-neutral-50/50">
+              <Bell className="w-6 h-6 text-neutral-300 mx-auto mb-2" />
+              <p className="text-xs text-neutral-700 font-semibold">No alerts found</p>
+              <p className="text-[11px] text-neutral-400 mt-0.5">
                 {filter === 'unread' ? 'All caught up! No unread notifications.' : 'Publishing confirmations and AI insights will appear here.'}
               </p>
             </div>
@@ -236,31 +233,31 @@ export default function NotificationsPage() {
                 return (
                   <div
                     key={notif.id}
-                    className={`p-4 rounded-xl border transition flex items-start justify-between gap-4 ${
+                    className={`p-3.5 rounded-lg border transition flex items-start justify-between gap-4 ${
                       notif.isRead
-                        ? 'bg-white border-slate-200'
-                        : 'bg-purple-50/30 border-purple-200 shadow-sm'
+                        ? 'bg-white border-neutral-200'
+                        : 'bg-neutral-50 border-neutral-300'
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="p-2 rounded-lg bg-slate-100 shrink-0 mt-0.5">
+                      <div className="p-1.5 rounded bg-neutral-100 border border-neutral-200 shrink-0 mt-0.5">
                         {getIconForType(notif.type)}
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <h4 className="text-xs font-bold text-slate-900">{notif.title}</h4>
+                          <h4 className="text-xs font-bold text-neutral-900">{notif.title}</h4>
                           {!notif.isRead && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-purple-600" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-neutral-900" />
                           )}
-                          <span className="text-[10px] text-slate-400 font-mono">{dateStr}</span>
+                          <span className="text-[10px] text-neutral-400 font-mono">{dateStr}</span>
                         </div>
-                        <p className="text-xs text-slate-600 leading-relaxed max-w-xl">
+                        <p className="text-xs text-neutral-700 leading-relaxed max-w-xl">
                           {notif.message}
                         </p>
                         {notif.link && (
                           <Link
                             href={notif.link}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-900 hover:underline pt-1"
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-900 underline pt-0.5"
                           >
                             <span>Open</span>
                             <ArrowUpRight className="w-3 h-3" />
@@ -272,7 +269,7 @@ export default function NotificationsPage() {
                     {!notif.isRead && (
                       <button
                         onClick={() => handleMarkAsRead(notif.id)}
-                        className="text-[11px] text-slate-400 hover:text-slate-800 shrink-0 border border-slate-200 px-2 py-1 rounded hover:bg-slate-50 transition"
+                        className="text-[11px] font-medium text-neutral-700 hover:text-black shrink-0 border border-neutral-300 px-2 py-0.5 rounded hover:border-black transition"
                       >
                         Mark read
                       </button>
@@ -289,14 +286,14 @@ export default function NotificationsPage() {
       {activeTab === 'preferences' && (
         <div className="space-y-6">
           {/* In-App Alerts Preferences */}
-          <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="p-5 rounded-lg border border-neutral-200 bg-white space-y-4">
+            <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">In-App Notification Toggles (FR-35)</h3>
-                <p className="text-xs text-slate-500">Control which alerts appear in your bell feed</p>
+                <h3 className="text-sm font-bold text-neutral-900">In-App Notification Toggles</h3>
+                <p className="text-xs text-neutral-500">Control which alerts appear in your feed</p>
               </div>
               {prefsSavedMessage && (
-                <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
+                <span className="text-xs text-neutral-900 font-mono flex items-center gap-1">
                   <Check className="w-3.5 h-3.5" />
                   Saved
                 </span>
@@ -310,16 +307,16 @@ export default function NotificationsPage() {
                 { key: 'inAppMilestones', title: 'Milestone Celebrations', desc: 'Notices when account reach or follower count hits new milestones' },
                 { key: 'inAppReminders', title: 'Post Reminders', desc: 'Reminders 30 minutes before a scheduled post is set to publish' },
               ].map((item) => (
-                <div key={item.key} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                <div key={item.key} className="flex items-center justify-between py-2 border-b border-neutral-50 last:border-0">
                   <div className="space-y-0.5">
-                    <span className="text-xs font-semibold text-slate-800">{item.title}</span>
-                    <p className="text-[11px] text-slate-400">{item.desc}</p>
+                    <span className="text-xs font-semibold text-neutral-900">{item.title}</span>
+                    <p className="text-[11px] text-neutral-500">{item.desc}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => togglePref(item.key)}
                     className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      preferences[item.key] ? 'bg-slate-900' : 'bg-slate-200'
+                      preferences[item.key] ? 'bg-black' : 'bg-neutral-200'
                     }`}
                   >
                     <span
@@ -334,10 +331,10 @@ export default function NotificationsPage() {
           </div>
 
           {/* Email Digest & Email Alerts (FR-34) */}
-          <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm space-y-4">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Email Notifications & Weekly Digest (FR-34)</h3>
-              <p className="text-xs text-slate-500">Scheduled summaries and urgent alerts delivered to your inbox</p>
+          <div className="p-5 rounded-lg border border-neutral-200 bg-white space-y-4">
+            <div className="border-b border-neutral-100 pb-3">
+              <h3 className="text-sm font-bold text-neutral-900">Email Notifications & Weekly Digest</h3>
+              <p className="text-xs text-neutral-500">Scheduled summaries and urgent alerts delivered to your inbox</p>
             </div>
 
             <div className="space-y-3 pt-1">
@@ -346,16 +343,16 @@ export default function NotificationsPage() {
                 { key: 'emailPublishFailures', title: 'Immediate Publishing Failure Alerts', desc: 'Instant email notice if a post fails to publish after 3 retry attempts' },
                 { key: 'emailMilestones', title: 'Major Engagement Milestones', desc: 'Email celebrations for crossing key reach or follower thresholds' },
               ].map((item) => (
-                <div key={item.key} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                <div key={item.key} className="flex items-center justify-between py-2 border-b border-neutral-50 last:border-0">
                   <div className="space-y-0.5">
-                    <span className="text-xs font-semibold text-slate-800">{item.title}</span>
-                    <p className="text-[11px] text-slate-400">{item.desc}</p>
+                    <span className="text-xs font-semibold text-neutral-900">{item.title}</span>
+                    <p className="text-[11px] text-neutral-500">{item.desc}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => togglePref(item.key)}
                     className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      preferences[item.key] ? 'bg-slate-900' : 'bg-slate-200'
+                      preferences[item.key] ? 'bg-black' : 'bg-neutral-200'
                     }`}
                   >
                     <span
