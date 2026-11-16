@@ -30,7 +30,10 @@ export default function SettingsPage() {
     const savedStatus = localStorage.getItem('ee_default_post_status') as 'DRAFT' | 'SCHEDULED' | null;
     if (savedStatus) setDefaultPostStatus(savedStatus);
 
-    const activeHandle = localStorage.getItem('ee_active_handle') || 'tahirabbas_ca';
+    const activeHandle =
+      localStorage.getItem('ee_active_handle') ||
+      (user?.id ? localStorage.getItem(`ee_handle_${user.id}`) : null) ||
+      'creator';
     setConnectedAccounts([
       {
         platform: 'Instagram Business',

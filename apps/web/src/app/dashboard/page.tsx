@@ -44,6 +44,17 @@ import {
   Eye,
 } from 'lucide-react';
 
+const POPULAR_CREATORS = [
+  'kaleem._.abbasi830',
+  '100xengineers',
+  'nightcreeper24',
+  'cristiano',
+  'leomessi',
+  'abdevilliers17',
+  'abdulelsayed',
+  'adidas',
+];
+
 function getApiBase(): string {
   if (typeof window !== 'undefined') {
     const configuredApi = process.env.NEXT_PUBLIC_API_URL;
@@ -216,7 +227,14 @@ export default function DashboardPage() {
       if (serverProfile?.profile?.handle) {
         const h = serverProfile.profile.handle;
         setActiveHandle(h);
-        if (serverProfile.profile.nicheData) setNicheData(serverProfile.profile.nicheData);
+        if (
+          serverProfile.profile.nicheData &&
+          serverProfile.profile.nicheData.handle?.toLowerCase() === h.toLowerCase()
+        ) {
+          setNicheData(serverProfile.profile.nicheData);
+        } else {
+          setNicheData(null);
+        }
         loadCreatorDashboard(h);
         return;
       }
@@ -237,11 +255,19 @@ export default function DashboardPage() {
   }, [isLoaded, user]);
 
   const loadCreatorDashboard = async (handle: string, isInstantTransition = false) => {
+    const clean = handle.toLowerCase().replace(/^@/, '');
+    if (!clean) return;
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ee_active_handle', clean);
+      if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, clean);
+    }
+    setActiveHandle(clean);
+
     // Only show full-screen skeleton if profile is not already in memory/data
     if (!profile && !isInstantTransition) {
       setLoadingDashboard(true);
     }
-    const clean = handle.toLowerCase().replace(/^@/, '');
     try {
       // Parallelize fetches for sub-second retrieval when data exists
       const [accRes, postsRes, nicheRes, modelsRes] = await Promise.all([
@@ -253,7 +279,7 @@ export default function DashboardPage() {
 
       if (accRes?.account) setProfile(accRes.account);
       if (postsRes?.posts) setPosts(postsRes.posts);
-      if (nicheRes?.nicheData) {
+      if (nicheRes?.nicheData && (!nicheRes.nicheData.handle || nicheRes.nicheData.handle.toLowerCase() === clean)) {
         if (nicheRes.nicheData.posts_analyzed === 0 && (postsRes?.posts?.length || 0) > 0) {
           api.analyzeNiche(clean).then((fresh) => {
             if (fresh?.nicheData) setNicheData(fresh.nicheData);
@@ -262,9 +288,12 @@ export default function DashboardPage() {
           setNicheData(nicheRes.nicheData);
         }
       } else if ((postsRes?.posts?.length || 0) > 0) {
+        setNicheData(null);
         api.analyzeNiche(clean).then((fresh) => {
           if (fresh?.nicheData) setNicheData(fresh.nicheData);
         }).catch(() => {});
+      } else {
+        setNicheData(null);
       }
       if (modelsRes?.models) {
         const found = modelsRes.models.find(
@@ -408,11 +437,21 @@ export default function DashboardPage() {
         setProfile(existingAccount.account);
         setPosts(existingPosts.posts);
         setActiveHandle(cleanHandle);
-        if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, cleanHandle);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('ee_active_handle', cleanHandle);
+          if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, cleanHandle);
+        }
 
         // Fetch niche and model in background without blocking or showing modal loading
+        setNicheData(null);
         api.getNiche(cleanHandle).then((res) => {
-          if (res?.nicheData) setNicheData(res.nicheData);
+          if (res?.nicheData && (!res.nicheData.handle || res.nicheData.handle.toLowerCase() === cleanHandle.toLowerCase())) {
+            setNicheData(res.nicheData);
+          } else {
+            api.analyzeNiche(cleanHandle).then((fresh) => {
+              if (fresh?.nicheData) setNicheData(fresh.nicheData);
+            }).catch(() => {});
+          }
         }).catch(() => {});
 
         api.getModels().then((res) => {
@@ -1562,6 +1601,36 @@ export default function DashboardPage() {
                         className="w-full px-3 py-2 text-xs font-mono border border-neutral-300 rounded focus:outline-none focus:border-black"
                         autoFocus
                       />
+                    </div>
+
+                    {/* Quick Switch to Ingested Creators */}
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[11px] font-mono text-neutral-500 uppercase tracking-wider block">
+                        Or switch instantly to an existing creator:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                        {POPULAR_CREATORS.map((h) => (
+                          <button
+                            key={h}
+                            type="button"
+                            onClick={() => {
+                              setAccountInput(h);
+                              loadCreatorDashboard(h, true);
+                              setShowModal(false);
+                              if (user?.id) {
+                                api.saveUserProfile({ userId: user.id, handle: h }).catch(() => {});
+                              }
+                            }}
+                            className={`text-xs font-mono px-2 py-0.5 rounded border transition ${
+                              activeHandle.toLowerCase() === h.toLowerCase()
+                                ? 'border-black bg-black text-white font-bold'
+                                : 'border-neutral-200 bg-neutral-50 text-neutral-700 hover:border-black hover:bg-white'
+                            }`}
+                          >
+                            @{h}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     {modalError && (

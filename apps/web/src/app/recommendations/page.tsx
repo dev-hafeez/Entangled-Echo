@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
-const POPULAR_HANDLES = ['tahirabbas_ca', '100xengineers', 'nightcreeper24', 'cristiano', 'leomessi'];
+const POPULAR_HANDLES = ['kaleem._.abbasi830', '100xengineers', 'nightcreeper24', 'cristiano', 'leomessi'];
 
 export default function RecommendationsPage() {
   const router = useRouter();
@@ -59,41 +59,44 @@ export default function RecommendationsPage() {
   const [feedbackMap, setFeedbackMap] = useState<Record<string, 'accepted' | 'rejected'>>({});
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
-  // Initialize handle on mount
+  // Initialize handle dynamically based on authenticated user session or active handle
   useEffect(() => {
-    let initial = 'tahirabbas_ca';
+    let resolved = '';
     if (typeof window !== 'undefined') {
-      initial = localStorage.getItem('ee_active_handle') || 'tahirabbas_ca';
+      resolved = localStorage.getItem('ee_active_handle') || '';
     }
-    setHandle(initial);
-    setCustomHandleInput(initial);
-    fetchRecommendations(initial);
-  }, []);
 
-  // Update with authenticated user handle if available
-  useEffect(() => {
-    if (!isLoaded || !user) return;
-
-    const checkUserProfile = async () => {
-      try {
-        const userProfile = await api.getUserProfile(user.id).catch(() => null);
+    if (isLoaded && user) {
+      api.getUserProfile(user.id).then((userProfile) => {
         if (userProfile?.profile?.handle) {
           const userHandle = userProfile.profile.handle;
           setHandle(userHandle);
           setCustomHandleInput(userHandle);
           fetchRecommendations(userHandle);
         } else {
-          const stored = localStorage.getItem(`ee_handle_${user.id}`);
+          const stored = localStorage.getItem(`ee_handle_${user.id}`) || resolved;
           if (stored) {
             setHandle(stored);
             setCustomHandleInput(stored);
             fetchRecommendations(stored);
+          } else {
+            setLoading(false);
           }
         }
-      } catch {}
-    };
-
-    checkUserProfile();
+      }).catch(() => {
+        if (resolved) {
+          setHandle(resolved);
+          setCustomHandleInput(resolved);
+          fetchRecommendations(resolved);
+        } else {
+          setLoading(false);
+        }
+      });
+    } else if (resolved) {
+      setHandle(resolved);
+      setCustomHandleInput(resolved);
+      fetchRecommendations(resolved);
+    }
   }, [isLoaded, user]);
 
   const fetchRecommendations = async (targetHandle: string, forceRefresh: boolean = false) => {
@@ -975,10 +978,10 @@ export default function RecommendationsPage() {
             Select a sample account or enter your Instagram handle above to generate live content blueprints.
           </p>
           <button
-            onClick={() => handleSelectHandle('tahirabbas_ca')}
+            onClick={() => handleSelectHandle(handle || 'kaleem._.abbasi830')}
             className="px-4 py-2 border border-black bg-white text-black hover:bg-black hover:text-white rounded text-xs font-semibold transition"
           >
-            Load Sample Account (@tahirabbas_ca)
+            Generate Recommendations for @{handle || 'your account'}
           </button>
         </div>
       )}

@@ -63,6 +63,20 @@ onboardingRouter.post('/user-profile', requireAuth, (req: Request, res: Response
     currentSession && currentSession.handle === cleanHandle && currentSession.isVerified
   );
 
+  let effectiveNicheData = nicheData;
+  if (!effectiveNicheData || (effectiveNicheData.handle && effectiveNicheData.handle.toLowerCase() !== cleanHandle.toLowerCase())) {
+    const nicheFile = getUserNicheFile(cleanHandle);
+    if (fs.existsSync(nicheFile)) {
+      try {
+        effectiveNicheData = JSON.parse(fs.readFileSync(nicheFile, 'utf-8'));
+      } catch {
+        effectiveNicheData = null;
+      }
+    } else {
+      effectiveNicheData = null;
+    }
+  }
+
   const profile = {
     ...(currentSession || {}),
     userId,
@@ -72,8 +86,8 @@ onboardingRouter.post('/user-profile', requireAuth, (req: Request, res: Response
       ? currentSession?.verificationMethod
       : 'unverified_self_asserted',
     languagePreference:
-      languagePreference || nicheData?.language_preference || currentSession?.languagePreference || 'English',
-    nicheData: nicheData || currentSession?.nicheData || null,
+      languagePreference || effectiveNicheData?.language_preference || currentSession?.languagePreference || 'English',
+    nicheData: effectiveNicheData,
     updatedAt: new Date().toISOString(),
     createdAt: currentSession?.createdAt || new Date().toISOString(),
   };
