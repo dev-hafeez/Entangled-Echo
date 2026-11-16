@@ -49,12 +49,15 @@ export default function RecommendationsPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [recsData, setRecsData] = useState<any>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedTag, setCopiedTag] = useState<string | null>(null);
   const [expandedBlueprints, setExpandedBlueprints] = useState<Record<string, boolean>>({
     rec_1: true,
     rec_2: false,
     rec_3: false,
   });
   const [activeTab, setActiveTab] = useState<'all' | 'reels' | 'carousels' | 'posts'>('all');
+  const [selectedCaptionStyles, setSelectedCaptionStyles] = useState<Record<string, number>>({});
+  const [selectedHashtagBundles, setSelectedHashtagBundles] = useState<Record<string, 'all' | 'niche' | 'broad' | 'trending'>>({});
   const [feedbackMap, setFeedbackMap] = useState<Record<string, 'accepted' | 'rejected'>>({});
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
@@ -161,6 +164,16 @@ export default function RecommendationsPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const handleCopyTag = (tag: string) => {
+    navigator.clipboard.writeText(tag);
+    setCopiedTag(tag);
+    setFeedbackToast(`Copied ${tag} to clipboard!`);
+    setTimeout(() => {
+      setCopiedTag(null);
+      setFeedbackToast(null);
+    }, 1500);
+  };
+
   const toggleBlueprint = (id: string) => {
     setExpandedBlueprints((prev) => ({
       ...prev,
@@ -168,14 +181,52 @@ export default function RecommendationsPage() {
     }));
   };
 
+  // Helper to extract the active caption option for a recommendation
+  const getActiveCaption = (rec: any): { style: string; hook: string; text: string } => {
+    const idx = selectedCaptionStyles[rec.id] ?? 0;
+    if (Array.isArray(rec.caption_options) && rec.caption_options.length > idx) {
+      return rec.caption_options[idx];
+    }
+    return {
+      style: 'Primary Draft',
+      hook: '',
+      text: rec.caption_draft || '',
+    };
+  };
+
+  // Helper to extract active hashtags based on selected bundle strategy
+  const getActiveHashtags = (rec: any, bundleKey?: string): string[] => {
+    const key = bundleKey || (selectedHashtagBundles[rec.id] ?? 'all');
+    const bundles = rec.hashtag_bundles || {};
+
+    if (key === 'niche' && Array.isArray(bundles.niche) && bundles.niche.length > 0) {
+      return bundles.niche;
+    }
+    if (key === 'broad' && Array.isArray(bundles.broad) && bundles.broad.length > 0) {
+      return bundles.broad;
+    }
+    if (key === 'trending' && Array.isArray(bundles.trending) && bundles.trending.length > 0) {
+      return bundles.trending;
+    }
+    // 'all'
+    if (Array.isArray(rec.suggested_hashtags) && rec.suggested_hashtags.length > 0) {
+      return rec.suggested_hashtags;
+    }
+    const combined = [...(bundles.niche || []), ...(bundles.broad || []), ...(bundles.trending || [])];
+    return Array.from(new Set(combined));
+  };
+
   const handleSchedulePost = (rec: any) => {
+    const activeCaption = getActiveCaption(rec);
+    const activeTags = getActiveHashtags(rec);
+
     if (typeof window !== 'undefined') {
       localStorage.setItem(
         'ee_pending_schedule',
         JSON.stringify({
           handle,
-          caption: rec.caption_draft,
-          hashtags: rec.suggested_hashtags || [],
+          caption: activeCaption.text,
+          hashtags: activeTags,
           mediaType: rec.recommended_format === 'reel' ? 'video' : rec.recommended_format,
         })
       );
@@ -247,7 +298,7 @@ export default function RecommendationsPage() {
             AI Content Recommendations
           </h1>
           <p className="text-sm text-slate-600 mt-1 max-w-2xl leading-relaxed">
-            Real-time Google search trends correlated against your verified niche, with step-by-step next steps, production blueprints, and copyable captions.
+            Real-time search trends correlated against your verified niche, with multi-style caption variations, categorized hashtag bundles, next steps, and production blueprints.
           </p>
         </div>
 
@@ -360,7 +411,7 @@ export default function RecommendationsPage() {
               Correlating real-time Google search trends with your verified niche...
             </p>
             <p className="text-xs text-slate-500">
-              Extracting domain insights, next steps, and creation blueprints for @{handle}
+              Generating caption styles, hashtag strategy bundles, and blueprints for @{handle}
             </p>
           </div>
         </div>
@@ -539,6 +590,17 @@ export default function RecommendationsPage() {
                 const isExpanded = expandedBlueprints[rec.id] ?? false;
                 const userFeedback = feedbackMap[rec.id];
 
+                // Caption Varieties
+                const captionOptions = Array.isArray(rec.caption_options) && rec.caption_options.length > 0
+                  ? rec.caption_options
+                  : [{ style: 'Primary Draft', hook: '', text: rec.caption_draft || '' }];
+                const activeStyleIdx = selectedCaptionStyles[rec.id] ?? 0;
+                const activeCaption = captionOptions[activeStyleIdx] || captionOptions[0];
+
+                // Hashtag Varieties & Bundles
+                const activeBundleKey = selectedHashtagBundles[rec.id] ?? 'all';
+                const activeTags = getActiveHashtags(rec, activeBundleKey);
+
                 return (
                   <div
                     key={rec.id || idx}
@@ -687,51 +749,184 @@ export default function RecommendationsPage() {
                         </div>
                       )}
 
-                      {/* Ready-to-Post Caption Draft Box */}
-                      <div className="space-y-2 pt-2 border-t border-slate-100">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                            Ready-to-Post Draft
-                          </span>
+                      {/* Ready-to-Post Multi-Style Caption & Hashtag Strategy Section */}
+                      <div className="space-y-3.5 pt-3 border-t border-slate-100">
+                        {/* Caption Variety Header & Style Selector */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                              Caption Variations ({captionOptions.length})
+                            </span>
+                            <span className="text-[10px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                              Style: {activeCaption.style}
+                            </span>
+                          </div>
+
+                          {/* Style Tabs */}
+                          <div className="grid grid-cols-3 gap-1.5 bg-slate-100 p-1 rounded-xl">
+                            {captionOptions.map((opt: any, optIdx: number) => {
+                              const isSelected = activeStyleIdx === optIdx;
+                              const icon =
+                                optIdx === 0 ? (
+                                  <BookOpen className="w-3 h-3" />
+                                ) : optIdx === 1 ? (
+                                  <Zap className="w-3 h-3" />
+                                ) : (
+                                  <Target className="w-3 h-3" />
+                                );
+                              return (
+                                <button
+                                  key={optIdx}
+                                  onClick={() =>
+                                    setSelectedCaptionStyles((prev) => ({
+                                      ...prev,
+                                      [rec.id]: optIdx,
+                                    }))
+                                  }
+                                  className={`py-1.5 px-2 text-[11px] font-semibold rounded-lg transition flex items-center justify-center gap-1.5 ${
+                                    isSelected
+                                      ? 'bg-white text-purple-900 shadow-xs border border-purple-200 font-bold'
+                                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                                  }`}
+                                >
+                                  {icon}
+                                  <span className="truncate">{opt.style.split(' ')[0]}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Opening Hook Angle Badge */}
+                          {activeCaption.hook && (
+                            <div className="text-[11px] text-purple-900 bg-purple-50 border border-purple-150 rounded-lg p-2 leading-snug flex items-start gap-1.5">
+                              <Flame className="w-3.5 h-3.5 text-purple-600 shrink-0 mt-0.5" />
+                              <div className="flex-1">
+                                <strong className="font-semibold text-purple-800">Hook Angle:</strong>{' '}
+                                <span>"{activeCaption.hook}"</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Caption Preview Box */}
+                          <div className="relative group">
+                            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 leading-relaxed font-normal max-h-40 overflow-y-auto whitespace-pre-wrap select-text">
+                              {activeCaption.text}
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 px-1">
+                              <span>
+                                {activeCaption.text.length} chars • ~{Math.ceil(activeCaption.text.split(/\s+/).length / 2.5)}s read
+                              </span>
+                              <button
+                                onClick={() => handleCopy(activeCaption.text, `cap_only_${rec.id}`)}
+                                className="text-purple-600 hover:text-purple-800 font-medium underline"
+                              >
+                                {copiedId === `cap_only_${rec.id}` ? 'Copied text!' : 'Copy text only'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Hashtag Strategy Variety & Categorized Bundles */}
+                        <div className="space-y-2 pt-2 border-t border-dashed border-slate-200">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                              <Hash className="w-3.5 h-3.5 text-blue-600" />
+                              Hashtag Strategy Sets
+                            </span>
+                            <button
+                              onClick={() => {
+                                const tagStr = activeTags.join(' ');
+                                handleCopy(tagStr, `tags_${rec.id}`);
+                              }}
+                              className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 underline flex items-center gap-1"
+                            >
+                              {copiedId === `tags_${rec.id}` ? (
+                                <>
+                                  <Check className="w-3 h-3 text-emerald-600" />
+                                  <span className="text-emerald-600">Copied!</span>
+                                </>
+                              ) : (
+                                <span>Copy Active Tags ({activeTags.length})</span>
+                              )}
+                            </button>
+                          </div>
+
+                          {/* Strategy Bundle Tabs */}
+                          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5">
+                            {[
+                              { key: 'all', label: `All (${(rec.suggested_hashtags || []).length || 10})` },
+                              { key: 'niche', label: `🎯 Niche (${rec.hashtag_bundles?.niche?.length || 5})` },
+                              { key: 'broad', label: `🚀 High Reach (${rec.hashtag_bundles?.broad?.length || 5})` },
+                              { key: 'trending', label: `🔥 Trending (${rec.hashtag_bundles?.trending?.length || 5})` },
+                            ].map((b) => {
+                              const isSelected = activeBundleKey === b.key;
+                              return (
+                                <button
+                                  key={b.key}
+                                  onClick={() =>
+                                    setSelectedHashtagBundles((prev) => ({
+                                      ...prev,
+                                      [rec.id]: b.key as any,
+                                    }))
+                                  }
+                                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition whitespace-nowrap ${
+                                    isSelected
+                                      ? 'bg-blue-600 text-white shadow-2xs font-bold'
+                                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                  }`}
+                                >
+                                  {b.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Hashtag Chips with Individual Click-to-Copy */}
+                          <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                            {activeTags.map((tag: string, tIdx: number) => {
+                              const isCopied = copiedTag === tag;
+                              return (
+                                <button
+                                  key={tIdx}
+                                  onClick={() => handleCopyTag(tag)}
+                                  title="Click to copy this hashtag"
+                                  className={`text-[11px] font-mono px-2 py-0.5 rounded-md transition border flex items-center gap-1 cursor-pointer ${
+                                    isCopied
+                                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold'
+                                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-purple-50 hover:text-purple-800 hover:border-purple-200'
+                                  }`}
+                                >
+                                  {isCopied ? <Check className="w-2.5 h-2.5 text-emerald-600" /> : null}
+                                  <span>{tag}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Master 1-Click Copy Bar */}
+                        <div className="pt-2">
                           <button
                             onClick={() => {
-                              const fullText = `${rec.caption_draft}\n\n${(rec.suggested_hashtags || []).join(' ')}`;
+                              const fullText = `${activeCaption.text}\n\n${activeTags.join(' ')}`;
                               handleCopy(fullText, `cap_${rec.id}`);
                             }}
-                            className="text-xs font-semibold text-purple-700 hover:text-purple-900 flex items-center gap-1 transition"
+                            className="w-full py-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-2xs"
                           >
                             {copiedId === `cap_${rec.id}` ? (
                               <>
-                                <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                <span className="text-emerald-600 font-bold">Copied!</span>
+                                <Check className="w-4 h-4 text-emerald-600" />
+                                <span className="text-emerald-700 font-bold">Copied Caption & Hashtags to Clipboard!</span>
                               </>
                             ) : (
                               <>
-                                <Copy className="w-3.5 h-3.5" />
-                                <span>Copy Caption</span>
+                                <Copy className="w-3.5 h-3.5 text-purple-700" />
+                                <span>Copy {activeCaption.style.split(' ')[0]} Caption + {activeTags.length} Hashtags</span>
                               </>
                             )}
                           </button>
                         </div>
-
-                        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 leading-relaxed font-normal max-h-36 overflow-y-auto whitespace-pre-wrap select-text">
-                          {rec.caption_draft}
-                        </div>
-
-                        {/* Suggested Hashtags */}
-                        {rec.suggested_hashtags && rec.suggested_hashtags.length > 0 && (
-                          <div className="flex flex-wrap items-center gap-1 pt-1">
-                            {rec.suggested_hashtags.map((tag: string, tIdx: number) => (
-                              <span
-                                key={tIdx}
-                                className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     </div>
 

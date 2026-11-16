@@ -21,6 +21,18 @@ recommendationsRouter.use(createRateLimiter({ windowMs: 60000, maxRequests: 60, 
 // 5. Generates high-converting Captions, Hashtag sets, and Step-by-Step Creation Blueprint
 // ---------------------------------------------------------------------------
 
+export interface CaptionOption {
+  style: string;
+  hook: string;
+  text: string;
+}
+
+export interface HashtagBundles {
+  niche: string[];
+  broad: string[];
+  trending: string[];
+}
+
 export interface TrendItem {
   title: string;
   traffic: string;
@@ -496,11 +508,19 @@ INSTRUCTIONS & QUALITY CONTRACT:
 1. Evaluate the live Google Trends against the creator's verified niche (${userNiche} - ${subNiche}).
 2. If a live trend has a genuine direct or crossover connection to their niche (e.g. policy, economics, business, education, exam season, technology, leadership), adapt it with an authoritative perspective.
 3. If the live search trends are completely unrelated to their niche (e.g. random football matches or celebrity gossip that cannot credibly connect to a professional in ${userNiche}), select the closest applicable trend OR synthesize the most urgent current trending topic in their specific domain (${userNiche}). Do NOT force absurd sports angles onto professional/accounting/tech creators.
-4. For each recommendation, provide:
+4. For each recommendation, provide VARIETY in captions and hashtags:
    - "next_steps": Array of exactly 3 sequential execution steps (Step 1: Hook & Concept, Step 2: Content Breakdown, Step 3: Call to Action & Distribution).
    - "creation_blueprint": Detailed object with hook, body (bullet points), call_to_action, and 3 production_tips.
-   - "caption_draft": Complete, engaging ready-to-publish caption in natural ${userLanguage} with strong hook, emojis, clean line breaks, and a clear call to action.
-   - "suggested_hashtags": Array of 5 targeted, high-converting hashtags matching their niche and topic.
+   - "caption_options": Array of 3 distinctly styled, ready-to-post captions in natural ${userLanguage}:
+     1. Style "Storytelling & Relatable": narrative hook, personal/relatable insight or dilemma, conversational question CTA inviting comments.
+     2. Style "Short & Punchy (Viral)": bold 1-line curiosity gap opening, rapid bullet points, quick save/share CTA.
+     3. Style "In-Depth Breakdown (Save-Worthy)": authoritative educational guide, structured step-by-step takeaways, bookmark/save CTA.
+   - "caption_draft": Set to the top primary caption text (for 1-click posting).
+   - "hashtag_bundles": Categorized hashtag strategy containing 3 distinct bundles:
+     - "niche": 5 hyper-targeted tags directly matching ${userNiche} and its community.
+     - "broad": 5 high-reach industry discovery tags.
+     - "trending": 5 viral and search-trend discovery tags.
+   - "suggested_hashtags": Combined list of 8-12 unique hashtags selected from the bundles.
 
 Return ONLY a valid JSON array of exactly 3 objects conforming to this schema:
 [
@@ -533,8 +553,30 @@ Return ONLY a valid JSON array of exactly 3 objects conforming to this schema:
         "Tip 3..."
       ]
     },
-    "caption_draft": "Ready-to-post caption text...",
-    "suggested_hashtags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"]
+    "caption_draft": "Primary ready-to-post caption text...",
+    "caption_options": [
+      {
+        "style": "Storytelling & Relatable",
+        "hook": "Relatable narrative hook...",
+        "text": "Full storytelling caption with emojis and spacing..."
+      },
+      {
+        "style": "Short & Punchy (Viral)",
+        "hook": "Bold 1-sentence curiosity hook...",
+        "text": "Full punchy minimalist caption with emojis..."
+      },
+      {
+        "style": "In-Depth Breakdown (Save-Worthy)",
+        "hook": "Authoritative guide hook...",
+        "text": "Full value-dense breakdown with numbered points..."
+      }
+    ],
+    "hashtag_bundles": {
+      "niche": ["#niche1", "#niche2", "#niche3", "#niche4", "#niche5"],
+      "broad": ["#broad1", "#broad2", "#broad3", "#broad4", "#broad5"],
+      "trending": ["#trend1", "#trend2", "#trend3", "#trend4", "#trend5"]
+    },
+    "suggested_hashtags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5", "#tag6", "#tag7", "#tag8"]
   }
 ]`;
 
@@ -563,6 +605,28 @@ Return ONLY a valid JSON array of exactly 3 objects conforming to this schema:
 
         const parsedRecs = JSON.parse(cleanJsonText);
         if (Array.isArray(parsedRecs) && parsedRecs.length === 3) {
+          const normalizedRecs = parsedRecs.map((rec: any, rIdx: number) => {
+            const variations = Array.isArray(rec.caption_options) && rec.caption_options.length >= 3
+              ? rec.caption_options
+              : generateCaptionVariations(userLanguage, rec.trend_topic || rec.title, userNiche, rIdx + 1);
+
+            const bundles = rec.hashtag_bundles && typeof rec.hashtag_bundles === 'object' && Array.isArray(rec.hashtag_bundles.niche)
+              ? rec.hashtag_bundles
+              : generateHashtagBundles(userNiche, subNiche, rec.trend_topic || rec.title, userKeywords);
+
+            const allTags = Array.isArray(rec.suggested_hashtags) && rec.suggested_hashtags.length >= 5
+              ? rec.suggested_hashtags
+              : [...(bundles.niche || []), ...(bundles.broad || []), ...(bundles.trending || [])];
+
+            return {
+              ...rec,
+              caption_draft: rec.caption_draft || variations[0].text,
+              caption_options: variations,
+              hashtag_bundles: bundles,
+              suggested_hashtags: [...new Set(allTags)].slice(0, 12),
+            };
+          });
+
           const payload = {
             success: true,
             handle: cleanHandle,
@@ -574,7 +638,7 @@ Return ONLY a valid JSON array of exactly 3 objects conforming to this schema:
             follower_tier: bucket,
             optimal_time_window: optimalTimeWindow,
             dominant_format_recommendation: bestFormat,
-            recommendations: parsedRecs,
+            recommendations: normalizedRecs,
             live_trend_signals: liveTrends.slice(0, 8),
             generated_at: new Date().toISOString(),
           };
@@ -637,6 +701,10 @@ Return ONLY a valid JSON array of exactly 3 objects conforming to this schema:
     const liftStr = isReel === 'reel' ? `+${(bestLift * 100).toFixed(1)}% reach lift` : isReel === 'carousel' ? '+24.5% saves & shares' : '+15.0% comment rate';
     const dayStr = idx === 0 ? `${recommendedDayName} (Peak Activity)` : idx === 1 ? 'Wednesday / Thursday' : 'Sunday Evening';
 
+    const captionOptions = generateCaptionVariations(userLanguage, trend.title, userNiche, idx + 1);
+    const hashtagBundles = generateHashtagBundles(userNiche, subNiche, trend.title, userKeywords);
+    const allTags = [...new Set([...hashtagBundles.niche, ...hashtagBundles.broad, ...hashtagBundles.trending])].slice(0, 12);
+
     return {
       id: `rec_${idx + 1}`,
       title: `${trend.title}`,
@@ -656,8 +724,10 @@ Return ONLY a valid JSON array of exactly 3 objects conforming to this schema:
         `Step 2: Scripting & Visuals - Break down 3 essential takeaways with on-screen text overlays matching your ${userNiche} expertise.`,
         `Step 3: Call to Action & Distribution - Direct viewers to save this guide for reference and drop their questions in the comments.`,
       ],
-      caption_draft: generateLocalizedCaption(userLanguage, trend.title, userNiche, idx + 1),
-      suggested_hashtags: generateHashtags(userNiche, trend.title),
+      caption_draft: captionOptions[0].text,
+      caption_options: captionOptions,
+      hashtag_bundles: hashtagBundles,
+      suggested_hashtags: allTags,
       creation_blueprint: {
         hook: `First 3 seconds / Slide 1: Bold provocative statement or question regarding "${trend.title}".`,
         body: `Next 15-25 seconds: 3 evidence-backed perspectives tying the topic to real practical application in ${userNiche}.`,
@@ -694,42 +764,113 @@ Return ONLY a valid JSON array of exactly 3 objects conforming to this schema:
   return res.json(payload);
 });
 
-// Helper: Localized caption generator
-function generateLocalizedCaption(lang: string, topic: string, niche: string, index: number): string {
+// Helper: Multi-Style Caption Generator (Variety Engine)
+export function generateCaptionVariations(
+  lang: string,
+  topic: string,
+  niche: string,
+  index: number
+): CaptionOption[] {
   const l = (lang || 'English').toLowerCase();
+  const isUrdu = l.includes('urdu') || l.includes('hindi');
+  const isRomanUrdu = isUrdu && (l.includes('roman') || l.includes('bilingual') || !l.includes('script'));
 
-  if (l.includes('urdu') || l.includes('hindi')) {
-    if (l.includes('roman') || l.includes('bilingual')) {
-      if (index === 1) {
-        return `Aaj hum baat kar rahe hain ${topic} ke baare mein! 🔥 Yeh topic is waqt top trending par hai aur iska direct asar hamari community par parta hai. Aapka is par kya khayal hai? Comments mein zaroor batayein! 👇`;
-      } else if (index === 2) {
-        return `Bohat se log ${topic} ke baray mein ahem pehlu miss kar dete hain. Is post mein 4 ahem facts share kiye hain jo har kisi ko janne chahiyen. Save karlein baad ke liye! 📌`;
-      } else {
-        return `Weekly perspective: ${topic} se hum ne kya seekha? Apni raye share karein, aain mil kar discuss karte hain. 💬✨`;
-      }
-    } else {
-      return `${topic} کے حوالے سے سب سے اہم نکات جو آپ کو معلوم ہونے چاہئیں۔ اس پوسٹ کو محفوظ کر لیں اور اپنی رائے کمنٹس میں بتائیں! 👇`;
-    }
-  } else if (l.includes('portuguese')) {
-    return `Em foco hoje: ${topic}. Uma análise direta e necessária sobre como isso impacta nosso dia a dia. Deixe sua opinião nos comentários abaixo! 👇⚽️`;
-  } else if (l.includes('spanish')) {
-    return `¡Analizando a fondo ${topic}! Puntos clave sobre esta tendencia y su impacto directo. ¿Cuál es tu experiencia? ¡Comenta abajo! 👇`;
+  if (isRomanUrdu) {
+    return [
+      {
+        style: 'Storytelling & Relatable',
+        hook: `Jab maine pehli dafa ${topic} ke baray mein suna, mujhe laga yeh normal hai—lekin haqeeqat kuch aur nikli... 💭`,
+        text: `Jab maine pehli dafa ${topic} ke baray mein suna, mujhe laga yeh bas ek passing headline hai—lekin haqeeqat mein iska direct asar hamare career aur industry standard par parta hai. 🔥\n\nAgar aap bhi is field mein grow karna chahte hain, toh yeh 3 ahem batein zaroor samajh lein:\n1️⃣ Trend ko pehle analyze karein, blind follow na karein\n2️⃣ Apni core skills aur practical execution par focus rakhein\n3️⃣ Long-term consistency hi asal game-changer hai\n\nAapka is baray mein kya personal experience raha hai? Comments mein zaroor share karein! 👇`,
+      },
+      {
+        style: 'Short & Punchy (Viral)',
+        hook: `Stop scrolling agar aap ${topic} ko ignore kar rahe hain! 🛑⚡`,
+        text: `Stop scrolling agar aap ${topic} ko ignore kar rahe hain! 🛑⚡\n\nYeh choti si ghalti aapke weeks ka waqt zaya kar sakti hai. 3 golden rules jo har professional ko pata honi chahiyen:\n• Rule 1: Fundamentals always first\n• Rule 2: Execution beats overthinking\n• Rule 3: Speed with precision\n\n📌 Save karlein baad ke liye aur apne dost ke sath share karein!`,
+      },
+      {
+        style: 'In-Depth Breakdown (Save-Worthy)',
+        hook: `The Complete Action Blueprint: ${topic} se maximum results kaise hasil karein? 📚🎯`,
+        text: `The Complete Action Blueprint: ${topic} se maximum results kaise hasil karein? 📚🎯\n\nBohat se log surface-level tips dekh kar confuse ho jate hain. Yeh hai practical step-by-step breakdown:\n\nStep 1: Foundational Clarity — Pehle problem aur core concepts ko deeply understand karein.\nStep 2: Structured Execution — Rozana 30-45 minutes dedicated practice aur testing dein.\nStep 3: Review & Refine — Har weekend par apni progress evaluate karein.\n\nBookmark this guide! 💾 Drop your questions below and I will reply to each one. 💬`,
+      },
+    ];
   }
 
-  // English default
-  if (index === 1) {
-    return `Breaking down the real dynamics behind ${topic}. While search interest is surging, the underlying conversation that matters most is how this affects everyday people. Here are the 3 takeaways you need to know. What’s your take? Drop your thoughts below 👇`;
-  } else if (index === 2) {
-    return `The biggest overlooked reality about ${topic}—and why standard headlines are missing the point. Swipe through for the full evidence breakdown. Make sure to save this post for reference! 📌`;
-  } else {
-    return `Perspective on ${topic}: Systems don’t change until we pay attention and demand accountability. How are you approaching this in your own work? Let’s discuss in the comments 💬`;
-  }
+  // English default variations
+  return [
+    {
+      style: 'Storytelling & Relatable',
+      hook: `I used to think ${topic} was just another headline—until I looked at the actual numbers. 💭`,
+      text: `I used to think ${topic} was just another headline—until I looked at the actual numbers and what it means for creators and professionals in ${niche}. 📈\n\nHere is the real truth most people are missing:\n• It's not about jumping on every wave; it's about connecting it to your unique expertise.\n• The creators winning right now are translating complex updates into immediate, actionable insights.\n• Consistency during market shifts is where real authority is built.\n\nWhat’s your biggest takeaway from this trend? Let’s talk in the comments below! 👇`,
+    },
+    {
+      style: 'Short & Punchy (Viral)',
+      hook: `Stop making this mistake when dealing with ${topic}! 🛑⚡`,
+      text: `Stop making this mistake when dealing with ${topic}! 🛑⚡\n\n3 quick rules you need to know today:\n1️⃣ Focus on execution over endless debate.\n2️⃣ Double down on what your specific audience actually cares about.\n3️⃣ Simplicity always beats unnecessary complexity.\n\nDouble tap if this resonates & save for your next planning session! 📌`,
+    },
+    {
+      style: 'In-Depth Breakdown (Save-Worthy)',
+      hook: `The Ultimate Playbook: How to Master ${topic} Step-by-Step 📚🎯`,
+      text: `The Ultimate Playbook: How to Master ${topic} Step-by-Step 📚🎯\n\nWhile search interest is peaking, here is the structured framework you need to implement right now:\n\n1. Strategic Context: Understand the driving forces behind this shift rather than just reacting.\n2. Tactical Framework: Focus on high-leverage workflows that protect your time and amplify output.\n3. Measurable Impact: Benchmark your progress weekly with tangible metrics.\n\nSave this post to your study/work collection! 💾 Drop any questions below and I'll jump into the thread. 💬`,
+    },
+  ];
 }
 
-// Helper: Hashtag generator
-function generateHashtags(niche: string, topic: string): string[] {
-  const cleanNiche = niche.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const cleanTopic = topic.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const base = [`#${cleanNiche}`, `#${cleanTopic}`, '#trending', '#googleTrends', '#contentStrategy'];
-  return [...new Set(base)].slice(0, 5);
+// Backward compatible helper
+export function generateLocalizedCaption(lang: string, topic: string, niche: string, index: number): string {
+  const variations = generateCaptionVariations(lang, topic, niche, index);
+  return variations[0]?.text || '';
+}
+
+// Helper: Multi-Tier Strategic Hashtag Generator (Variety Bundles)
+export function generateHashtagBundles(
+  niche: string,
+  subNiche: string,
+  topic: string,
+  keywords: string[] = []
+): HashtagBundles {
+  const cleanTag = (str: string) => {
+    const cleaned = str.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return cleaned ? '#' + cleaned : '';
+  };
+
+  const nicheBase = [
+    cleanTag(niche),
+    cleanTag(subNiche),
+    ...keywords.slice(0, 4).map(cleanTag),
+    '#expertinsights',
+    '#communityfirst',
+  ].filter((t) => t.length > 2);
+
+  const broadBase = [
+    cleanTag(niche.split(' ')[0] || 'business'),
+    '#education',
+    '#careeradvice',
+    '#growthmindset',
+    '#professionaldevelopment',
+    '#learningeveryday',
+    '#leadership',
+  ].filter((t) => t.length > 2);
+
+  const cleanTopic = cleanTag(topic);
+  const trendingBase = [
+    cleanTopic,
+    '#trendingnow',
+    '#googletrends',
+    '#viralreels',
+    '#explorepage',
+    '#dailyinsights',
+    '#algorithmhacks',
+  ].filter((t) => t.length > 2);
+
+  return {
+    niche: [...new Set(nicheBase)].slice(0, 5),
+    broad: [...new Set(broadBase)].slice(0, 5),
+    trending: [...new Set(trendingBase)].slice(0, 5),
+  };
+}
+
+// Backward compatible helper
+export function generateHashtags(niche: string, topic: string): string[] {
+  const bundles = generateHashtagBundles(niche, '', topic);
+  return [...new Set([...bundles.niche, ...bundles.trending])].slice(0, 5);
 }
