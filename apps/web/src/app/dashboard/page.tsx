@@ -227,17 +227,75 @@ export default function DashboardPage() {
   useEffect(() => {
     const handleSync = (e: any) => {
       const incoming = e?.detail?.handle;
-      const clean = incoming ? incoming.toLowerCase().replace(/^@/, '').trim() : '';
-      if (clean && clean !== activeHandleRef.current.toLowerCase()) {
+      if (incoming !== undefined) {
+        const clean = incoming ? incoming.toLowerCase().replace(/^@/, '').trim() : '';
+        if (clean && SAMPLE_HANDLES.has(clean)) {
+          setActiveHandle('');
+          setProfile(null);
+          setPosts([]);
+          setNicheData(null);
+          setShowModal(true);
+          return;
+        }
+        if (!clean) {
+          if (activeHandleRef.current) {
+            setActiveHandle('');
+            setProfile(null);
+            setPosts([]);
+            setNicheData(null);
+            setShowModal(true);
+          }
+          return;
+        }
+        if (clean !== activeHandleRef.current.toLowerCase()) {
+          loadCreatorDashboard(clean, true);
+        }
+      } else {
+        syncFromStorage();
+      }
+    };
+
+    const syncFromStorage = () => {
+      if (typeof window === 'undefined') return;
+      const stored = (user?.id ? localStorage.getItem(`ee_handle_${user.id}`) : null) ||
+                     localStorage.getItem('ee_active_handle') || '';
+      const clean = stored.toLowerCase().replace(/^@/, '').trim();
+      if (clean && SAMPLE_HANDLES.has(clean)) {
+        localStorage.removeItem('ee_active_handle');
+        if (user?.id) localStorage.removeItem(`ee_handle_${user.id}`);
+        setActiveHandle('');
+        setProfile(null);
+        setPosts([]);
+        setNicheData(null);
+        setShowModal(true);
+        return;
+      }
+      if (!clean) {
+        if (activeHandleRef.current) {
+          setActiveHandle('');
+          setProfile(null);
+          setPosts([]);
+          setNicheData(null);
+          setShowModal(true);
+        }
+        return;
+      }
+      if (clean !== activeHandleRef.current.toLowerCase()) {
         loadCreatorDashboard(clean, true);
       }
     };
 
     window.addEventListener('ee:handle_changed', handleSync);
+    window.addEventListener('storage', syncFromStorage);
+    window.addEventListener('focus', syncFromStorage);
+    document.addEventListener('visibilitychange', syncFromStorage);
     return () => {
       window.removeEventListener('ee:handle_changed', handleSync);
+      window.removeEventListener('storage', syncFromStorage);
+      window.removeEventListener('focus', syncFromStorage);
+      document.removeEventListener('visibilitychange', syncFromStorage);
     };
-  }, []);
+  }, [user?.id]);
 
   // Check if user has an associated handle in database or localStorage
   useEffect(() => {
@@ -298,7 +356,7 @@ export default function DashboardPage() {
 
   const loadCreatorDashboard = async (handle: string, isInstantTransition = false) => {
     const clean = handle.toLowerCase().replace(/^@/, '');
-    if (!clean) return;
+    if (!clean || SAMPLE_HANDLES.has(clean)) return;
 
     if (typeof window !== 'undefined') {
       localStorage.setItem('ee_active_handle', clean);

@@ -154,7 +154,28 @@ export default function RecommendationsPage() {
       const active = (user?.id ? localStorage.getItem(`ee_handle_${user.id}`) : null) ||
                      localStorage.getItem('ee_active_handle') || '';
       const clean = active.trim().toLowerCase().replace(/^@/, '');
-      if (clean && clean !== currentHandleRef.current.toLowerCase()) {
+      if (clean && SAMPLE_HANDLES.has(clean)) {
+        localStorage.removeItem('ee_active_handle');
+        if (user?.id) localStorage.removeItem(`ee_handle_${user.id}`);
+        currentHandleRef.current = '';
+        setHandle('');
+        setCustomHandleInput('');
+        setRecsData(null);
+        setLoading(false);
+        return;
+      }
+      if (!clean) {
+        if (currentHandleRef.current) {
+          currentHandleRef.current = '';
+          setHandle('');
+          setCustomHandleInput('');
+          setRecsData(null);
+          setLoading(false);
+        }
+        return;
+      }
+      if (clean !== currentHandleRef.current.toLowerCase()) {
+        currentHandleRef.current = clean;
         setHandle(clean);
         setCustomHandleInput(clean);
         setRecsData(null);
@@ -164,9 +185,26 @@ export default function RecommendationsPage() {
 
     const handleCustomEvent = (e: any) => {
       const incoming = e?.detail?.handle;
-      if (incoming) {
-        const clean = incoming.trim().toLowerCase().replace(/^@/, '');
-        if (clean && clean !== currentHandleRef.current.toLowerCase()) {
+      if (incoming !== undefined) {
+        const clean = incoming ? incoming.trim().toLowerCase().replace(/^@/, '') : '';
+        if (clean && SAMPLE_HANDLES.has(clean)) {
+          currentHandleRef.current = '';
+          setHandle('');
+          setCustomHandleInput('');
+          setRecsData(null);
+          setLoading(false);
+          return;
+        }
+        if (!clean) {
+          currentHandleRef.current = '';
+          setHandle('');
+          setCustomHandleInput('');
+          setRecsData(null);
+          setLoading(false);
+          return;
+        }
+        if (clean !== currentHandleRef.current.toLowerCase()) {
+          currentHandleRef.current = clean;
           setHandle(clean);
           setCustomHandleInput(clean);
           setRecsData(null);
@@ -192,7 +230,7 @@ export default function RecommendationsPage() {
 
   const fetchRecommendations = async (targetHandle: string, forceRefresh: boolean = false) => {
     const clean = targetHandle.trim().toLowerCase().replace(/^@/, '');
-    if (!clean) return;
+    if (!clean || SAMPLE_HANDLES.has(clean)) return;
 
     setLoading(true);
     setErrorMessage(null);

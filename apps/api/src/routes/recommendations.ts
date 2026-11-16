@@ -662,38 +662,38 @@ Return ONLY a valid JSON array of exactly 3 objects conforming to this schema:
   );
   const candidateTrends = filteredLiveTrends.length >= 3 ? filteredLiveTrends : liveTrends;
 
-  // Synthesize domain-relevant topics based on user's niche if trends are general
-  const isFinanceOrAccounting = /account|finance|tax|ca|acca|audit/i.test(`${userNiche} ${subNiche}`);
-  const isTechOrCode = /tech|code|software|developer|engineer|data|ai/i.test(`${userNiche} ${subNiche}`);
-  const isFitness = /fitness|gym|workout|health|diet|nutrition/i.test(`${userNiche} ${subNiche}`);
+  // Correlate live trends against creator niche, sub-niche, and content pillars
+  const nicheKeywords = [
+    ...userNiche.toLowerCase().split(/\s+/),
+    ...subNiche.toLowerCase().split(/\s+/),
+    ...contentPillars.flatMap((p) => p.toLowerCase().split(/\s+/)),
+    ...userKeywords.map((k) => k.toLowerCase()),
+  ].filter((w) => w.length > 3);
 
-  let fallbackTrends: any[];
-  if (isFinanceOrAccounting) {
-    fallbackTrends = [
-      { title: 'Tax Filing Season Deadlines & Strategy', traffic: '50K+ searches', source: 'Domain Trend (Finance)', geo: 'PK', news_title: 'Key tax deduction changes and regulatory deadlines', news_source: 'Finance Bulletin' },
-      { title: 'CA & ACCA Exam Preparation Frameworks', traffic: '25K+ searches', source: 'Domain Trend (Education)', geo: 'PK', news_title: 'Study strategies for passing high-stakes professional papers', news_source: 'Accounting Education' },
-      { title: 'Corporate Cash Flow & Budget Planning for 2026', traffic: '15K+ searches', source: 'Domain Trend (Business)', geo: 'Global', news_title: 'SME financial management strategies in volatile markets', news_source: 'Business Review' },
-    ];
-  } else if (isTechOrCode) {
-    fallbackTrends = [
-      { title: 'Autonomous AI Agents in Production', traffic: '80K+ searches', source: 'Tech Intelligence', geo: 'Global', news_title: 'Engineering challenges deploying agentic workflows', news_source: 'Tech Insights' },
-      { title: 'Modern Full-Stack Architecture Best Practices', traffic: '40K+ searches', source: 'Tech Intelligence', geo: 'Global', news_title: 'Microservices vs Modular Monoliths in 2026', news_source: 'Developer Digest' },
-      { title: 'Mastering System Design & Technical Interviews', traffic: '30K+ searches', source: 'Tech Intelligence', geo: 'Global', news_title: 'High-scale caching and distributed consensus principles', news_source: 'Engineering Weekly' },
-    ];
-  } else if (isFitness) {
-    fallbackTrends = [
-      { title: 'High-Protein Nutrition Timing for Hypertrophy', traffic: '60K+ searches', source: 'Fitness Trends', geo: 'Global', news_title: 'New research on nutrient distribution and recovery', news_source: 'Sports Science' },
-      { title: 'Progressive Overload Fundamentals for Beginners', traffic: '35K+ searches', source: 'Fitness Trends', geo: 'Global', news_title: 'Avoiding training plateaus with structured periodization', news_source: 'Fitness Journal' },
-      { title: 'Mobility & Injury Prevention Routine', traffic: '20K+ searches', source: 'Fitness Trends', geo: 'Global', news_title: 'Daily mobility protocols for desk workers and athletes', news_source: 'Health Review' },
-    ];
-  } else if (candidateTrends.length >= 3) {
-    fallbackTrends = candidateTrends.slice(0, 3);
-  } else {
-    fallbackTrends = [
-      { title: `${contentPillars[0] || userNiche}: Core Practical Breakdown`, traffic: 'Trending', source: 'Domain Trend', geo: 'Global', news_title: `Essential strategies and best practices in ${userNiche}`, news_source: 'Industry Insights' },
-      { title: `Emerging Shifts in ${subNiche}`, traffic: 'Trending', source: 'Domain Trend', geo: 'Global', news_title: `Key developments reshaping ${subNiche} today`, news_source: 'Creator Report' },
-      { title: `Actionable Playbook for ${userNiche} Practitioners`, traffic: 'High Demand', source: 'Domain Trend', geo: 'Global', news_title: `Step-by-step framework to elevate execution in ${userNiche}`, news_source: 'Strategy Guide' },
-    ];
+  const matchedLiveTrends = candidateTrends.filter((t) => {
+    const text = `${t.title} ${t.news_title || ''}`.toLowerCase();
+    return nicheKeywords.some((kw) => text.includes(kw));
+  });
+
+  const fallbackTrends: any[] = [...matchedLiveTrends];
+
+  // If live trends didn't yield 3 direct niche matches, synthesize authoritative topics directly from creator's verified pillars
+  const defaultPillars = contentPillars.length >= 3 ? contentPillars : [
+    `${userNiche} Fundamentals & Execution`,
+    `Emerging Shifts in ${subNiche}`,
+    `Actionable Frameworks for ${userNiche} Community`,
+  ];
+
+  for (let i = fallbackTrends.length; i < 3; i++) {
+    const pillarName = defaultPillars[i] || defaultPillars[0] || userNiche;
+    fallbackTrends.push({
+      title: `${pillarName}: Practical Breakdown & Strategy`,
+      traffic: 'High Demand',
+      source: 'Domain Intelligence',
+      geo: 'Global',
+      news_title: `Essential principles and modern execution in ${userNiche}`,
+      news_source: `${userNiche} Insights`,
+    });
   }
 
   const recommendations = fallbackTrends.slice(0, 3).map((trend, idx) => {
