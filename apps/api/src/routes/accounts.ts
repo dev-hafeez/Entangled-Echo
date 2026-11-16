@@ -5,6 +5,7 @@ import { config } from '../config.js';
 import { getSupabaseAdmin } from '../lib/supabase.js';
 import { sanitizeAndValidateHandle } from '../lib/security.js';
 import { requireAuth, requireUserOrAdmin, isUserAccountOwnerOrAdmin, requireAdmin } from '../lib/auth.js';
+import { ensureAccountDataExists } from '../lib/account-seed.js';
 
 export const accountsRouter = Router();
 
@@ -112,8 +113,11 @@ accountsRouter.get('/:handle', async (req: Request, res: Response) => {
     return res.status(400).json({ error: err.message });
   }
 
-  // 1. Try local storage profile first
+  // 1. Try local storage profile first (or auto-provision on-demand)
   const profileFile = path.join(config.localStorageDir, 'profiles', `${cleanHandle}.json`);
+  if (!fs.existsSync(profileFile)) {
+    ensureAccountDataExists(cleanHandle);
+  }
   if (fs.existsSync(profileFile)) {
     try {
       const account = JSON.parse(fs.readFileSync(profileFile, 'utf-8'));
@@ -149,9 +153,12 @@ accountsRouter.get('/:handle/posts', async (req: Request, res: Response) => {
     return res.status(400).json({ error: err.message });
   }
 
-  // 1. Try local storage posts first
+  // 1. Try local storage posts first (or auto-provision on-demand)
   const postsFile = path.join(config.localStorageDir, 'posts', `${cleanHandle}.json`);
   const profileFile = path.join(config.localStorageDir, 'profiles', `${cleanHandle}.json`);
+  if (!fs.existsSync(postsFile)) {
+    ensureAccountDataExists(cleanHandle);
+  }
 
   if (fs.existsSync(postsFile)) {
     try {

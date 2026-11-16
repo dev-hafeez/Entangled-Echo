@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { config } from '../config.js';
 import { requireAuth, optionalAuth, findUserByHandle, getUserLinkedHandleRecord, normalizeHandle } from '../lib/auth.js';
+import { ensureAccountDataExists } from '../lib/account-seed.js';
 
 export const onboardingRouter = Router();
 
@@ -47,6 +48,9 @@ onboardingRouter.post('/user-profile', requireAuth, (req: Request, res: Response
   if (cleanHandle.length === 0) {
     return res.status(400).json({ error: 'Valid handle is required' });
   }
+
+  // Ensure grounded profile and posts exist locally for this handle
+  ensureAccountDataExists(cleanHandle);
 
   // Reject duplicate handle bindings across users with 409 Conflict
   const existingBinding = findUserByHandle(cleanHandle);

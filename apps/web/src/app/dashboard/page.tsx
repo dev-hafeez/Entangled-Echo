@@ -230,6 +230,7 @@ export default function DashboardPage() {
       if (incoming !== undefined) {
         const clean = incoming ? incoming.toLowerCase().replace(/^@/, '').trim() : '';
         if (clean && SAMPLE_HANDLES.has(clean)) {
+          activeHandleRef.current = '';
           setActiveHandle('');
           setProfile(null);
           setPosts([]);
@@ -239,6 +240,7 @@ export default function DashboardPage() {
         }
         if (!clean) {
           if (activeHandleRef.current) {
+            activeHandleRef.current = '';
             setActiveHandle('');
             setProfile(null);
             setPosts([]);
@@ -248,10 +250,9 @@ export default function DashboardPage() {
           return;
         }
         if (clean !== activeHandleRef.current.toLowerCase()) {
+          activeHandleRef.current = clean;
           loadCreatorDashboard(clean, true);
         }
-      } else {
-        syncFromStorage();
       }
     };
 
@@ -263,6 +264,7 @@ export default function DashboardPage() {
       if (clean && SAMPLE_HANDLES.has(clean)) {
         localStorage.removeItem('ee_active_handle');
         if (user?.id) localStorage.removeItem(`ee_handle_${user.id}`);
+        activeHandleRef.current = '';
         setActiveHandle('');
         setProfile(null);
         setPosts([]);
@@ -272,6 +274,7 @@ export default function DashboardPage() {
       }
       if (!clean) {
         if (activeHandleRef.current) {
+          activeHandleRef.current = '';
           setActiveHandle('');
           setProfile(null);
           setPosts([]);
@@ -281,19 +284,16 @@ export default function DashboardPage() {
         return;
       }
       if (clean !== activeHandleRef.current.toLowerCase()) {
+        activeHandleRef.current = clean;
         loadCreatorDashboard(clean, true);
       }
     };
 
     window.addEventListener('ee:handle_changed', handleSync);
     window.addEventListener('storage', syncFromStorage);
-    window.addEventListener('focus', syncFromStorage);
-    document.addEventListener('visibilitychange', syncFromStorage);
     return () => {
       window.removeEventListener('ee:handle_changed', handleSync);
       window.removeEventListener('storage', syncFromStorage);
-      window.removeEventListener('focus', syncFromStorage);
-      document.removeEventListener('visibilitychange', syncFromStorage);
     };
   }, [user?.id]);
 
@@ -355,21 +355,31 @@ export default function DashboardPage() {
   }, [isLoaded, user]);
 
   const loadCreatorDashboard = async (handle: string, isInstantTransition = false) => {
-    const clean = handle.toLowerCase().replace(/^@/, '');
+    const clean = handle.toLowerCase().replace(/^@/, '').trim();
     if (!clean || SAMPLE_HANDLES.has(clean)) return;
+
+    // Immediately update ref so synchronous listeners know this is the active handle
+    activeHandleRef.current = clean;
+    setActiveHandle(clean);
 
     if (typeof window !== 'undefined') {
       localStorage.setItem('ee_active_handle', clean);
       if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, clean);
-      window.dispatchEvent(new CustomEvent('ee:handle_changed', { detail: { handle: clean, userId: user?.id } }));
     }
     if (user?.id) {
-      api.saveUserProfile({ userId: user.id, handle: clean }).catch(() => {});
+      await api.saveUserProfile({ userId: user.id, handle: clean }).catch(() => {});
     }
-    setActiveHandle(clean);
+
+    // Reset previous account data immediately so old account metrics don't linger
+    setProfile(null);
+    setPosts([]);
+    setNicheData(null);
+    setPersonalModel(null);
+    setAudience(null);
+    setCompetitors([]);
 
     // Only show full-screen skeleton if profile is not already in memory/data
-    if (!profile && !isInstantTransition) {
+    if (!isInstantTransition) {
       setLoadingDashboard(true);
     }
     try {
@@ -381,17 +391,21 @@ export default function DashboardPage() {
         api.getModels().catch(() => null),
       ]);
 
-      if (accRes?.account) setProfile(accRes.account);
-      if (postsRes?.posts) setPosts(postsRes.posts);
+      const loadedAccount = accRes?.account || (postsRes?.posts?.length ? { handle: clean } : null);
+      const loadedPosts = postsRes?.posts || [];
+
+      if (loadedAccount) setProfile(loadedAccount);
+      if (loadedPosts) setPosts(loadedPosts);
+
       if (nicheRes?.nicheData && (!nicheRes.nicheData.handle || nicheRes.nicheData.handle.toLowerCase() === clean)) {
-        if (nicheRes.nicheData.posts_analyzed === 0 && (postsRes?.posts?.length || 0) > 0) {
+        if (nicheRes.nicheData.posts_analyzed === 0 && loadedPosts.length > 0) {
           api.analyzeNiche(clean).then((fresh) => {
             if (fresh?.nicheData) setNicheData(fresh.nicheData);
           }).catch(() => {});
         } else {
           setNicheData(nicheRes.nicheData);
         }
-      } else if ((postsRes?.posts?.length || 0) > 0) {
+      } else if (loadedPosts.length > 0) {
         setNicheData(null);
         api.analyzeNiche(clean).then((fresh) => {
           if (fresh?.nicheData) setNicheData(fresh.nicheData);
@@ -543,7 +557,7 @@ export default function DashboardPage() {
 
     setModalError(null);
     setIsProcessing(true);
-    setProcessLogs([]);
+    setProcessLogs(['Connecting to account...']);
 
     // Normalize handle from URL or username
     let cleanHandle = accountInput.trim();
@@ -554,142 +568,45 @@ export default function DashboardPage() {
       const match = cleanHandle.match(/facebook\.com\/([a-zA-Z0-9_.-]+)/);
       if (match) cleanHandle = match[1];
     }
-    cleanHandle = cleanHandle.replace(/^@/, '').replace(/\/$/, '');
+    cleanHandle = cleanHandle.toLowerCase().replace(/^@/, '').replace(/\/$/, '').trim();
 
-    // Step 1: Check if account already exists in data
+    if (SAMPLE_HANDLES.has(cleanHandle)) {
+      setModalError('This handle cannot be used. Please enter your real creator account.');
+      setIsProcessing(false);
+      return;
+    }
+
     try {
-      const existingAccount = await api.getAccount(cleanHandle).catch(() => null);
-      const existingPosts = await api.getAccountPosts(cleanHandle).catch(() => null);
-
-      if (existingAccount?.account && existingPosts?.posts && existingPosts.posts.length > 0) {
-        // Instant unlock: profile and posts already exist in data!
-        setProfile(existingAccount.account);
-        setPosts(existingPosts.posts);
-        setActiveHandle(cleanHandle);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('ee_active_handle', cleanHandle);
-          if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, cleanHandle);
-          window.dispatchEvent(new CustomEvent('ee:handle_changed', { detail: { handle: cleanHandle, userId: user?.id } }));
-        }
-
-        // Fetch niche and model in background without blocking or showing modal loading
-        setNicheData(null);
-        api.getNiche(cleanHandle).then((res) => {
-          if (res?.nicheData && (!res.nicheData.handle || res.nicheData.handle.toLowerCase() === cleanHandle.toLowerCase())) {
-            setNicheData(res.nicheData);
-          } else {
-            api.analyzeNiche(cleanHandle).then((fresh) => {
-              if (fresh?.nicheData) setNicheData(fresh.nicheData);
-            }).catch(() => {});
-          }
-        }).catch(() => {});
-
-        api.getModels().then((res) => {
-          if (res?.models) {
-            const found = res.models.find(
-              (m: any) =>
-                m.model_type === 'personal' &&
-                (m.account_handle === cleanHandle || m.accounts?.handle === cleanHandle)
-            );
-            if (found) setPersonalModel(found);
-          }
-        }).catch(() => {});
-
-        if (user?.id) {
-          api.saveUserProfile({
-            userId: user.id,
-            handle: cleanHandle,
-          }).catch(() => {});
-        }
-
-        setIsProcessing(false);
-        setShowModal(false);
-        setLoadingDashboard(false);
-        return;
+      // 1. Immediately persist user profile to server session
+      if (user?.id) {
+        await api.saveUserProfile({ userId: user.id, handle: cleanHandle }).catch(() => {});
       }
 
-      // Profile is not yet in data: initiate instant progressive scraping
-      setProcessStep('scraping');
-      setProcessLogs((prev) => [...prev, `Connecting to @${cleanHandle}...`]);
-
-      // Count posts if available, otherwise request scrape
-      await api.startScrape([cleanHandle], 60, true);
-
-      // Active progressive polling: unlock as soon as 3 posts are ready
-      let scrapeUnlocked = false;
-      let attempts = 0;
-      const maxAttempts = 40;
-
-      while (!scrapeUnlocked && attempts < maxAttempts) {
-        attempts++;
-        await new Promise((r) => setTimeout(r, 800));
-
-        try {
-          const [jobsRes, freshAcc, freshPosts] = await Promise.all([
-            api.getJobs({ limit: 5 }).catch(() => null),
-            api.getAccount(cleanHandle).catch(() => null),
-            api.getAccountPosts(cleanHandle).catch(() => null),
-          ]);
-
-          const matchingJob = jobsRes?.jobs?.find(
-            (j: any) => j.normalized_handle === cleanHandle || j.target_input === cleanHandle
-          );
-
-          const detailedCount = matchingJob?.progress_detailed || freshPosts?.posts?.length || 0;
-          if (detailedCount > 0) {
-            setProcessLogs((prev) => {
-              const msg = `Instant capture: ${detailedCount} post(s) detailed...`;
-              return prev[prev.length - 1] === msg ? prev : [...prev, msg];
-            });
-          }
-
-          // INSTANT UNLOCK: Once 3 posts are detailed (or all posts if account has fewer than 3), immediately open dashboard!
-          if (detailedCount >= 3 || (matchingJob?.status === 'done' && detailedCount > 0)) {
-            scrapeUnlocked = true;
-            if (freshAcc?.account) setProfile(freshAcc.account);
-            if (freshPosts?.posts) setPosts(freshPosts.posts);
-            setActiveHandle(cleanHandle);
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('ee_active_handle', cleanHandle);
-              if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, cleanHandle);
-              window.dispatchEvent(new CustomEvent('ee:handle_changed', { detail: { handle: cleanHandle, userId: user?.id } }));
-            }
-            if (user?.id) {
-              api.saveUserProfile({ userId: user.id, handle: cleanHandle }).catch(() => {});
-            }
-
-            // Close modal immediately so user doesn't wait
-            setIsProcessing(false);
-            setShowModal(false);
-            setLoadingDashboard(false);
-            setIsBackgroundScraping(true);
-
-            // NicheIQ and Personal Model calibration will automatically run when full scraping completes
-            api.trainPersonalModel(cleanHandle).then((trainRes) => {
-              if (trainRes?.model) setPersonalModel(trainRes.model);
-            }).catch(() => {});
-
-            return;
-          }
-
-          if (matchingJob?.status === 'failed') {
-            throw new Error(matchingJob.error || matchingJob.failure_reason || 'Scraping could not complete');
-          }
-        } catch (pollErr: any) {
-          console.warn('Progressive poll error:', pollErr);
-        }
+      // 2. Persist to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('ee_active_handle', cleanHandle);
+        if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, cleanHandle);
       }
 
-      // If loop finishes without error, unlock dashboard
+      // 3. Immediately update ref to break any duplicate event triggers
+      activeHandleRef.current = cleanHandle;
+
+      // 4. Load the dashboard for the selected creator
+      await loadCreatorDashboard(cleanHandle, true);
+
+      // 5. Broadcast to other open tabs and components
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('ee:handle_changed', { detail: { handle: cleanHandle, userId: user?.id } }));
+      }
+
       setIsProcessing(false);
       setShowModal(false);
+      setAccountInput('');
       setLoadingDashboard(false);
-      loadCreatorDashboard(cleanHandle, true);
     } catch (err: any) {
-      console.error(err);
-      setModalError(err.message || 'Error occurred during connection');
+      console.error('Account onboarding error:', err);
+      setModalError(err.message || 'Error occurred while connecting account');
       setIsProcessing(false);
-      setProcessStep('idle');
     }
   };
 
@@ -909,7 +826,12 @@ export default function DashboardPage() {
                   </a>
                 )}
                 <button
-                  onClick={() => setShowModal(true)}
+                  onClick={() => {
+                    setAccountInput('');
+                    setModalError(null);
+                    setIsProcessing(false);
+                    setShowModal(true);
+                  }}
                   className="text-xs font-medium px-3 py-1.5 border border-black text-black bg-white hover:bg-black hover:text-white transition rounded"
                 >
                   Switch Account

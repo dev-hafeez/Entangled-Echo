@@ -217,14 +217,10 @@ export default function RecommendationsPage() {
 
     window.addEventListener('ee:handle_changed', handleCustomEvent);
     window.addEventListener('storage', syncActiveHandle);
-    window.addEventListener('focus', syncActiveHandle);
-    document.addEventListener('visibilitychange', syncActiveHandle);
 
     return () => {
       window.removeEventListener('ee:handle_changed', handleCustomEvent);
       window.removeEventListener('storage', syncActiveHandle);
-      window.removeEventListener('focus', syncActiveHandle);
-      document.removeEventListener('visibilitychange', syncActiveHandle);
     };
   }, [isLoaded, user?.id]);
 
