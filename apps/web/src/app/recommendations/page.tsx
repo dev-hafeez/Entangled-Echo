@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
@@ -57,45 +57,110 @@ export default function RecommendationsPage() {
   const [feedbackMap, setFeedbackMap] = useState<Record<string, 'accepted' | 'rejected'>>({});
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
+  const currentHandleRef = useRef<string>('');
+  const currentUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    currentHandleRef.current = handle;
+  }, [handle]);
+
   // Initialize handle dynamically based on authenticated user session or active handle
   useEffect(() => {
-    let resolved = '';
-    if (typeof window !== 'undefined') {
-      resolved = localStorage.getItem('ee_active_handle') || '';
-    }
+    if (!isLoaded) return;
 
-    if (isLoaded && user) {
-      api.getUserProfile(user.id).then((userProfile) => {
-        if (userProfile?.profile?.handle) {
-          const userHandle = userProfile.profile.handle;
-          setHandle(userHandle);
-          setCustomHandleInput(userHandle);
-          fetchRecommendations(userHandle);
-        } else {
-          const stored = localStorage.getItem(`ee_handle_${user.id}`) || resolved;
-          if (stored) {
-            setHandle(stored);
-            setCustomHandleInput(stored);
-            fetchRecommendations(stored);
-          } else {
-            setLoading(false);
+    const resolveAndLoad = async () => {
+      const isUserSwitch = user?.id !== currentUserIdRef.current;
+      currentUserIdRef.current = user?.id || null;
+
+      let targetHandle = '';
+      if (typeof window !== 'undefined') {
+        if (user?.id) {
+          targetHandle = localStorage.getItem(`ee_handle_${user.id}`) || '';
+        }
+        if (!targetHandle && !isUserSwitch) {
+          targetHandle = localStorage.getItem('ee_active_handle') || '';
+        }
+      }
+
+      if (user?.id) {
+        try {
+          const userProfile = await api.getUserProfile(user.id);
+          const serverHandle = userProfile?.profile?.handle;
+          if (serverHandle) {
+            if (!targetHandle || isUserSwitch) {
+              targetHandle = serverHandle;
+            } else if (targetHandle && targetHandle.toLowerCase() !== serverHandle.toLowerCase()) {
+              api.saveUserProfile({ userId: user.id, handle: targetHandle }).catch(() => {});
+            }
+          } else if (targetHandle) {
+            api.saveUserProfile({ userId: user.id, handle: targetHandle }).catch(() => {});
           }
+        } catch {
+          // Keep targetHandle if available
         }
-      }).catch(() => {
-        if (resolved) {
-          setHandle(resolved);
-          setCustomHandleInput(resolved);
-          fetchRecommendations(resolved);
-        } else {
-          setLoading(false);
+      }
+
+      if (targetHandle) {
+        const clean = targetHandle.trim().toLowerCase().replace(/^@/, '');
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('ee_active_handle', clean);
+          if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, clean);
         }
-      });
-    } else if (resolved) {
-      setHandle(resolved);
-      setCustomHandleInput(resolved);
-      fetchRecommendations(resolved);
-    }
-  }, [isLoaded, user]);
+        setHandle(clean);
+        setCustomHandleInput(clean);
+        setRecsData(null);
+        fetchRecommendations(clean);
+      } else {
+        setHandle('');
+        setCustomHandleInput('');
+        setRecsData(null);
+        setLoading(false);
+      }
+    };
+
+    resolveAndLoad();
+
+    // Event listeners for real-time synchronization across views/tabs
+    const syncActiveHandle = () => {
+      if (typeof window === 'undefined') return;
+      const active = (user?.id ? localStorage.getItem(`ee_handle_${user.id}`) : null) ||
+                     localStorage.getItem('ee_active_handle') || '';
+      const clean = active.trim().toLowerCase().replace(/^@/, '');
+      if (clean && clean !== currentHandleRef.current.toLowerCase()) {
+        setHandle(clean);
+        setCustomHandleInput(clean);
+        setRecsData(null);
+        fetchRecommendations(clean);
+      }
+    };
+
+    const handleCustomEvent = (e: any) => {
+      const incoming = e?.detail?.handle;
+      if (incoming) {
+        const clean = incoming.trim().toLowerCase().replace(/^@/, '');
+        if (clean && clean !== currentHandleRef.current.toLowerCase()) {
+          setHandle(clean);
+          setCustomHandleInput(clean);
+          setRecsData(null);
+          fetchRecommendations(clean);
+        }
+      } else {
+        syncActiveHandle();
+      }
+    };
+
+    window.addEventListener('ee:handle_changed', handleCustomEvent);
+    window.addEventListener('storage', syncActiveHandle);
+    window.addEventListener('focus', syncActiveHandle);
+    document.addEventListener('visibilitychange', syncActiveHandle);
+
+    return () => {
+      window.removeEventListener('ee:handle_changed', handleCustomEvent);
+      window.removeEventListener('storage', syncActiveHandle);
+      window.removeEventListener('focus', syncActiveHandle);
+      document.removeEventListener('visibilitychange', syncActiveHandle);
+    };
+  }, [isLoaded, user?.id]);
 
   const fetchRecommendations = async (targetHandle: string, forceRefresh: boolean = false) => {
     const clean = targetHandle.trim().toLowerCase().replace(/^@/, '');
@@ -109,7 +174,7 @@ export default function RecommendationsPage() {
         setRecsData(data);
       } else {
         setRecsData(null);
-        setErrorMessage('No recommendation data returned for this creator.');
+        setErrorMessage(`No recommendation data returned for @${clean}.`);
       }
     } catch (err: any) {
       console.error('Failed to load recommendations:', err);
@@ -121,16 +186,27 @@ export default function RecommendationsPage() {
   };
 
   const handleSelectHandle = (newHandle: string) => {
-    setHandle(newHandle);
-    setCustomHandleInput(newHandle);
+    const clean = newHandle.trim().toLowerCase().replace(/^@/, '');
+    if (!clean) return;
+
+    setHandle(clean);
+    setCustomHandleInput(clean);
     setIsEditingHandle(false);
+    setRecsData(null);
+
     if (typeof window !== 'undefined') {
-      localStorage.setItem('ee_active_handle', newHandle);
+      localStorage.setItem('ee_active_handle', clean);
       if (user?.id) {
-        localStorage.setItem(`ee_handle_${user.id}`, newHandle);
+        localStorage.setItem(`ee_handle_${user.id}`, clean);
       }
+      window.dispatchEvent(new CustomEvent('ee:handle_changed', { detail: { handle: clean, userId: user?.id } }));
     }
-    fetchRecommendations(newHandle);
+
+    if (user?.id) {
+      api.saveUserProfile({ userId: user.id, handle: clean }).catch(() => {});
+    }
+
+    fetchRecommendations(clean, true);
   };
 
   const handleCustomHandleSubmit = (e: React.FormEvent) => {
@@ -950,20 +1026,43 @@ export default function RecommendationsPage() {
           )}
         </>
       ) : (
-        <div className="py-16 text-center space-y-3 border border-neutral-200 rounded-lg bg-white p-8">
-          <p className="text-sm font-semibold text-neutral-800">
-            No recommendations loaded for @{handle}
-          </p>
-          <p className="text-xs text-neutral-500 max-w-md mx-auto">
-            Click below or enter your Instagram handle above to generate live content blueprints.
-          </p>
-          {handle && (
+        <div className="py-16 text-center space-y-4 border border-neutral-200 rounded-lg bg-white p-8 max-w-xl mx-auto">
+          <div className="w-12 h-12 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center mx-auto text-neutral-600">
+            <User className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-neutral-900">
+              {handle ? `No recommendations loaded for @${handle}` : 'No Creator Account Selected'}
+            </h3>
+            <p className="text-xs text-neutral-500 mt-1 max-w-sm mx-auto">
+              {handle
+                ? 'Click below to generate live content blueprints based on real-time Google search trends and verified niche.'
+                : 'Enter an Instagram handle to generate AI content recommendations tailored to your niche and audience.'}
+            </p>
+          </div>
+          {handle ? (
             <button
               onClick={() => fetchRecommendations(handle, true)}
               className="px-4 py-2 border border-black bg-white text-black hover:bg-black hover:text-white rounded text-xs font-semibold transition"
             >
               Generate Recommendations for @{handle}
             </button>
+          ) : (
+            <form onSubmit={handleCustomHandleSubmit} className="flex items-center justify-center gap-2 max-w-xs mx-auto">
+              <input
+                type="text"
+                value={customHandleInput}
+                onChange={(e) => setCustomHandleInput(e.target.value)}
+                placeholder="e.g. creator_handle"
+                className="px-3 py-1.5 text-xs rounded border border-neutral-300 focus:outline-none focus:border-black text-neutral-900 flex-1"
+              />
+              <button
+                type="submit"
+                className="px-4 py-1.5 text-xs font-semibold bg-black text-white rounded hover:bg-neutral-800 transition"
+              >
+                Analyze
+              </button>
+            </form>
           )}
         </div>
       )}

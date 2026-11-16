@@ -30,25 +30,44 @@ export default function SettingsPage() {
     const savedStatus = localStorage.getItem('ee_default_post_status') as 'DRAFT' | 'SCHEDULED' | null;
     if (savedStatus) setDefaultPostStatus(savedStatus);
 
-    const activeHandle =
-      localStorage.getItem('ee_active_handle') ||
-      (user?.id ? localStorage.getItem(`ee_handle_${user.id}`) : null) ||
-      '';
+    const updateAccounts = (handleOverride?: string) => {
+      const activeHandle =
+        handleOverride ||
+        localStorage.getItem('ee_active_handle') ||
+        (user?.id ? localStorage.getItem(`ee_handle_${user.id}`) : null) ||
+        '';
 
-    setConnectedAccounts([
-      {
-        platform: 'Instagram Business',
-        handle: activeHandle ? `@${activeHandle}` : 'No account linked',
-        status: activeHandle ? 'connected' : 'not_connected',
-        mode: activeHandle ? 'Active Connected Social Profile' : 'Link via Dashboard to ingest posts',
-      },
-      {
-        platform: 'Facebook Page',
-        handle: 'Not Connected',
-        status: 'not_connected',
-        mode: 'Link a Facebook Page via Meta Graph API for cross-posting',
-      },
-    ]);
+      setConnectedAccounts([
+        {
+          platform: 'Instagram Business',
+          handle: activeHandle ? `@${activeHandle}` : 'No account linked',
+          status: activeHandle ? 'connected' : 'not_connected',
+          mode: activeHandle ? 'Active Connected Social Profile' : 'Link via Dashboard to ingest posts',
+        },
+        {
+          platform: 'Facebook Page',
+          handle: 'Not Connected',
+          status: 'not_connected',
+          mode: 'Link a Facebook Page via Meta Graph API for cross-posting',
+        },
+      ]);
+    };
+
+    updateAccounts();
+
+    const handleSync = (e: any) => {
+      const incoming = e?.detail?.handle;
+      if (incoming) {
+        updateAccounts(incoming.toLowerCase().replace(/^@/, '').trim());
+      } else {
+        updateAccounts();
+      }
+    };
+
+    window.addEventListener('ee:handle_changed', handleSync);
+    return () => {
+      window.removeEventListener('ee:handle_changed', handleSync);
+    };
   }, [user]);
 
   const handleSaveSettings = (e: React.FormEvent) => {

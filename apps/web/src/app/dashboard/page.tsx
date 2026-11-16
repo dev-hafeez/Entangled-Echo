@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
@@ -206,38 +206,61 @@ export default function DashboardPage() {
     return () => clearInterval(intervalId);
   }, [activeHandle, isBackgroundScraping]);
 
+  const activeHandleRef = useRef<string>('');
+  useEffect(() => {
+    activeHandleRef.current = activeHandle;
+  }, [activeHandle]);
+
+  useEffect(() => {
+    const handleSync = (e: any) => {
+      const incoming = e?.detail?.handle;
+      const clean = incoming ? incoming.toLowerCase().replace(/^@/, '').trim() : '';
+      if (clean && clean !== activeHandleRef.current.toLowerCase()) {
+        loadCreatorDashboard(clean, true);
+      }
+    };
+
+    window.addEventListener('ee:handle_changed', handleSync);
+    return () => {
+      window.removeEventListener('ee:handle_changed', handleSync);
+    };
+  }, []);
+
   // Check if user has an associated handle in database or localStorage
   useEffect(() => {
     if (!isLoaded || !user) return;
 
     const resolveUserSession = async () => {
-      // 1. Try server-side linked user profile
+      const localUserHandle = typeof window !== 'undefined' ? localStorage.getItem(`ee_handle_${user.id}`) : null;
       const serverProfile = await api.getUserProfile(user.id).catch(() => null);
-      if (serverProfile?.profile?.handle) {
-        const h = serverProfile.profile.handle;
-        setActiveHandle(h);
+      const serverHandle = serverProfile?.profile?.handle;
+
+      const effectiveHandle =
+        localUserHandle ||
+        serverHandle ||
+        (typeof window !== 'undefined' ? localStorage.getItem('ee_active_handle') : null);
+
+      if (effectiveHandle) {
+        const clean = effectiveHandle.toLowerCase().replace(/^@/, '').trim();
+        setActiveHandle(clean);
         if (
-          serverProfile.profile.nicheData &&
-          serverProfile.profile.nicheData.handle?.toLowerCase() === h.toLowerCase()
+          serverProfile?.profile?.nicheData &&
+          serverProfile.profile.nicheData.handle?.toLowerCase() === clean
         ) {
           setNicheData(serverProfile.profile.nicheData);
         } else {
           setNicheData(null);
         }
-        loadCreatorDashboard(h);
+        loadCreatorDashboard(clean);
+        if (clean !== serverHandle) {
+          api.saveUserProfile({ userId: user.id, handle: clean }).catch(() => {});
+        }
         return;
       }
 
-      // 2. Fallback to localStorage
-      const storedHandle = localStorage.getItem(`ee_handle_${user.id}`);
-      if (storedHandle) {
-        setActiveHandle(storedHandle);
-        loadCreatorDashboard(storedHandle);
-      } else {
-        // Prompt popup for link/username
-        setShowModal(true);
-        setLoadingDashboard(false);
-      }
+      // Prompt popup for link/username
+      setShowModal(true);
+      setLoadingDashboard(false);
     };
 
     resolveUserSession();
@@ -250,6 +273,10 @@ export default function DashboardPage() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('ee_active_handle', clean);
       if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, clean);
+      window.dispatchEvent(new CustomEvent('ee:handle_changed', { detail: { handle: clean, userId: user?.id } }));
+    }
+    if (user?.id) {
+      api.saveUserProfile({ userId: user.id, handle: clean }).catch(() => {});
     }
     setActiveHandle(clean);
 
@@ -374,7 +401,14 @@ export default function DashboardPage() {
       setProcessLogs((prev) => [...prev, `Ingested ${res.postsCount} posts for @${res.handle}`, 'Profile successfully verified!']);
       setActiveHandle(res.handle);
       setProfile(res.profile);
-      if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, res.handle);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('ee_active_handle', res.handle);
+        if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, res.handle);
+        window.dispatchEvent(new CustomEvent('ee:handle_changed', { detail: { handle: res.handle, userId: user?.id } }));
+      }
+      if (user?.id) {
+        api.saveUserProfile({ userId: user.id, handle: res.handle }).catch(() => {});
+      }
 
       const freshPosts = await api.getAccountPosts(res.handle).catch(() => null);
       if (freshPosts?.posts) setPosts(freshPosts.posts);
@@ -429,6 +463,7 @@ export default function DashboardPage() {
         if (typeof window !== 'undefined') {
           localStorage.setItem('ee_active_handle', cleanHandle);
           if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, cleanHandle);
+          window.dispatchEvent(new CustomEvent('ee:handle_changed', { detail: { handle: cleanHandle, userId: user?.id } }));
         }
 
         // Fetch niche and model in background without blocking or showing modal loading
@@ -508,7 +543,14 @@ export default function DashboardPage() {
             if (freshAcc?.account) setProfile(freshAcc.account);
             if (freshPosts?.posts) setPosts(freshPosts.posts);
             setActiveHandle(cleanHandle);
-            if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, cleanHandle);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('ee_active_handle', cleanHandle);
+              if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, cleanHandle);
+              window.dispatchEvent(new CustomEvent('ee:handle_changed', { detail: { handle: cleanHandle, userId: user?.id } }));
+            }
+            if (user?.id) {
+              api.saveUserProfile({ userId: user.id, handle: cleanHandle }).catch(() => {});
+            }
 
             // Close modal immediately so user doesn't wait
             setIsProcessing(false);

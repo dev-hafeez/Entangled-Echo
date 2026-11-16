@@ -88,10 +88,11 @@ export default function CalendarPage() {
   // Load account handle and pre-filled draft from local storage
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(`ee_handle_${userId}`);
+      const stored = localStorage.getItem(`ee_handle_${userId}`) || localStorage.getItem('ee_active_handle');
       if (stored) {
-        setActiveHandle(stored);
-        setFormHandle(stored);
+        const clean = stored.toLowerCase().replace(/^@/, '').trim();
+        setActiveHandle(clean);
+        setFormHandle(clean);
       } else {
         setActiveHandle('creator');
         setFormHandle('creator');
@@ -103,8 +104,9 @@ export default function CalendarPage() {
         try {
           const pending = JSON.parse(pendingStr);
           if (pending.handle) {
-            setActiveHandle(pending.handle);
-            setFormHandle(pending.handle);
+            const cleanPending = pending.handle.toLowerCase().replace(/^@/, '').trim();
+            setActiveHandle(cleanPending);
+            setFormHandle(cleanPending);
           }
           if (pending.caption) setFormCaption(pending.caption);
           if (Array.isArray(pending.hashtags)) setFormHashtags(pending.hashtags.join(' '));
@@ -125,6 +127,20 @@ export default function CalendarPage() {
           localStorage.removeItem('ee_pending_schedule');
         }
       }
+
+      const handleSync = (e: any) => {
+        const incoming = e?.detail?.handle;
+        const clean = incoming ? incoming.toLowerCase().replace(/^@/, '').trim() : '';
+        if (clean) {
+          setActiveHandle(clean);
+          setFormHandle(clean);
+        }
+      };
+
+      window.addEventListener('ee:handle_changed', handleSync);
+      return () => {
+        window.removeEventListener('ee:handle_changed', handleSync);
+      };
     }
   }, [userId]);
 
