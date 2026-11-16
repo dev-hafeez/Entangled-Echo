@@ -2,20 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useUser, SignOutButton } from '@clerk/nextjs';
-import { api } from '@/lib/api';
-
-const SAMPLE_HANDLES = new Set([
-  'kaleem._.abbasi830',
-  'tahirabbas_ca',
-  'tahir_abbas',
-  'nightcreeper24',
-  'cristiano',
-  'leomessi',
-  '100xengineers',
-  'abdevilliers17',
-  'abdulelsayed',
-  'adidas',
-]);
 
 export default function SettingsPage() {
   const { user } = useUser();
@@ -44,65 +30,26 @@ export default function SettingsPage() {
     const savedStatus = localStorage.getItem('ee_default_post_status') as 'DRAFT' | 'SCHEDULED' | null;
     if (savedStatus) setDefaultPostStatus(savedStatus);
 
-    const updateAccounts = (handleOverride?: string) => {
-      let activeHandle =
-        handleOverride !== undefined
-          ? handleOverride
-          : localStorage.getItem('ee_active_handle') ||
-            (user?.id ? localStorage.getItem(`ee_handle_${user.id}`) : null) ||
-            '';
+    const activeHandle =
+      localStorage.getItem('ee_active_handle') ||
+      (user?.id ? localStorage.getItem(`ee_handle_${user.id}`) : null) ||
+      '';
 
-      if (SAMPLE_HANDLES.has(activeHandle.toLowerCase().replace(/^@/, ''))) {
-        localStorage.removeItem('ee_active_handle');
-        if (user?.id) localStorage.removeItem(`ee_handle_${user.id}`);
-        api.disconnectUserProfile().catch(() => {});
-        activeHandle = '';
-      }
-
-      setConnectedAccounts([
-        {
-          platform: 'Instagram Business',
-          handle: activeHandle ? `@${activeHandle}` : 'No account linked',
-          status: activeHandle ? 'connected' : 'not_connected',
-          mode: activeHandle ? 'Active Connected Social Profile' : 'Link via Dashboard to ingest posts',
-        },
-        {
-          platform: 'Facebook Page',
-          handle: 'Not Connected',
-          status: 'not_connected',
-          mode: 'Link a Facebook Page via Meta Graph API for cross-posting',
-        },
-      ]);
-    };
-
-    updateAccounts();
-
-    const handleSync = (e: any) => {
-      const incoming = e?.detail?.handle;
-      if (incoming !== undefined) {
-        updateAccounts(incoming.toLowerCase().replace(/^@/, '').trim());
-      } else {
-        updateAccounts();
-      }
-    };
-
-    window.addEventListener('ee:handle_changed', handleSync);
-    return () => {
-      window.removeEventListener('ee:handle_changed', handleSync);
-    };
+    setConnectedAccounts([
+      {
+        platform: 'Instagram Business',
+        handle: activeHandle ? `@${activeHandle}` : 'No account linked',
+        status: activeHandle ? 'connected' : 'not_connected',
+        mode: activeHandle ? 'Active Connected Social Profile' : 'Link via Dashboard to ingest posts',
+      },
+      {
+        platform: 'Facebook Page',
+        handle: 'Not Connected',
+        status: 'not_connected',
+        mode: 'Link a Facebook Page via Meta Graph API for cross-posting',
+      },
+    ]);
   }, [user]);
-
-  const handleDisconnect = async () => {
-    if (!confirm('Are you sure you want to disconnect your Instagram account?')) return;
-    try {
-      await api.disconnectUserProfile().catch(() => {});
-    } catch {}
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('ee_active_handle');
-      if (user?.id) localStorage.removeItem(`ee_handle_${user.id}`);
-      window.dispatchEvent(new CustomEvent('ee:handle_changed', { detail: { handle: '', userId: user?.id } }));
-    }
-  };
 
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,18 +178,9 @@ export default function SettingsPage() {
               </div>
               <div>
                 {acc.status === 'connected' ? (
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono text-neutral-900 bg-neutral-100 border border-neutral-300">
-                      Active • Connected
-                    </span>
-                    <button
-                      onClick={handleDisconnect}
-                      className="text-[11px] font-mono text-neutral-500 hover:text-black underline"
-                      title="Disconnect and remove this creator account"
-                    >
-                      Disconnect
-                    </button>
-                  </div>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono text-neutral-900 bg-neutral-100 border border-neutral-300">
+                    Active • Connected
+                  </span>
                 ) : (
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono text-neutral-500 bg-neutral-50 border border-neutral-200">
                     Not Connected

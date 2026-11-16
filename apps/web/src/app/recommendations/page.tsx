@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
@@ -34,19 +34,6 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
-const SAMPLE_HANDLES = new Set([
-  'kaleem._.abbasi830',
-  'tahirabbas_ca',
-  'tahir_abbas',
-  'nightcreeper24',
-  'cristiano',
-  'leomessi',
-  '100xengineers',
-  'abdevilliers17',
-  'abdulelsayed',
-  'adidas',
-]);
-
 export default function RecommendationsPage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
@@ -70,163 +57,83 @@ export default function RecommendationsPage() {
   const [feedbackMap, setFeedbackMap] = useState<Record<string, 'accepted' | 'rejected'>>({});
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
-  const currentHandleRef = useRef<string>('');
-  const currentUserIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    currentHandleRef.current = handle;
-  }, [handle]);
-
   // Initialize handle dynamically based on authenticated user session or active handle
   useEffect(() => {
-    if (!isLoaded) return;
+    let resolved = '';
+    if (typeof window !== 'undefined') {
+      resolved = localStorage.getItem('ee_active_handle') || '';
+    }
 
-    const resolveAndLoad = async () => {
-      const isUserSwitch = user?.id !== currentUserIdRef.current;
-      currentUserIdRef.current = user?.id || null;
+    // Prioritize active creator handle if user switched account in session
+    if (resolved) {
+      const clean = resolved.toLowerCase().replace(/^@/, '');
+      setHandle(clean);
+      setCustomHandleInput(clean);
+      fetchRecommendations(clean);
+      return;
+    }
 
-      let targetHandle = '';
-      if (typeof window !== 'undefined') {
-        if (user?.id) {
-          targetHandle = localStorage.getItem(`ee_handle_${user.id}`) || '';
-        }
-        if (!targetHandle && !isUserSwitch) {
-          targetHandle = localStorage.getItem('ee_active_handle') || '';
-        }
-      }
-
-      if (user?.id) {
-        try {
-          const userProfile = await api.getUserProfile(user.id);
-          const serverHandle = userProfile?.profile?.handle;
-          if (serverHandle) {
-            if (!targetHandle || isUserSwitch) {
-              targetHandle = serverHandle;
-            } else if (targetHandle && targetHandle.toLowerCase() !== serverHandle.toLowerCase()) {
-              api.saveUserProfile({ userId: user.id, handle: targetHandle }).catch(() => {});
-            }
-          } else if (targetHandle) {
-            api.saveUserProfile({ userId: user.id, handle: targetHandle }).catch(() => {});
-          }
-        } catch {
-          // Keep targetHandle if available
-        }
-      }
-
-      if (targetHandle) {
-        const clean = targetHandle.trim().toLowerCase().replace(/^@/, '');
-
-        // Purge legacy sample accounts if stored
-        if (SAMPLE_HANDLES.has(clean)) {
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('ee_active_handle');
-            if (user?.id) localStorage.removeItem(`ee_handle_${user.id}`);
-          }
-          api.disconnectUserProfile().catch(() => {});
-          setHandle('');
-          setCustomHandleInput('');
-          setRecsData(null);
-          setLoading(false);
-          return;
-        }
-
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('ee_active_handle', clean);
-          if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, clean);
-        }
+    if (isLoaded && user) {
+      const stored = localStorage.getItem(`ee_handle_${user.id}`);
+      if (stored) {
+        const clean = stored.toLowerCase().replace(/^@/, '');
         setHandle(clean);
         setCustomHandleInput(clean);
-        setRecsData(null);
         fetchRecommendations(clean);
-      } else {
-        setHandle('');
-        setCustomHandleInput('');
-        setRecsData(null);
-        setLoading(false);
-      }
-    };
-
-    resolveAndLoad();
-
-    // Event listeners for real-time synchronization across views/tabs
-    const syncActiveHandle = () => {
-      if (typeof window === 'undefined') return;
-      const active = (user?.id ? localStorage.getItem(`ee_handle_${user.id}`) : null) ||
-                     localStorage.getItem('ee_active_handle') || '';
-      const clean = active.trim().toLowerCase().replace(/^@/, '');
-      if (clean && SAMPLE_HANDLES.has(clean)) {
-        localStorage.removeItem('ee_active_handle');
-        if (user?.id) localStorage.removeItem(`ee_handle_${user.id}`);
-        currentHandleRef.current = '';
-        setHandle('');
-        setCustomHandleInput('');
-        setRecsData(null);
-        setLoading(false);
         return;
       }
-      if (!clean) {
-        if (currentHandleRef.current) {
-          currentHandleRef.current = '';
-          setHandle('');
-          setCustomHandleInput('');
-          setRecsData(null);
+
+      api.getUserProfile(user.id).then((userProfile) => {
+        if (userProfile?.profile?.handle) {
+          const userHandle = userProfile.profile.handle.toLowerCase().replace(/^@/, '');
+          setHandle(userHandle);
+          setCustomHandleInput(userHandle);
+          fetchRecommendations(userHandle);
+        } else {
           setLoading(false);
         }
-        return;
-      }
-      if (clean !== currentHandleRef.current.toLowerCase()) {
-        currentHandleRef.current = clean;
-        setHandle(clean);
-        setCustomHandleInput(clean);
-        setRecsData(null);
-        fetchRecommendations(clean);
+      }).catch(() => {
+        setLoading(false);
+      });
+    } else if (!resolved) {
+      setLoading(false);
+    }
+  }, [isLoaded, user]);
+
+  // Listen to cross-tab or dashboard creator account changes in real time
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'ee_active_handle' && e.newValue) {
+        const next = e.newValue.toLowerCase().replace(/^@/, '');
+        if (next && next !== handle) {
+          setHandle(next);
+          setCustomHandleInput(next);
+          fetchRecommendations(next);
+        }
       }
     };
 
-    const handleCustomEvent = (e: any) => {
-      const incoming = e?.detail?.handle;
-      if (incoming !== undefined) {
-        const clean = incoming ? incoming.trim().toLowerCase().replace(/^@/, '') : '';
-        if (clean && SAMPLE_HANDLES.has(clean)) {
-          currentHandleRef.current = '';
-          setHandle('');
-          setCustomHandleInput('');
-          setRecsData(null);
-          setLoading(false);
-          return;
-        }
-        if (!clean) {
-          currentHandleRef.current = '';
-          setHandle('');
-          setCustomHandleInput('');
-          setRecsData(null);
-          setLoading(false);
-          return;
-        }
-        if (clean !== currentHandleRef.current.toLowerCase()) {
-          currentHandleRef.current = clean;
-          setHandle(clean);
-          setCustomHandleInput(clean);
-          setRecsData(null);
-          fetchRecommendations(clean);
-        }
-      } else {
-        syncActiveHandle();
+    const handleCustomChange = (e: any) => {
+      const next = e.detail?.handle?.toLowerCase()?.replace(/^@/, '');
+      if (next && next !== handle) {
+        setHandle(next);
+        setCustomHandleInput(next);
+        fetchRecommendations(next);
       }
     };
 
-    window.addEventListener('ee:handle_changed', handleCustomEvent);
-    window.addEventListener('storage', syncActiveHandle);
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('ee_handle_change', handleCustomChange);
 
     return () => {
-      window.removeEventListener('ee:handle_changed', handleCustomEvent);
-      window.removeEventListener('storage', syncActiveHandle);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('ee_handle_change', handleCustomChange);
     };
-  }, [isLoaded, user?.id]);
+  }, [handle]);
 
   const fetchRecommendations = async (targetHandle: string, forceRefresh: boolean = false) => {
     const clean = targetHandle.trim().toLowerCase().replace(/^@/, '');
-    if (!clean || SAMPLE_HANDLES.has(clean)) return;
+    if (!clean) return;
 
     setLoading(true);
     setErrorMessage(null);
@@ -236,7 +143,7 @@ export default function RecommendationsPage() {
         setRecsData(data);
       } else {
         setRecsData(null);
-        setErrorMessage(`No recommendation data returned for @${clean}.`);
+        setErrorMessage('No recommendation data returned for this creator.');
       }
     } catch (err: any) {
       console.error('Failed to load recommendations:', err);
@@ -254,21 +161,14 @@ export default function RecommendationsPage() {
     setHandle(clean);
     setCustomHandleInput(clean);
     setIsEditingHandle(false);
-    setRecsData(null);
-
     if (typeof window !== 'undefined') {
       localStorage.setItem('ee_active_handle', clean);
       if (user?.id) {
         localStorage.setItem(`ee_handle_${user.id}`, clean);
       }
-      window.dispatchEvent(new CustomEvent('ee:handle_changed', { detail: { handle: clean, userId: user?.id } }));
+      window.dispatchEvent(new CustomEvent('ee_handle_change', { detail: { handle: clean } }));
     }
-
-    if (user?.id) {
-      api.saveUserProfile({ userId: user.id, handle: clean }).catch(() => {});
-    }
-
-    fetchRecommendations(clean, true);
+    fetchRecommendations(clean);
   };
 
   const handleCustomHandleSubmit = (e: React.FormEvent) => {
@@ -464,7 +364,7 @@ export default function RecommendationsPage() {
           ) : (
             <div className="flex items-center gap-2 bg-neutral-50 border border-neutral-200 px-3 py-1.5 rounded-md text-xs text-neutral-800">
               <User className="w-3.5 h-3.5 text-neutral-400" />
-              <span className="font-mono font-medium">{handle ? `@${handle}` : 'No account linked'}</span>
+              <span className="font-mono font-medium">@{handle || 'creator'}</span>
               <button
                 onClick={() => setIsEditingHandle(true)}
                 className="text-[11px] text-neutral-600 hover:text-black underline font-medium ml-1"
@@ -1088,43 +988,20 @@ export default function RecommendationsPage() {
           )}
         </>
       ) : (
-        <div className="py-16 text-center space-y-4 border border-neutral-200 rounded-lg bg-white p-8 max-w-xl mx-auto">
-          <div className="w-12 h-12 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center mx-auto text-neutral-600">
-            <User className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="text-base font-semibold text-neutral-900">
-              {handle ? `No recommendations loaded for @${handle}` : 'No Creator Account Selected'}
-            </h3>
-            <p className="text-xs text-neutral-500 mt-1 max-w-sm mx-auto">
-              {handle
-                ? 'Click below to generate live content blueprints based on real-time Google search trends and verified niche.'
-                : 'Enter an Instagram handle to generate AI content recommendations tailored to your niche and audience.'}
-            </p>
-          </div>
-          {handle ? (
+        <div className="py-16 text-center space-y-3 border border-neutral-200 rounded-lg bg-white p-8">
+          <p className="text-sm font-semibold text-neutral-800">
+            No recommendations loaded for @{handle}
+          </p>
+          <p className="text-xs text-neutral-500 max-w-md mx-auto">
+            Click below or enter your Instagram handle above to generate live content blueprints.
+          </p>
+          {handle && (
             <button
               onClick={() => fetchRecommendations(handle, true)}
               className="px-4 py-2 border border-black bg-white text-black hover:bg-black hover:text-white rounded text-xs font-semibold transition"
             >
               Generate Recommendations for @{handle}
             </button>
-          ) : (
-            <form onSubmit={handleCustomHandleSubmit} className="flex items-center justify-center gap-2 max-w-xs mx-auto">
-              <input
-                type="text"
-                value={customHandleInput}
-                onChange={(e) => setCustomHandleInput(e.target.value)}
-                placeholder="e.g. your_instagram_handle"
-                className="px-3 py-1.5 text-xs rounded border border-neutral-300 focus:outline-none focus:border-black text-neutral-900 flex-1"
-              />
-              <button
-                type="submit"
-                className="px-4 py-1.5 text-xs font-semibold bg-black text-white rounded hover:bg-neutral-800 transition"
-              >
-                Analyze
-              </button>
-            </form>
           )}
         </div>
       )}

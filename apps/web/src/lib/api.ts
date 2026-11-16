@@ -181,9 +181,6 @@ export const api = {
   getUserProfile: (userId: string) =>
     fetchFromApi(`/api/onboarding/user-profile/${encodeURIComponent(userId)}`),
 
-  disconnectUserProfile: () =>
-    fetchFromApi('/api/onboarding/user-profile', { method: 'DELETE' }),
-
   // Session & Deep Scraping
   getSessionStatus: () =>
     fetchFromApi('/api/session/status'),

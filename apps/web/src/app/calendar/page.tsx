@@ -53,24 +53,11 @@ interface RecommendedSlot {
   rationale: string;
 }
 
-const SAMPLE_HANDLES = new Set([
-  'kaleem._.abbasi830',
-  'tahirabbas_ca',
-  'tahir_abbas',
-  'nightcreeper24',
-  'cristiano',
-  'leomessi',
-  '100xengineers',
-  'abdevilliers17',
-  'abdulelsayed',
-  'adidas',
-]);
-
 export default function CalendarPage() {
   const { user, isLoaded } = useUser();
   const userId = user?.id || 'default_user';
 
-  const [activeHandle, setActiveHandle] = useState<string>('');
+  const [activeHandle, setActiveHandle] = useState<string>('creator');
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
@@ -101,21 +88,13 @@ export default function CalendarPage() {
   // Load account handle and pre-filled draft from local storage
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(`ee_handle_${userId}`) || localStorage.getItem('ee_active_handle');
+      const stored = localStorage.getItem(`ee_handle_${userId}`);
       if (stored) {
-        const clean = stored.toLowerCase().replace(/^@/, '').trim();
-        if (SAMPLE_HANDLES.has(clean)) {
-          localStorage.removeItem('ee_active_handle');
-          localStorage.removeItem(`ee_handle_${userId}`);
-          setActiveHandle('');
-          setFormHandle('');
-        } else {
-          setActiveHandle(clean);
-          setFormHandle(clean);
-        }
+        setActiveHandle(stored);
+        setFormHandle(stored);
       } else {
-        setActiveHandle('');
-        setFormHandle('');
+        setActiveHandle('creator');
+        setFormHandle('creator');
       }
 
       // Check if a draft was handed over from recommendations
@@ -124,9 +103,8 @@ export default function CalendarPage() {
         try {
           const pending = JSON.parse(pendingStr);
           if (pending.handle) {
-            const cleanPending = pending.handle.toLowerCase().replace(/^@/, '').trim();
-            setActiveHandle(cleanPending);
-            setFormHandle(cleanPending);
+            setActiveHandle(pending.handle);
+            setFormHandle(pending.handle);
           }
           if (pending.caption) setFormCaption(pending.caption);
           if (Array.isArray(pending.hashtags)) setFormHashtags(pending.hashtags.join(' '));
@@ -147,20 +125,6 @@ export default function CalendarPage() {
           localStorage.removeItem('ee_pending_schedule');
         }
       }
-
-      const handleSync = (e: any) => {
-        const incoming = e?.detail?.handle;
-        const clean = incoming ? incoming.toLowerCase().replace(/^@/, '').trim() : '';
-        if (clean) {
-          setActiveHandle(clean);
-          setFormHandle(clean);
-        }
-      };
-
-      window.addEventListener('ee:handle_changed', handleSync);
-      return () => {
-        window.removeEventListener('ee:handle_changed', handleSync);
-      };
     }
   }, [userId]);
 
@@ -828,7 +792,7 @@ export default function CalendarPage() {
                     required
                     value={formHandle}
                     onChange={(e) => setFormHandle(e.target.value)}
-                    placeholder="e.g. your_instagram_handle"
+                    placeholder="e.g. cristiano"
                     className="w-full px-3 py-1.5 text-xs border border-neutral-300 rounded focus:outline-none focus:border-black"
                   />
                 </div>

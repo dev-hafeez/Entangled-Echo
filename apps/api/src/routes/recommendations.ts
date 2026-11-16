@@ -444,17 +444,33 @@ recommendationsRouter.post('/generate', optionalAuth, async (req: Request, res: 
 
   const forceRefresh = req.body.refresh === true || req.query.refresh === 'true';
 
+  // Domain categorization flags to detect domain mismatches
+  const isFinanceOrAccounting = /\b(account|accounting|finance|tax|ca|acca|audit|bookkeeping|cpa|chartered|ledger|financial)\b/i.test(`${userNiche} ${subNiche}`);
+  const isTechOrCode = /\b(tech|technology|code|coding|software|developer|engineer|data science|programming|fullstack|devops|cybersecurity|cloud|ai|artificial intelligence|machine learning|llm|deep learning)\b/i.test(`${userNiche} ${subNiche}`);
+  const isSportsOrAthletics = /\b(football|soccer|cricket|athlete|athletics|sports|fifa|nba|nfl|tennis|basketball|runner|racing|olympic|championship|match)\b/i.test(`${userNiche} ${subNiche}`);
+  const isTravelOrPhotography = /\b(travel|photography|motorcycle|motoventures|scenic|landscape|biking|adventure|outdoor|vlog|rider|tourism)\b/i.test(`${userNiche} ${subNiche}`);
+  const isEntertainmentOrComedy = /\b(comedy|vines|skits|entertainment|acting|film|creator|humor|satire|drama|memes)\b/i.test(`${userNiche} ${subNiche}`);
+  const isFitnessOrGym = (/\b(fitness|gym|workout|bodybuilding|crossfit|hypertrophy|diet|nutrition|calisthenics)\b/i.test(`${userNiche} ${subNiche}`) || /\btraining\b/i.test(`${userNiche} ${subNiche}`)) && !isSportsOrAthletics;
+
   if (!forceRefresh && fs.existsSync(recsCacheFile)) {
     try {
       const cached = JSON.parse(fs.readFileSync(recsCacheFile, 'utf-8'));
       const cacheAgeMs = Date.now() - new Date(cached.generated_at || 0).getTime();
-      // If cache is under 1 hour old and has valid recommendations, return instantly!
-      if (cacheAgeMs < 60 * 60 * 1000 && Array.isArray(cached.recommendations) && cached.recommendations.length > 0) {
+
+      // Detect and purge stale cache if cached recommendations do not match the current creator's niche
+      const cachedTopicsStr = (cached.recommendations || []).map((r: any) => `${r.title} ${r.trend_topic}`).join(' ');
+      const cachedHasTech = /agentic|microservices|system design|full-stack|software architecture|modular monoliths/i.test(cachedTopicsStr);
+      const isMismatch = cachedHasTech && !isTechOrCode;
+
+      if (!isMismatch && cacheAgeMs < 60 * 60 * 1000 && Array.isArray(cached.recommendations) && cached.recommendations.length > 0) {
         return res.json({
           ...cached,
           cached: true,
           cache_age_seconds: Math.round(cacheAgeMs / 1000),
         });
+      } else if (isMismatch) {
+        console.warn(`[recommendations] Mismatched cached topics detected for @${cleanHandle}. Purging stale cache.`);
+        try { fs.unlinkSync(recsCacheFile); } catch {}
       }
     } catch {}
   }
@@ -473,7 +489,7 @@ recommendationsRouter.post('/generate', optionalAuth, async (req: Request, res: 
     .map((c) => `"${c.slice(0, 150).replace(/\n/g, ' ')}"`);
 
   if (canUseGemini && liveTrends.length > 0) {
-    const candidateModels = ['gemini-3.5-flash', 'gemini-3.5-flash-lite'];
+    const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.5-flash'];
     const trendsContext = liveTrends.slice(0, 12).map((t) => ({
       title: t.title,
       traffic: t.traffic,
@@ -504,23 +520,25 @@ ${sampleCaptions.length > 0 ? sampleCaptions.map((sc, i) => `  ${i + 1}. ${sc}`)
 LIVE GOOGLE SEARCH TRENDS DETECTED RIGHT NOW:
 ${JSON.stringify(trendsContext, null, 2)}
 
-INSTRUCTIONS & QUALITY CONTRACT:
-1. Evaluate the live Google Trends against the creator's verified niche (${userNiche} - ${subNiche}).
-2. If a live trend has a genuine direct or crossover connection to their niche (e.g. policy, economics, business, education, exam season, technology, leadership), adapt it with an authoritative perspective.
-3. If the live search trends are completely unrelated to their niche (e.g. random football matches or celebrity gossip that cannot credibly connect to a professional in ${userNiche}), select the closest applicable trend OR synthesize the most urgent current trending topic in their specific domain (${userNiche}). Do NOT force absurd sports angles onto professional/accounting/tech creators.
-4. For each recommendation, provide VARIETY in captions and hashtags:
-   - "next_steps": Array of exactly 3 sequential execution steps (Step 1: Hook & Concept, Step 2: Content Breakdown, Step 3: Call to Action & Distribution).
-   - "creation_blueprint": Detailed object with hook, body (bullet points), call_to_action, and 3 production_tips.
-   - "caption_options": Array of 3 distinctly styled, ready-to-post captions in natural ${userLanguage}:
-     1. Style "Storytelling & Relatable": narrative hook, personal/relatable insight or dilemma, conversational question CTA inviting comments.
-     2. Style "Short & Punchy (Viral)": bold 1-line curiosity gap opening, rapid bullet points, quick save/share CTA.
-     3. Style "In-Depth Breakdown (Save-Worthy)": authoritative educational guide, structured step-by-step takeaways, bookmark/save CTA.
-   - "caption_draft": Set to the top primary caption text (for 1-click posting).
-   - "hashtag_bundles": Categorized hashtag strategy containing 3 distinct bundles:
-     - "niche": 5 hyper-targeted tags directly matching ${userNiche} and its community.
-     - "broad": 5 high-reach industry discovery tags.
-     - "trending": 5 viral and search-trend discovery tags.
-   - "suggested_hashtags": Combined list of 8-12 unique hashtags selected from the bundles.
+CRITICAL RELEVANCE & DOMAIN CONSTRAINTS:
+1. Every recommendation MUST STRICTLY MATCH the creator's verified niche: "${userNiche}" and sub-niche: "${subNiche}".
+2. ZERO TOLERANCE FOR OFF-DOMAIN RECOMMENDATIONS:
+   - If the creator is an athlete or sports figure (e.g. Football / Cristiano Ronaldo), recommendations MUST be 100% focused on football match performances, championship mindset, elite athletic training, recovery science, longevity, or athlete lifestyle. NEVER suggest coding, software architectures, full-stack development, AI agents, or corporate accounting to athletes!
+   - If the creator is a motorcycle, travel, or landscape photography creator (e.g. Kaleem Abbasi), recommendations MUST focus on scenic mountain routes, motorcycle travel culture, photography composition, and poetic reflections.
+   - If the creator is a finance/accounting professional, focus on taxation, corporate finance, or professional exam frameworks.
+   - If the creator is in technology, software, or coding, focus on technical architectures, developer productivity, or engineering insights.
+3. If the live search trends contain a topic directly relevant to ${userNiche}, utilize it! If the live search trends are unrelated (e.g. general politics, off-topic celebrity news), adapt the closest cultural or lifestyle angle OR synthesize the most urgent, high-engagement trending topic in their specific domain (${userNiche}).
+4. LANGUAGE REQUIREMENT:
+   Generate caption options in the creator's preferred language: "${userLanguage}".
+   - If Bilingual (English & Portuguese): Provide authentic bilingual captions (English / Portuguese) capturing high-energy athlete dedication and victory mindset.
+   - If Urdu / Roman Urdu: Provide natural, conversational Urdu / Roman Urdu (e.g., 'Jab maine pehli dafa...', 'Stop scrolling agar aap...').
+   - If English: Provide natural, conversational, authoritative English.
+5. Provide 3 distinctly styled caption options per recommendation:
+   - "Storytelling & Relatable": narrative hook, personal/relatable insight or dilemma, conversational question CTA inviting comments.
+   - "Short & Punchy (Viral)": bold 1-line curiosity gap opening, rapid bullet points, quick save/share CTA.
+   - "In-Depth Breakdown (Save-Worthy)": authoritative educational guide, structured step-by-step takeaways, bookmark/save CTA.
+6. Provide "next_steps" (3 sequential execution steps) and a "creation_blueprint" (hook, body, call_to_action, 3 production_tips).
+7. Provide "hashtag_bundles" with "niche", "broad", and "trending" sets tailored to ${userNiche}.
 
 Return ONLY a valid JSON array of exactly 3 objects conforming to this schema:
 [
@@ -586,7 +604,7 @@ Return ONLY a valid JSON array of exactly 3 objects conforming to this schema:
         const aiResp = await fetch(geminiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(15000), // 15s timeout for rich blueprints
+          signal: AbortSignal.timeout(9000), // 9s timeout for rich blueprints
           body: JSON.stringify({
             contents: [{ parts: [{ text: aiPrompt }] }],
             generationConfig: {
@@ -662,38 +680,52 @@ Return ONLY a valid JSON array of exactly 3 objects conforming to this schema:
   );
   const candidateTrends = filteredLiveTrends.length >= 3 ? filteredLiveTrends : liveTrends;
 
-  // Correlate live trends against creator niche, sub-niche, and content pillars
-  const nicheKeywords = [
-    ...userNiche.toLowerCase().split(/\s+/),
-    ...subNiche.toLowerCase().split(/\s+/),
-    ...contentPillars.flatMap((p) => p.toLowerCase().split(/\s+/)),
-    ...userKeywords.map((k) => k.toLowerCase()),
-  ].filter((w) => w.length > 3);
-
-  const matchedLiveTrends = candidateTrends.filter((t) => {
-    const text = `${t.title} ${t.news_title || ''}`.toLowerCase();
-    return nicheKeywords.some((kw) => text.includes(kw));
-  });
-
-  const fallbackTrends: any[] = [...matchedLiveTrends];
-
-  // If live trends didn't yield 3 direct niche matches, synthesize authoritative topics directly from creator's verified pillars
-  const defaultPillars = contentPillars.length >= 3 ? contentPillars : [
-    `${userNiche} Fundamentals & Execution`,
-    `Emerging Shifts in ${subNiche}`,
-    `Actionable Frameworks for ${userNiche} Community`,
-  ];
-
-  for (let i = fallbackTrends.length; i < 3; i++) {
-    const pillarName = defaultPillars[i] || defaultPillars[0] || userNiche;
-    fallbackTrends.push({
-      title: `${pillarName}: Practical Breakdown & Strategy`,
-      traffic: 'High Demand',
-      source: 'Domain Intelligence',
-      geo: 'Global',
-      news_title: `Essential principles and modern execution in ${userNiche}`,
-      news_source: `${userNiche} Insights`,
-    });
+  // Synthesize domain-relevant topics based on user's niche if trends are general
+  let fallbackTrends: any[];
+  if (isFinanceOrAccounting) {
+    fallbackTrends = [
+      { title: 'Tax Filing Season Deadlines & Strategy', traffic: '50K+ searches', source: 'Domain Trend (Finance)', geo: 'PK', news_title: 'Key tax deduction changes and regulatory deadlines', news_source: 'Finance Bulletin' },
+      { title: 'CA & ACCA Exam Preparation Frameworks', traffic: '25K+ searches', source: 'Domain Trend (Education)', geo: 'PK', news_title: 'Study strategies for passing high-stakes professional papers', news_source: 'Accounting Education' },
+      { title: 'Corporate Cash Flow & Budget Planning for 2026', traffic: '15K+ searches', source: 'Domain Trend (Business)', geo: 'Global', news_title: 'SME financial management strategies in volatile markets', news_source: 'Business Review' },
+    ];
+  } else if (isSportsOrAthletics) {
+    fallbackTrends = [
+      { title: 'Match-Day Recovery Protocols & Cryotherapy Longevity', traffic: '120K+ searches', source: 'Sports Performance Intelligence', geo: 'Global', news_title: 'Elite athlete recovery science and physiological preservation', news_source: 'Global Sports Medicine' },
+      { title: 'High-Stakes Mental Conditioning & Clutch Performance', traffic: '85K+ searches', source: 'Athletic Excellence Review', geo: 'Global', news_title: 'Championship mindset routines under intense pressure', news_source: 'Athletic Performance Digest' },
+      { title: 'Explosive Speed, Agility & Core Conditioning Drills', traffic: '60K+ searches', source: 'Football Training Journal', geo: 'Global', news_title: 'Maintaining peak sprint velocity and kinetic chain power', news_source: 'World Football Performance' },
+    ];
+  } else if (isTravelOrPhotography) {
+    fallbackTrends = [
+      { title: 'Hidden Mountain Passes & Scenic Road Trip Routes', traffic: '50K+ searches', source: 'Adventure & Travel Trends', geo: 'PK', news_title: 'Unexplored scenic routes and seasonal road condition updates', news_source: 'Travel & Motoventures' },
+      { title: 'Cinematic Golden Hour Photography & Composition Guide', traffic: '40K+ searches', source: 'Visual Arts Intelligence', geo: 'Global', news_title: 'Mastering natural light, framing, and emotional atmosphere in carousels', news_source: 'Landscape & Mobile Photography' },
+      { title: 'Essential Solo Riding Gear & Long-Distance Bike Preparation', traffic: '30K+ searches', source: 'Moto Culture Network', geo: 'Global', news_title: 'Safety protocols, touring packing essentials, and bike care', news_source: 'Motorcycle Adventures' },
+    ];
+  } else if (isEntertainmentOrComedy) {
+    fallbackTrends = [
+      { title: 'Relatable Everyday Observations & POV Comedy Timing', traffic: '95K+ searches', source: 'Viral Creator Trends', geo: 'Global', news_title: 'Subverting expectations: Structure of high-retention comedy skits', news_source: 'Creator Economy Review' },
+      { title: 'Character Acting & Voice Nuances in Short-Form Video', traffic: '45K+ searches', source: 'Entertainment Insights', geo: 'Global', news_title: 'Multi-character sketches and comedic pacing for maximum shares', news_source: 'Digital Media Journal' },
+      { title: 'Cultural Satire & High-Engagement Conversational Hooks', traffic: '35K+ searches', source: 'Trend Watch', geo: 'Global', news_title: 'Connecting trending audio and cultural moments authentically', news_source: 'Viral Culture Today' },
+    ];
+  } else if (isFitnessOrGym) {
+    fallbackTrends = [
+      { title: 'High-Protein Nutrition Timing for Hypertrophy & Recovery', traffic: '65K+ searches', source: 'Fitness Trends', geo: 'Global', news_title: 'New research on nutrient distribution and recovery', news_source: 'Sports Science' },
+      { title: 'Progressive Overload Fundamentals for Sustainable Gains', traffic: '40K+ searches', source: 'Fitness Trends', geo: 'Global', news_title: 'Avoiding training plateaus with structured periodization', news_source: 'Fitness Journal' },
+      { title: 'Mobility & Injury Prevention Protocols for Lifters', traffic: '25K+ searches', source: 'Fitness Trends', geo: 'Global', news_title: 'Daily mobility protocols to improve mechanics and prevent injuries', news_source: 'Health & Conditioning Review' },
+    ];
+  } else if (isTechOrCode) {
+    fallbackTrends = [
+      { title: 'Modern Full-Stack Architecture Best Practices', traffic: '80K+ searches', source: 'Tech Intelligence', geo: 'Global', news_title: 'Microservices vs Modular Monoliths in 2026', news_source: 'Developer Digest' },
+      { title: 'Mastering System Design & Technical Interviews', traffic: '40K+ searches', source: 'Tech Intelligence', geo: 'Global', news_title: 'High-scale caching and distributed consensus principles', news_source: 'Engineering Weekly' },
+      { title: 'Production AI Workflows & Developer Productivity', traffic: '30K+ searches', source: 'Tech Intelligence', geo: 'Global', news_title: 'Practical tools and frameworks accelerating software delivery', news_source: 'Tech Insights' },
+    ];
+  } else if (candidateTrends.length >= 3) {
+    fallbackTrends = candidateTrends.slice(0, 3);
+  } else {
+    fallbackTrends = [
+      { title: `${contentPillars[0] || userNiche}: Core Practical Breakdown`, traffic: 'Trending', source: 'Domain Trend', geo: 'Global', news_title: `Essential strategies and best practices in ${userNiche}`, news_source: 'Industry Insights' },
+      { title: `Emerging Shifts in ${subNiche}`, traffic: 'Trending', source: 'Domain Trend', geo: 'Global', news_title: `Key developments reshaping ${subNiche} today`, news_source: 'Creator Report' },
+      { title: `Actionable Playbook for ${userNiche} Practitioners`, traffic: 'High Demand', source: 'Domain Trend', geo: 'Global', news_title: `Step-by-step framework to elevate execution in ${userNiche}`, news_source: 'Strategy Guide' },
+    ];
   }
 
   const recommendations = fallbackTrends.slice(0, 3).map((trend, idx) => {
@@ -774,23 +806,44 @@ export function generateCaptionVariations(
   const l = (lang || 'English').toLowerCase();
   const isUrdu = l.includes('urdu') || l.includes('hindi');
   const isRomanUrdu = isUrdu && (l.includes('roman') || l.includes('bilingual') || !l.includes('script'));
+  const isPortuguese = l.includes('portuguese') || l.includes('português');
+
+  if (isPortuguese) {
+    return [
+      {
+        style: 'Storytelling & Relatable',
+        hook: `A disciplina diária e a preparação silenciosa são o que constroem a vitória... 💭⚽`,
+        text: `A disciplina diária e a preparação silenciosa são o que constroem resultados duradouros em ${niche}. 📈\n\nNo topo, o que faz a diferença não é o talento sozinho, mas as horas de dedicação quando ninguém está olhando.\n• O trabalho duro supera qualquer atalho\n• Consistência diária na rotina de treino e recuperação\n• Mentalidade inabalável nos momentos de maior pressão\n\nQual é o seu foco principal para esta semana? Vamos conversar nos comentários! 👇\n\n---\nDaily discipline and preparation build lasting greatness. Focus on the mission! ⚽💪`,
+      },
+      {
+        style: 'Short & Punchy (Viral)',
+        hook: `Foco total na missão. Sem desculpas! ⚡⚽`,
+        text: `Foco total na missão. Sem desculpas! ⚡⚽\n\n3 regras inegociáveis para o sucesso:\n1️⃣ Supere os seus limites todos os dias\n2️⃣ Confie no processo de treino\n3️⃣ A vitória é consequência da entrega total\n\nDeixe seu comentário e compartilhe com quem busca o próximo nível! 📌\n\n---\nTotal focus on the mission. No excuses! ⚡`,
+      },
+      {
+        style: 'In-Depth Breakdown (Save-Worthy)',
+        hook: `O Guia de Alta Performance: Consistência, Foco e Longevidade 🏆🎯`,
+        text: `O Guia de Alta Performance: Como manter o nível máximo em ${niche} 🏆🎯\n\nManter a excelência ao longo dos anos exige um compromisso inegociável com a sua preparação física e mental:\n\n1. Recuperação e Sono: A recuperação muscular e o descanso celular são tão vitais quanto o tempo em campo.\n2. Preparação Mental: Manter a serenidade e a confiança nos momentos de maior pressão.\n3. Alimentação e Hidratação: Combustível limpo para garantir explosão e resistência até o apito final.\n\nSalve para se inspirar antes do próximo desafio! 💾 Deixe sua pergunta abaixo. 💬`,
+      },
+    ];
+  }
 
   if (isRomanUrdu) {
     return [
       {
         style: 'Storytelling & Relatable',
-        hook: `Jab maine pehli dafa ${topic} ke baray mein suna, mujhe laga yeh normal hai—lekin haqeeqat kuch aur nikli... 💭`,
-        text: `Jab maine pehli dafa ${topic} ke baray mein suna, mujhe laga yeh bas ek passing headline hai—lekin haqeeqat mein iska direct asar hamare career aur industry standard par parta hai. 🔥\n\nAgar aap bhi is field mein grow karna chahte hain, toh yeh 3 ahem batein zaroor samajh lein:\n1️⃣ Trend ko pehle analyze karein, blind follow na karein\n2️⃣ Apni core skills aur practical execution par focus rakhein\n3️⃣ Long-term consistency hi asal game-changer hai\n\nAapka is baray mein kya personal experience raha hai? Comments mein zaroor share karein! 👇`,
+        hook: `Jab maine pehli dafa ${topic} ke baray mein socha, mujhe laga yeh bas ek aam baat hai—lekin haqeeqat kuch aur nikli... 💭`,
+        text: `Jab maine pehli dafa ${topic} ke baray mein socha, mujhe laga yeh bas ek passing headline hai—lekin haqeeqat mein iska asar seedha hamare kaam aur standard par parta hai. 🔥\n\nAgar aap bhi is safar mein grow karna chahte hain, toh yeh 3 ahem batein zaroor samajh lein:\n1️⃣ Trend ko pehle samjhein, blind follow na karein\n2️⃣ Apni core skills aur practical execution par focus rakhein\n3️⃣ Long-term consistency hi asal game-changer hai\n\nAapka is baray mein kya personal tajruba raha hai? Comments mein zaroor share karein! 👇`,
       },
       {
         style: 'Short & Punchy (Viral)',
         hook: `Stop scrolling agar aap ${topic} ko ignore kar rahe hain! 🛑⚡`,
-        text: `Stop scrolling agar aap ${topic} ko ignore kar rahe hain! 🛑⚡\n\nYeh choti si ghalti aapke weeks ka waqt zaya kar sakti hai. 3 golden rules jo har professional ko pata honi chahiyen:\n• Rule 1: Fundamentals always first\n• Rule 2: Execution beats overthinking\n• Rule 3: Speed with precision\n\n📌 Save karlein baad ke liye aur apne dost ke sath share karein!`,
+        text: `Stop scrolling agar aap ${topic} ko ignore kar rahe hain! 🛑⚡\n\nYeh choti si ghalti aapke weeks ka waqt zaya kar sakti hai. 3 golden rules jo har professional aur creator ko pata honi chahiyen:\n• Rule 1: Fundamentals always first\n• Rule 2: Execution beats overthinking\n• Rule 3: Speed with precision\n\n📌 Save karlein baad ke liye aur doston ke sath share karein!`,
       },
       {
         style: 'In-Depth Breakdown (Save-Worthy)',
         hook: `The Complete Action Blueprint: ${topic} se maximum results kaise hasil karein? 📚🎯`,
-        text: `The Complete Action Blueprint: ${topic} se maximum results kaise hasil karein? 📚🎯\n\nBohat se log surface-level tips dekh kar confuse ho jate hain. Yeh hai practical step-by-step breakdown:\n\nStep 1: Foundational Clarity — Pehle problem aur core concepts ko deeply understand karein.\nStep 2: Structured Execution — Rozana 30-45 minutes dedicated practice aur testing dein.\nStep 3: Review & Refine — Har weekend par apni progress evaluate karein.\n\nBookmark this guide! 💾 Drop your questions below and I will reply to each one. 💬`,
+        text: `The Complete Action Blueprint: ${topic} se maximum results kaise hasil karein? 📚🎯\n\nBohat se log surface-level tips dekh kar confuse ho jate hain. Yeh hai practical step-by-step breakdown:\n\nStep 1: Foundational Clarity — Pehle problem aur core concepts ko deeply understand karein.\nStep 2: Structured Execution — Rozana dedicated practice aur testing dein.\nStep 3: Review & Refine — Har weekend par apni progress evaluate karein.\n\nBookmark this guide! 💾 Drop your questions below and I will reply to each one. 💬`,
       },
     ];
   }
@@ -830,37 +883,55 @@ export function generateHashtagBundles(
 ): HashtagBundles {
   const cleanTag = (str: string) => {
     const cleaned = str.toLowerCase().replace(/[^a-z0-9]/g, '');
-    return cleaned ? '#' + cleaned : '';
+    if (!cleaned) return '';
+    return '#' + (cleaned.length > 24 ? cleaned.slice(0, 24) : cleaned);
   };
 
+  // Extract individual keyword tokens from niche and subNiche
+  const nicheWords = `${niche} ${subNiche}`
+    .split(/[\s,&/]+/)
+    .map((w) => cleanTag(w))
+    .filter((t) => t.length >= 4 && !['#and', '#with', '#from', '#your', '#this', '#over', '#core'].includes(t));
+
+  const keywordTags = keywords.slice(0, 4).map(cleanTag).filter((t) => t.length > 3);
+
   const nicheBase = [
-    cleanTag(niche),
-    cleanTag(subNiche),
-    ...keywords.slice(0, 4).map(cleanTag),
-    '#expertinsights',
-    '#communityfirst',
-  ].filter((t) => t.length > 2);
+    ...keywordTags,
+    ...nicheWords,
+    cleanTag(niche.split(' ')[0] || ''),
+  ].filter((t) => t && t.length > 3);
 
-  const broadBase = [
-    cleanTag(niche.split(' ')[0] || 'business'),
-    '#education',
-    '#careeradvice',
-    '#growthmindset',
-    '#professionaldevelopment',
-    '#learningeveryday',
-    '#leadership',
-  ].filter((t) => t.length > 2);
+  // Domain-specific broad base
+  const combinedNiche = `${niche} ${subNiche}`.toLowerCase();
+  let broadBase: string[] = [];
 
-  const cleanTopic = cleanTag(topic);
+  if (/\b(football|soccer|cricket|athlete|athletics|sports)\b/.test(combinedNiche)) {
+    broadBase = ['#football', '#sports', '#athlete', '#training', '#motivation', '#champions', '#matchday'];
+  } else if (/\b(travel|photography|motorcycle|motoventures|scenic|biking)\b/.test(combinedNiche)) {
+    broadBase = ['#travel', '#adventure', '#motoventures', '#motorcycle', '#photography', '#roadtrip', '#wanderlust'];
+  } else if (/\b(comedy|vines|skits|entertainment|acting|film|humor)\b/.test(combinedNiche)) {
+    broadBase = ['#comedy', '#entertainment', '#viral', '#reels', '#funny', '#creator', '#comedyreels'];
+  } else if (/\b(fitness|gym|workout|bodybuilding|hypertrophy|diet)\b/.test(combinedNiche)) {
+    broadBase = ['#fitness', '#workout', '#gymmotivation', '#bodybuilding', '#health', '#fitlife', '#training'];
+  } else if (/\b(tech|software|developer|coding|engineer|programming)\b/.test(combinedNiche)) {
+    broadBase = ['#tech', '#developer', '#coding', '#software', '#programming', '#innovation', '#technology'];
+  } else if (/\b(finance|accounting|tax|ca|acca|audit|business)\b/.test(combinedNiche)) {
+    broadBase = ['#finance', '#accounting', '#business', '#investing', '#economy', '#tax', '#wealth'];
+  } else {
+    broadBase = ['#creator', '#contentcreator', '#community', '#expertinsights', '#explorepage', '#inspiration'];
+  }
+
+  // Topic keywords (clean short topic tag, not a 60-character sentence)
+  const shortTopic = topic.split(/[:\-–—&]/)[0].trim();
+  const topicTag = cleanTag(shortTopic);
   const trendingBase = [
-    cleanTopic,
+    topicTag,
     '#trendingnow',
-    '#googletrends',
-    '#viralreels',
     '#explorepage',
+    '#viralreels',
+    '#googletrends',
     '#dailyinsights',
-    '#algorithmhacks',
-  ].filter((t) => t.length > 2);
+  ].filter((t) => t && t.length > 3);
 
   return {
     niche: [...new Set(nicheBase)].slice(0, 5),
