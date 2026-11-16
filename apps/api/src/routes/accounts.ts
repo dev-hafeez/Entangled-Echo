@@ -212,6 +212,7 @@ accountsRouter.get('/:handle/posts', async (req: Request, res: Response) => {
           carousel_size: p.carouselSize || p.carousel_size || 0,
           media_urls: p.mediaUrls || p.media_urls || [],
           storage_paths: storagePaths,
+          image_path: storagePaths && storagePaths.length > 0 ? storagePaths[0] : null,
           post_snapshots: [
             {
               likes_count,

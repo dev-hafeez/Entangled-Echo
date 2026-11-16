@@ -1,0 +1,41 @@
+{
+  "button_hover": {
+    "before": {
+      "backgroundColor": "rgb(0, 0, 0)",
+      "color": "rgb(255, 255, 255)",
+      "borderTopColor": "rgb(0, 0, 0)",
+      "borderTopWidth": "1px"
+    },
+    "after": {
+      "backgroundColor": "rgb(255, 255, 255)",
+      "color": "rgb(0, 0, 0)",
+      "borderTopColor": "rgb(0, 0, 0)",
+      "borderTopWidth": "1px"
+    }
+  },
+  "card_hover": {
+    "before": {
+      "transform": "none",
+      "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px"
+    },
+    "after": {
+      "transform": "matrix(1.02, 0, 0, 1.02, 0, 0)",
+      "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px"
+    }
+  },
+  "landing_scroll_390": {
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "noHorizontalScroll": true
+  },
+  "dashboard_scroll_390": {
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "noHorizontalScroll": true
+  },
+  "no_image_scroll_390": {
+    "scrollWidth": 390,
+    "innerWidth": 390,
+    "noHorizontalScroll": true
+  }
+}

@@ -4,6 +4,7 @@ import './globals.css';
 import { ReactNode, Suspense } from 'react';
 import { ClerkProvider, SignInButton, SignUpButton, Show, UserButton } from '@clerk/nextjs';
 import { usePathname } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 
 function NavigationHeader() {
   const pathname = usePathname();
@@ -12,7 +13,7 @@ function NavigationHeader() {
   // If on admin routes, render clean admin header matching original simple design
   if (isAdmin) {
     return (
-      <header className="border-b bg-white px-6 py-4 shadow-sm flex items-center justify-between">
+      <header className="border-b bg-white px-4 sm:px-6 lg:px-8 py-3.5 shadow-sm flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <span className="font-bold text-xl tracking-tight text-slate-800">EntangledEcho</span>
           <span className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-mono">Admin</span>
@@ -26,10 +27,10 @@ function NavigationHeader() {
 
   // Regular user app header with Clerk Auth
   return (
-    <header className="border-b bg-white px-6 py-4 shadow-sm flex items-center justify-between">
+    <header className="border-b bg-white px-4 sm:px-6 lg:px-8 py-3.5 shadow-sm flex items-center justify-between">
       <div className="flex items-center space-x-6">
         <div className="flex items-center space-x-3">
-          <a href="/" className="font-bold text-xl tracking-tight text-slate-800">EntangledEcho</a>
+          <a href="/dashboard" className="font-bold text-xl tracking-tight text-slate-800">EntangledEcho</a>
           <span className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-mono">Platform</span>
         </div>
         <nav className="hidden md:flex items-center space-x-4 text-xs font-semibold">
@@ -86,18 +87,18 @@ function NavigationHeader() {
           </a>
         </nav>
       </div>
-      <nav className="flex items-center space-x-4 text-sm font-medium">
+      <nav className="flex items-center space-x-3 text-sm font-medium">
         <Suspense fallback={<div className="w-8 h-8 rounded-full bg-slate-200 animate-pulse" />}>
           <Show when="signed-out">
             <SignInButton mode="modal">
-              <button className="px-3 py-1.5 text-sm font-medium rounded-md border border-slate-300 hover:bg-slate-100 transition">
+              <Button size="sm">
                 Sign In
-              </button>
+              </Button>
             </SignInButton>
             <SignUpButton mode="modal">
-              <button className="px-3 py-1.5 text-sm font-medium rounded-md bg-slate-900 text-white hover:bg-slate-800 transition">
+              <Button size="sm">
                 Sign Up
-              </button>
+              </Button>
             </SignUpButton>
           </Show>
           <Show when="signed-in">
@@ -122,7 +123,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           {isLandingPage || isAuthPage ? (
             <main className="min-h-screen w-full">{children}</main>
           ) : (
-            <main className="p-6 max-w-7xl mx-auto">{children}</main>
+            <main className="px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto w-full">{children}</main>
           )}
         </body>
       </html>

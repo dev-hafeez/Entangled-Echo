@@ -18,6 +18,7 @@ export const config = {
   apiUrl: process.env.API_URL || 'http://localhost:4000',
   adminPassword: process.env.ADMIN_PASSWORD || 'admin123',
   mlServiceUrl: process.env.ML_SERVICE_URL || 'http://localhost:8001',
+  localStorageDir: process.env.LOCAL_STORAGE_DIR || path.resolve(__dirname, '../../../storage'),
   playwrightHeadless: process.env.PLAYWRIGHT_HEADLESS !== 'false',
   playwrightProfileDir: path.resolve(
     process.env.PLAYWRIGHT_PROFILE_DIR || path.resolve(__dirname, '../../../.chromium-profile')

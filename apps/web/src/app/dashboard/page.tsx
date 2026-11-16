@@ -39,7 +39,57 @@ import {
   Globe,
   Plus,
   Trash2,
+  Image as ImageIcon,
+  Eye,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+function ProfileAvatar({ handle, displayName }: { handle: string; displayName: string }) {
+  const [imageError, setImageError] = useState(false);
+  const initial = (displayName || handle || '?').trim().replace(/^@/, '')[0]?.toUpperCase() || '?';
+
+  return (
+    <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-slate-200 bg-[#373E3E] text-white flex items-center justify-center shrink-0 shadow-sm">
+      {!imageError && handle ? (
+        <img
+          src={`${API_BASE}/api/media/avatar?handle=${encodeURIComponent(handle)}`}
+          alt={displayName || handle}
+          onError={() => setImageError(true)}
+          className="w-full h-full object-cover"
+        />
+      ) : null}
+      {(imageError || !handle) && (
+        <span className="text-xl sm:text-2xl font-bold select-none">{initial}</span>
+      )}
+    </div>
+  );
+}
+
+function PostImage({ src, alt }: { src: string; alt: string }) {
+  const [error, setError] = useState(false);
+
+  if (error) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center space-y-2 bg-slate-50">
+        <ImageIcon className="w-8 h-8 stroke-[1.5] text-slate-400" />
+        <span className="text-xs font-medium text-slate-500">Image unavailable</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      onError={() => setError(true)}
+      className="w-full h-full object-cover"
+    />
+  );
+}
 
 export default function DashboardPage() {
   const { user, isLoaded } = useUser();
@@ -156,9 +206,38 @@ export default function DashboardPage() {
 
   // Check if user has an associated handle in database or localStorage
   useEffect(() => {
-    if (!isLoaded || !user) return;
+    // Check URL query param first (allows direct handle inspection and testing)
+    const urlHandle =
+      typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('handle')
+        : null;
+
+    if (urlHandle) {
+      const clean = urlHandle.trim().toLowerCase().replace(/^@/, '');
+      setActiveHandle(clean);
+      loadCreatorDashboard(clean);
+      return;
+    }
+
+    if (!isLoaded) return;
 
     const resolveUserSession = async () => {
+      if (!user) {
+        // Fallback for non-Clerk test sessions
+        const storedHandle =
+          typeof window !== 'undefined'
+            ? localStorage.getItem('ee_active_handle')
+            : null;
+        if (storedHandle) {
+          setActiveHandle(storedHandle);
+          loadCreatorDashboard(storedHandle);
+        } else {
+          setShowModal(true);
+          setLoadingDashboard(false);
+        }
+        return;
+      }
+
       // 1. Try server-side linked user profile
       const serverProfile = await api.getUserProfile(user.id).catch(() => null);
       if (serverProfile?.profile?.handle) {
@@ -170,7 +249,9 @@ export default function DashboardPage() {
       }
 
       // 2. Fallback to localStorage
-      const storedHandle = localStorage.getItem(`ee_handle_${user.id}`);
+      const storedHandle =
+        localStorage.getItem(`ee_handle_${user.id}`) ||
+        localStorage.getItem('ee_active_handle');
       if (storedHandle) {
         setActiveHandle(storedHandle);
         loadCreatorDashboard(storedHandle);
@@ -470,6 +551,8 @@ export default function DashboardPage() {
   const totalLikes = posts.reduce((acc, p) => acc + (p.likes_count || 0), 0);
   const totalComments = posts.reduce((acc, p) => acc + (p.comments_count || 0), 0);
   const followersCount = profile?.followers_count || profile?.followersCount || 150000;
+  const followingCount = profile?.following_count ?? profile?.followingCount ?? 0;
+  const postsCount = profile?.posts_count ?? profile?.postsCount ?? totalPosts;
   const avgLikes = totalPosts > 0 ? Math.round(totalLikes / totalPosts) : 0;
   const avgComments = totalPosts > 0 ? Math.round(totalComments / totalPosts) : 0;
   const avgER =
@@ -528,11 +611,11 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-white text-slate-900 pb-16">
       {/* Top Bar with Profile Info */}
       <div className="border-b border-slate-100 bg-white sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">EntangledEcho</h1>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">EntangledEcho</h1>
             {activeHandle && (
-              <div className="flex items-center space-x-2 bg-slate-50 border border-slate-200 px-3 py-1 rounded-full text-xs font-medium text-slate-700">
+              <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 px-2.5 py-0.5 rounded-full text-xs font-medium text-slate-700">
                 <Instagram className="w-3.5 h-3.5 text-pink-500" />
                 <span>@{activeHandle}</span>
               </div>
@@ -551,24 +634,24 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-2">
             {activeHandle && (
               <a
                 href={api.getCsvExportUrl(activeHandle)}
                 download={`${activeHandle}_metrics_export.csv`}
-                className="text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm"
                 title="Export posts and metrics to CSV (FR-31)"
               >
-                <Download className="w-3.5 h-3.5 text-slate-600" />
-                <span>Export CSV</span>
+                <Button size="sm" className="flex items-center gap-1.5 text-xs">
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Export CSV</span>
+                </Button>
               </a>
             )}
-            <Link
-              href="/recommendations"
-              className="text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-              <span>AI Recommendations</span>
+            <Link href="/recommendations">
+              <Button size="sm" className="flex items-center gap-1.5 text-xs">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>AI Recommendations</span>
+              </Button>
             </Link>
             {isBackgroundScraping && (
               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-mono animate-pulse border border-slate-200">
@@ -588,18 +671,19 @@ export default function DashboardPage() {
                 </span>
               )}
             </Link>
-            <button
+            <Button
+              size="sm"
               onClick={() => setShowModal(true)}
-              className="text-xs font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded border border-slate-200 hover:bg-slate-50 transition flex items-center gap-1.5"
+              className="flex items-center gap-1.5 text-xs"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              Switch Account
-            </button>
+              <span>Switch Account</span>
+            </Button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 pt-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
         {/* Loading Skeleton */}
         {loadingDashboard ? (
           <div className="py-24 flex flex-col items-center justify-center space-y-4">
@@ -608,98 +692,100 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            {/* Header Niche & Bio Card */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-                    {profile?.full_name || profile?.fullName || `@${activeHandle}`}
-                  </h2>
-                  <span className="text-xs bg-slate-100 text-slate-600 font-mono px-2 py-0.5 rounded">
-                    {profile?.data_source === 'official_graph_api' ? 'Official Graph API Data' : 'Verified Public Analytics'}
-                  </span>
-                  {nicheData?.language_preference && (
-                    <span className="text-xs bg-indigo-50 text-indigo-700 font-medium px-2.5 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
-                      🌐 Preferred Language: <strong>{nicheData.language_preference}</strong>
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-slate-600 max-w-2xl leading-relaxed">
-                  {nicheData?.summary ||
-                    profile?.biography ||
-                    profile?.bio ||
-                    'AI-powered creator insights and historical reach analysis.'}
-                </p>
-                {nicheData?.content_pillars && (
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {nicheData.content_pillars.map((pillar: string, i: number) => (
-                      <span
-                        key={i}
-                        className="text-xs px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-medium"
-                      >
-                        #{pillar}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {nicheData?.evidence_quotes && nicheData.evidence_quotes.length > 0 && (
-                  <div className="pt-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-                    <span className="font-medium text-slate-600">Evidence from posts:</span>
-                    {nicheData.evidence_quotes.slice(0, 3).map((q: string, i: number) => (
-                      <span
-                        key={i}
-                        className="italic bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-slate-600 truncate max-w-xs"
-                      >
-                        &ldquo;{q}&rdquo;
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {/* NicheIQ extra signals row */}
-                {(nicheData?.dominant_format || nicheData?.engagement_level || nicheData?.posting_pattern || nicheData?.follower_tier) && (
-                  <div className="pt-2 flex flex-wrap gap-2 text-xs">
-                    {nicheData?.dominant_format && nicheData.dominant_format !== 'Insufficient data' && (
-                      <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-medium">
-                        📹 {nicheData.dominant_format}
-                      </span>
-                    )}
-                    {nicheData?.engagement_level && nicheData.engagement_level !== 'Insufficient data' && (
-                      <span className={`border px-2.5 py-1 rounded-full font-medium ${nicheData.engagement_level === 'High' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : nicheData.engagement_level === 'Medium' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                        📊 {nicheData.engagement_level} Engagement
-                      </span>
-                    )}
-                    {nicheData?.confidence && (
-                      <span className="bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full font-medium">
-                        🎯 {nicheData.confidence === 'high' ? 'High' : nicheData.confidence === 'medium' ? 'Medium' : nicheData.confidence === 'low' ? 'Low' : 'No'} Confidence
-                      </span>
-                    )}
-                    {nicheData?.posting_pattern && nicheData.posting_pattern !== 'Insufficient data' && (
-                      <span className="bg-slate-50 text-slate-600 border border-slate-200 px-2.5 py-1 rounded-full font-medium truncate max-w-xs" title={nicheData.posting_pattern}>
-                        🕐 {nicheData.posting_pattern.slice(0, 60)}{nicheData.posting_pattern.length > 60 ? '…' : ''}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
+            {/* Step 3: Dashboard Profile Header */}
+            <Card className="p-6 bg-white border border-slate-200 shadow-sm" interactive={false}>
+              <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-5 flex-1">
+                  {/* Stored Profile Picture with Fallback Initial Avatar */}
+                  <ProfileAvatar
+                    handle={activeHandle}
+                    displayName={profile?.full_name || profile?.fullName || activeHandle}
+                  />
 
-              {/* Personal Smart Predictor Badge */}
-              <div className="flex flex-col items-start md:items-end justify-center border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6 min-w-[200px]">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-800">
-                  <Brain className="w-4 h-4 text-emerald-600" />
-                  Smart Post Predictor
+                  {/* Profile Details */}
+                  <div className="space-y-2.5 flex-1">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                      <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+                        {profile?.full_name || profile?.fullName || `@${activeHandle}`}
+                      </h2>
+                      <span className="text-xs font-mono font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                        @{activeHandle}
+                      </span>
+                      {profile?.is_verified && (
+                        <span className="inline-flex items-center text-blue-600 text-xs font-semibold" title="Verified Account">
+                          ✓ Verified
+                        </span>
+                      )}
+                      {nicheData?.niche && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <Sparkles className="w-3 h-3 text-emerald-600" />
+                          {nicheData.niche}
+                        </span>
+                      )}
+                      {profile?.data_source === 'official_graph_api' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                          <CheckCircle2 className="w-3 h-3 text-blue-600" />
+                          Meta Graph API
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Bio (Show "No bio yet" if empty) */}
+                    <p className="text-sm text-slate-700 whitespace-pre-line leading-relaxed max-w-3xl">
+                      {profile?.bio?.trim() || profile?.biography?.trim() || 'No bio yet'}
+                    </p>
+
+                    {/* Followers, Following, Posts Count */}
+                    <div className="flex flex-wrap items-center gap-6 pt-1 text-xs text-slate-600 font-medium">
+                      <div>
+                        <span className="font-bold text-slate-900 text-sm">{formatCompactNumber(followersCount)}</span>{' '}
+                        <span className="text-slate-500">followers</span>
+                      </div>
+                      <div>
+                        <span className="font-bold text-slate-900 text-sm">{formatCompactNumber(followingCount)}</span>{' '}
+                        <span className="text-slate-500">following</span>
+                      </div>
+                      <div>
+                        <span className="font-bold text-slate-900 text-sm">{formatCompactNumber(postsCount)}</span>{' '}
+                        <span className="text-slate-500">posts</span>
+                      </div>
+                    </div>
+
+                    {/* Content Pillars */}
+                    {nicheData?.content_pillars && nicheData.content_pillars.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-2">
+                        {nicheData.content_pillars.map((pillar: string, idx: number) => (
+                          <span
+                            key={idx}
+                            className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-medium"
+                          >
+                            #{pillar}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Learned from your past posts
-                </p>
-                <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full font-medium border border-emerald-200">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Ready to optimize timing
+
+                {/* Personal Smart Predictor Badge & Action */}
+                <div className="flex flex-col items-start md:items-end justify-center border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6 min-w-[200px] shrink-0">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-800">
+                    <Brain className="w-4 h-4 text-emerald-600" />
+                    Smart Post Predictor
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Learned from your past posts
+                  </p>
+                  <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full font-medium border border-emerald-200">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Ready to optimize timing
+                  </div>
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Navigation Tabs (Performance Overview, FR-30 Audience Demographics, FR-32 Competitive Analysis) */}
-            <div className="flex items-center border-b border-slate-200 space-x-6 text-sm font-semibold">
+            <div className="flex items-center border-b border-slate-200 space-x-6 text-sm font-semibold overflow-x-auto max-w-full pb-0.5 whitespace-nowrap">
               <button
                 onClick={() => setActiveTab('overview')}
                 className={`pb-3 flex items-center gap-2 transition border-b-2 ${
@@ -799,7 +885,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Plain-English View Selectors */}
-                <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg text-xs font-medium self-start sm:self-auto">
+                <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 rounded-lg text-xs font-medium self-start sm:self-auto">
                   <button
                     onClick={() => setMetricMode('absolute')}
                     className={`px-3 py-1.5 rounded-md transition ${
@@ -985,50 +1071,77 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {posts.map((post, i) => {
                   const pDate = post.posted_at ? new Date(post.posted_at).toLocaleDateString() : 'N/A';
-                  return (
-                    <div
-                      key={post.id || i}
-                      className="p-5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition shadow-sm flex flex-col justify-between space-y-4"
-                    >
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs text-slate-400">
-                          <span className="font-mono">{pDate}</span>
-                          <span className="capitalize px-2 py-0.5 bg-slate-100 rounded text-slate-600 font-medium">
-                            {post.media_type || 'image'}
-                          </span>
-                        </div>
-                        <p className="text-sm text-slate-800 line-clamp-3 leading-relaxed">
-                          {post.caption || <span className="text-slate-400 italic">No caption</span>}
-                        </p>
-                      </div>
+                  const imagePath = post.image_path || (post.storage_paths && post.storage_paths[0]) || null;
 
-                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
-                        <div className="flex items-center gap-3">
-                          <span className="flex items-center gap-1 font-medium">
-                            <Heart className="w-3.5 h-3.5 text-rose-500" />
-                            {formatCompactNumber(post.likes_count ?? 0)}
-                          </span>
-                          <span className="flex items-center gap-1 font-medium">
-                            <MessageCircle className="w-3.5 h-3.5 text-blue-500" />
-                            {formatCompactNumber(post.comments_count ?? 0)}
-                          </span>
-                        </div>
-                        {post.url && (
-                          <a
-                            href={post.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-slate-400 hover:text-slate-800 flex items-center gap-0.5"
-                          >
-                            <span>View</span>
-                            <ArrowUpRight className="w-3 h-3" />
-                          </a>
+                  return (
+                    <Card
+                      key={post.id || i}
+                      className="flex flex-col justify-between overflow-hidden"
+                    >
+                      {/* Post image (aspect-ratio 1:1, object-cover) */}
+                      <div className="w-full aspect-square bg-slate-100 relative overflow-hidden flex items-center justify-center border-b border-slate-100">
+                        {imagePath ? (
+                          <PostImage
+                            src={`${API_BASE}/api/media/image?path=${encodeURIComponent(imagePath)}`}
+                            alt={post.caption?.slice(0, 50) || 'Post image'}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 p-6 text-center space-y-2 bg-slate-50">
+                            <ImageIcon className="w-8 h-8 stroke-[1.5] text-slate-400" />
+                            <span className="text-xs font-medium text-slate-500">Image unavailable</span>
+                          </div>
                         )}
                       </div>
-                    </div>
+
+                      {/* Post body */}
+                      <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs text-slate-500">
+                            <span className="font-mono">{pDate}</span>
+                            <span className="capitalize px-2 py-0.5 bg-slate-100 rounded text-slate-600 font-medium text-[11px]">
+                              {post.media_type || 'image'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-slate-800 line-clamp-3 leading-relaxed" title={post.caption || ''}>
+                            {post.caption || <span className="text-slate-400 italic">No caption</span>}
+                          </p>
+                        </div>
+
+                        {/* Date and engagement numbers */}
+                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
+                          <div className="flex items-center gap-3">
+                            <span className="flex items-center gap-1 font-medium text-slate-700" title="Likes">
+                              <Heart className="w-3.5 h-3.5 text-rose-500" />
+                              {formatCompactNumber(post.likes_count ?? post.likesCount ?? 0)}
+                            </span>
+                            <span className="flex items-center gap-1 font-medium text-slate-700" title="Comments">
+                              <MessageCircle className="w-3.5 h-3.5 text-blue-500" />
+                              {formatCompactNumber(post.comments_count ?? post.commentsCount ?? 0)}
+                            </span>
+                            {(post.views_count ?? post.viewsCount) != null && (
+                              <span className="flex items-center gap-1 font-medium text-slate-700" title="Views">
+                                <Eye className="w-3.5 h-3.5 text-slate-400" />
+                                {formatCompactNumber(post.views_count ?? post.viewsCount)}
+                              </span>
+                            )}
+                          </div>
+                          {post.url && (
+                            <a
+                              href={post.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-slate-400 hover:text-slate-900 flex items-center gap-0.5 text-xs font-medium"
+                            >
+                              <span>View</span>
+                              <ArrowUpRight className="w-3 h-3" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
                   );
                 })}
               </div>
@@ -1137,13 +1250,14 @@ export default function DashboardPage() {
                       Age, gender, and follower geography require an official Meta Graph API connection with an Instagram Creator or Business account having at least 100 followers.
                     </p>
                     <div className="pt-2">
-                      <button
+                      <Button
+                        size="sm"
                         onClick={() => setShowModal(true)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition"
+                        className="inline-flex items-center gap-1.5 text-xs"
                       >
                         <span>Connect Meta Graph API</span>
                         <ArrowUpRight className="w-3.5 h-3.5" />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -1171,13 +1285,14 @@ export default function DashboardPage() {
                         onChange={(e) => setCompetitorInput(e.target.value)}
                         className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
                       />
-                      <button
+                      <Button
+                        size="sm"
                         type="submit"
-                        className="px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition flex items-center gap-1"
+                        className="h-8 px-3 text-xs flex items-center gap-1"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        Add
-                      </button>
+                        <span>Add</span>
+                      </Button>
                     </form>
                   </div>
 
@@ -1390,20 +1505,21 @@ export default function DashboardPage() {
 
                     <div className="flex gap-2 pt-2">
                       {activeHandle && (
-                        <button
+                        <Button
                           type="button"
+                          variant="outline"
                           onClick={() => setShowModal(false)}
-                          className="flex-1 py-2 text-xs font-medium border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+                          className="flex-1 py-2 text-xs"
                         >
                           Cancel
-                        </button>
+                        </Button>
                       )}
-                      <button
+                      <Button
                         type="submit"
-                        className="flex-1 py-2.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition shadow-sm"
+                        className="flex-1 py-2.5 text-xs"
                       >
                         Fetch & Analyze Data
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 ) : (
@@ -1451,21 +1567,22 @@ export default function DashboardPage() {
 
                     <div className="flex gap-2 pt-2">
                       {activeHandle && (
-                        <button
+                        <Button
                           type="button"
+                          variant="outline"
                           onClick={() => setShowModal(false)}
-                          className="flex-1 py-2 text-xs font-medium border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+                          className="flex-1 py-2 text-xs"
                         >
                           Cancel
-                        </button>
+                        </Button>
                       )}
-                      <button
+                      <Button
                         type="submit"
-                        className="flex-1 py-2.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm flex items-center justify-center gap-1.5"
+                        className="flex-1 py-2.5 text-xs flex items-center justify-center gap-1.5"
                       >
                         <Key className="w-3.5 h-3.5" />
                         <span>Connect Official API</span>
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 )}
