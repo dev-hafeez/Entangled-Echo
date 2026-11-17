@@ -1,9 +1,8 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
-const isAdminRoute = createRouteMatcher([
-  '/admin',
-  '/admin/((?!login).*)',
+const isAdminApiRoute = createRouteMatcher([
+  '/api/admin(.*)',
 ]);
 
 // Public routes accessible without signing in
@@ -13,13 +12,13 @@ const isPublicRoute = createRouteMatcher([
   '/sign-up(.*)',
   '/login(.*)',
   '/signup(.*)',
-  '/admin/login',
-  '/api/auth(.*)',
+  '/admin(.*)',
+  '/api(.*)',
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
   // Enforce FR-06: Restrict administrative actions; return 403 Forbidden for non-admin session
-  if (isAdminRoute(req)) {
+  if (isAdminApiRoute(req)) {
     const adminCookie = req.cookies.get('admin_auth')?.value;
     const authHeader = req.headers.get('authorization') || req.headers.get('x-admin-password');
     const expectedPassword = process.env.ADMIN_PASSWORD || 'admin123';

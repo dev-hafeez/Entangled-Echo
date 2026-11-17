@@ -228,9 +228,12 @@ export default function DashboardPage() {
     const checkBackgroundProgress = async () => {
       try {
         const jobsRes = await api.getJobs({ limit: 5 });
-        const currentJob = jobsRes?.jobs?.find(
-          (j: any) => j.normalized_handle === activeHandle || j.target_input === activeHandle
-        );
+        const target = activeHandle.toLowerCase().replace(/^@/, '');
+        const currentJob = jobsRes?.jobs?.find((j: any) => {
+          const norm = (j.normalized_handle || '').toLowerCase().replace(/^@/, '');
+          const targetInp = (j.target_input || '').toLowerCase().replace(/^@/, '');
+          return norm === target || targetInp === target;
+        });
 
         if (currentJob && currentJob.status === 'running') {
           setIsBackgroundScraping(true);
@@ -552,9 +555,12 @@ export default function DashboardPage() {
             api.getAccountPosts(cleanHandle).catch(() => null),
           ]);
 
-          const matchingJob = jobsRes?.jobs?.find(
-            (j: any) => j.normalized_handle === cleanHandle || j.target_input === cleanHandle
-          );
+          const target = cleanHandle.toLowerCase().replace(/^@/, '');
+          const matchingJob = jobsRes?.jobs?.find((j: any) => {
+            const norm = (j.normalized_handle || '').toLowerCase().replace(/^@/, '');
+            const targetInp = (j.target_input || '').toLowerCase().replace(/^@/, '');
+            return norm === target || targetInp === target;
+          });
 
           const detailedCount = matchingJob?.progress_detailed || freshPosts?.posts?.length || 0;
           if (detailedCount > 0) {

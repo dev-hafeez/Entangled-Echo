@@ -66,8 +66,20 @@ export default function AdminPage() {
 
   // Check auth
   useEffect(() => {
-    const isAuth = document.cookie.includes('admin_auth=true');
-    setIsAuthenticated(isAuth);
+    const checkAuth = async () => {
+      if (typeof document !== 'undefined' && document.cookie.includes('admin_auth=true')) {
+        setIsAuthenticated(true);
+        return;
+      }
+      try {
+        const res = await fetch('/api/auth/login');
+        const data = await res.json();
+        setIsAuthenticated(!!data.authenticated);
+      } catch {
+        setIsAuthenticated(false);
+      }
+    };
+    checkAuth();
   }, []);
 
   // Fetch data with active filters and pagination

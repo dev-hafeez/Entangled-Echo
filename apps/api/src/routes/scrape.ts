@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { normalizeTarget } from '../scraper/normalize.js';
 import { localJobQueue } from '../lib/local-queue.js';
 import { createRateLimiter } from '../lib/security.js';
+import { getSupabaseAdmin } from '../lib/supabase.js';
 
 export const scrapeRouter = Router();
 
@@ -39,6 +40,12 @@ scrapeRouter.post('/', async (req: Request, res: Response) => {
 
   // Enqueue locally instantly (sub-millisecond, zero timeout, supports 2,000+ jobs)
   const enqueuedJobs = localJobQueue.enqueue(jobsToInsert);
+
+  // Best-effort background sync to Supabase
+  try {
+    const supabase = getSupabaseAdmin();
+    await supabase.from('jobs').insert(enqueuedJobs);
+  } catch {}
 
   return res.status(201).json({
     message: `Enqueued ${enqueuedJobs.length} scrape job(s) successfully.`,

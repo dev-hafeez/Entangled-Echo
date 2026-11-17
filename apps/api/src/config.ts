@@ -29,6 +29,7 @@ export const config = {
     projectRoot,
     process.env.PLAYWRIGHT_PROFILE_DIR || '.chromium-profile'
   ),
+  dataMode: process.env.DATA_MODE || 'seed',
 };
 
 if (!config.supabaseServiceRoleKey) {

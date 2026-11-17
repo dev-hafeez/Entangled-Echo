@@ -199,6 +199,10 @@ class LocalJobQueue {
     }
   }
 
+  public getJob(id: string): LocalJob | undefined {
+    return this.jobs.find((job) => job.id === id);
+  }
+
   public retryJob(id: string): boolean {
     const j = this.jobs.find((job) => job.id === id);
     if (j) {
