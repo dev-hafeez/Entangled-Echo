@@ -56,10 +56,10 @@ export default function RecommendationsPage() {
     resolveHandle();
   }, [isLoaded, user]);
 
-  const fetchRecommendations = async (targetHandle: string) => {
+  const fetchRecommendations = async (targetHandle: string, forceRefresh: boolean = false) => {
     setLoading(true);
     try {
-      const data = await api.generateRecommendations(targetHandle);
+      const data = await api.generateRecommendations(targetHandle, 'instagram', forceRefresh);
       setRecsData(data);
     } catch (err) {
       console.error('Failed to load recommendations:', err);
@@ -119,7 +119,7 @@ export default function RecommendationsPage() {
             </div>
           )}
           <button
-            onClick={() => handle && fetchRecommendations(handle)}
+            onClick={() => handle && fetchRecommendations(handle, true)}
             disabled={loading}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 hover:text-slate-900 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition shadow-sm"
           >
