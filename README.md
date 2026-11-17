@@ -46,7 +46,6 @@ The platform is structured as an integrated monorepo:
 
 Services will be accessible at:
 * **Web Application**: [http://localhost:3000](http://localhost:3000)
-* **Admin Control Panel**: [http://localhost:3000/admin](http://localhost:3000/admin) (Default password: `admin123`)
 * **API Backend**: [http://localhost:4000](http://localhost:4000)
 * **ML Optimizer**: [http://localhost:8001](http://localhost:8001)
 
