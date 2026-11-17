@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
-import { api } from '@/lib/api';
+import { api, API_BASE } from '@/lib/api';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -21,6 +21,7 @@ import {
   AlertCircle,
   Loader2,
   TrendingUp,
+  HelpCircle,
   Instagram,
   Facebook,
   Brain,
@@ -47,21 +48,52 @@ function ProfileAvatar({
   url,
   name,
   handle,
+  className,
 }: {
   url?: string | null;
   name?: string;
   handle?: string;
+  className?: string;
 }) {
-  const [imgError, setImgError] = useState(false);
-  const initial = (name || handle || 'E')[0]?.toUpperCase() || 'E';
+  const cleanHandle = handle ? handle.toLowerCase().replace(/^@/, '').trim() : '';
 
-  if (url && !imgError) {
+  // Order of sources to attempt:
+  // 1. Local/stored avatar from backend via handle
+  // 2. Direct avatar url provided in profile
+  const sources = useMemo(() => {
+    const list: string[] = [];
+    if (cleanHandle) {
+      list.push(`${API_BASE}/api/media/avatar?handle=${encodeURIComponent(cleanHandle)}`);
+    }
+    if (url && typeof url === 'string' && url.trim().length > 0) {
+      if (!list.includes(url)) {
+        list.push(url);
+      }
+    }
+    return list;
+  }, [cleanHandle, url]);
+
+  const [srcIndex, setSrcIndex] = useState(0);
+
+  // Reset srcIndex whenever sources change (e.g. switching accounts)
+  useEffect(() => {
+    setSrcIndex(0);
+  }, [sources]);
+
+  const activeSrc = sources[srcIndex];
+  const initial = (name || handle || 'E')[0]?.toUpperCase() || 'E';
+  const sizeClasses = className || 'w-16 h-16 sm:w-20 sm:h-20';
+
+  if (activeSrc) {
     return (
       <img
-        src={url}
+        key={activeSrc}
+        src={activeSrc}
         alt={name || handle || 'Creator profile picture'}
-        onError={() => setImgError(true)}
-        className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-[#d8e0d5] shadow-sm shrink-0"
+        referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
+        onError={() => setSrcIndex((prev) => prev + 1)}
+        className={`${sizeClasses} rounded-full object-cover border-2 border-[#d8e0d5] shadow-sm shrink-0`}
       />
     );
   }
@@ -69,23 +101,62 @@ function ProfileAvatar({
   return (
     <div
       aria-label={name || handle || 'Creator avatar'}
-      className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#f0f4ee] border-2 border-[#d8e0d5] flex items-center justify-center font-bold text-xl sm:text-2xl text-[#1b3026] shrink-0"
+      className={`${sizeClasses} rounded-full bg-[#f0f4ee] border-2 border-[#d8e0d5] flex items-center justify-center font-bold text-xl sm:text-2xl text-[#1b3026] shrink-0`}
     >
       {initial}
     </div>
   );
 }
 
-function PostThumbnail({ url, caption }: { url?: string | null; caption?: string }) {
-  const [imgError, setImgError] = useState(false);
+function PostThumbnail({
+  storagePath,
+  url,
+  handle,
+  shortcode,
+  caption,
+}: {
+  storagePath?: string | null;
+  url?: string | null;
+  handle?: string;
+  shortcode?: string;
+  caption?: string;
+}) {
+  const sources = useMemo(() => {
+    const list: string[] = [];
+    if (storagePath && typeof storagePath === 'string' && storagePath.trim().length > 0) {
+      list.push(`${API_BASE}/api/media/image?path=${encodeURIComponent(storagePath.trim())}`);
+    } else if (handle && shortcode) {
+      const cleanH = handle.toLowerCase().replace(/^@/, '').trim();
+      list.push(
+        `${API_BASE}/api/media/image?path=${encodeURIComponent(`${cleanH}/${shortcode}/0.jpg`)}`
+      );
+    }
+    if (url && typeof url === 'string' && url.trim().length > 0) {
+      if (!list.includes(url)) {
+        list.push(url);
+      }
+    }
+    return list;
+  }, [storagePath, url, handle, shortcode]);
 
-  if (url && !imgError) {
+  const [srcIndex, setSrcIndex] = useState(0);
+
+  useEffect(() => {
+    setSrcIndex(0);
+  }, [sources]);
+
+  const activeSrc = sources[srcIndex];
+
+  if (activeSrc) {
     return (
       <div className="w-full aspect-square bg-[#f0f4ee] border-b border-[#e3e8e1] overflow-hidden relative">
         <img
-          src={url}
+          key={activeSrc}
+          src={activeSrc}
           alt={caption ? caption.slice(0, 30) : 'Post preview'}
-          onError={() => setImgError(true)}
+          referrerPolicy="no-referrer"
+          crossOrigin="anonymous"
+          onError={() => setSrcIndex((prev) => prev + 1)}
           className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
           loading="lazy"
         />
@@ -219,6 +290,17 @@ export default function DashboardPage() {
     if (!isLoaded || !user) return;
 
     const resolveUserSession = async () => {
+      // 0. Check URL query param ?handle=...
+      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const queryHandle = urlParams?.get('handle');
+      if (queryHandle) {
+        const cleanQ = queryHandle.toLowerCase().replace(/^@/, '').trim();
+        setActiveHandle(cleanQ);
+        if (user?.id) localStorage.setItem(`ee_handle_${user.id}`, cleanQ);
+        loadCreatorDashboard(cleanQ);
+        return;
+      }
+
       // 1. Try server-side linked user profile
       const serverProfile = await api.getUserProfile(user.id).catch(() => null);
       if (serverProfile?.profile?.handle) {
@@ -1092,24 +1174,101 @@ export default function DashboardPage() {
                     {posts.map((post, i) => {
                       const pDate = post.posted_at ? new Date(post.posted_at).toLocaleDateString() : 'N/A';
                       const postImageUrl = post.media_urls?.[0] || post.mediaUrls?.[0] || null;
+                      const storagePath = post.storage_paths?.[0] || post.storagePaths?.[0] || null;
+                      const perfScore = post.perf_score != null ? Math.round(Number(post.perf_score)) : null;
+                      const perfTier =
+                        post.perf_tier ||
+                        (perfScore != null
+                          ? perfScore >= 80
+                            ? 'Top Performing'
+                            : perfScore >= 65
+                            ? 'Above Average'
+                            : perfScore >= 50
+                            ? 'Average'
+                            : 'Needs Improvement'
+                          : null);
+                      const scoreWhy = post.score_why || null;
+                      const improvements = Array.isArray(post.improvements) ? post.improvements : [];
+
                       return (
                         <div
                           key={post.id || i}
                           className="rounded-xl border border-[#e3e8e1] bg-white hover:border-[#d8e0d5] transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 duration-200 flex flex-col justify-between overflow-hidden group"
                         >
-                          <PostThumbnail url={postImageUrl} caption={post.caption} />
-
-                          <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between text-xs text-[#748379]">
-                                <span className="font-mono">{pDate}</span>
-                                <span className="capitalize px-2 py-0.5 bg-[#f0f4ee] border border-[#d8e0d5] rounded text-[#20372d] font-medium">
-                                  {post.media_type || 'image'}
-                                </span>
+                          <div className="relative">
+                            <PostThumbnail
+                              storagePath={storagePath}
+                              url={postImageUrl}
+                              handle={activeHandle}
+                              shortcode={post.shortcode}
+                              caption={post.caption}
+                            />
+                            {perfScore != null && (
+                              <div className="absolute top-2.5 right-2.5 bg-white/95 backdrop-blur-sm border border-[#e3e8e1] shadow-sm rounded-md px-2 py-0.5 flex items-center gap-1 text-xs font-semibold text-[#1b3026]">
+                                <Sparkles className="w-3 h-3 text-[#285a49]" />
+                                <span>{perfScore}/100</span>
                               </div>
+                            )}
+                          </div>
+
+                          <div className="p-5 space-y-3.5 flex-1 flex flex-col justify-between">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between text-xs text-[#748379] gap-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono">{pDate}</span>
+                                  <span className="capitalize px-2 py-0.5 bg-[#f0f4ee] border border-[#d8e0d5] rounded text-[#20372d] font-medium text-[11px]">
+                                    {post.media_type || 'image'}
+                                  </span>
+                                </div>
+                                {perfTier && (
+                                  <span
+                                    className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${
+                                      perfScore != null && perfScore >= 80
+                                        ? 'bg-[#eef6eb] text-[#285a49] border-[#cbe2c5]'
+                                        : perfScore != null && perfScore >= 65
+                                        ? 'bg-[#f0f4ee] text-[#20372d] border-[#d8e0d5]'
+                                        : 'bg-[#faf6f0] text-[#7d5628] border-[#e8dccb]'
+                                    }`}
+                                  >
+                                    {perfTier}
+                                  </span>
+                                )}
+                              </div>
+
                               <p className="text-sm text-[#1b3026] line-clamp-3 leading-relaxed">
                                 {post.caption || <span className="text-[#748379] italic">No caption</span>}
                               </p>
+
+                              {/* Why this score */}
+                              {scoreWhy && (
+                                <div className="p-3 rounded-lg bg-[#f8faf7] border border-[#e3e8e1] space-y-1 text-xs">
+                                  <div className="flex items-center gap-1 font-semibold text-[#1b3026]">
+                                    <HelpCircle className="w-3.5 h-3.5 text-[#285a49]" />
+                                    <span>Why this score:</span>
+                                  </div>
+                                  <p className="text-[#55635a] leading-relaxed text-[11px] sm:text-xs">
+                                    {scoreWhy}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Improvements needed */}
+                              {improvements && improvements.length > 0 && (
+                                <div className="p-3 rounded-lg bg-[#fafbf9] border border-[#e3e8e1] space-y-1.5 text-xs">
+                                  <div className="flex items-center gap-1 font-semibold text-[#1b3026]">
+                                    <TrendingUp className="w-3.5 h-3.5 text-[#285a49]" />
+                                    <span>Improvements needed:</span>
+                                  </div>
+                                  <ul className="space-y-1 text-[11px] sm:text-xs text-[#55635a]">
+                                    {improvements.map((tip: string, tIdx: number) => (
+                                      <li key={tIdx} className="flex items-start gap-1.5 leading-snug">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-[#285a49] mt-1.5 shrink-0" />
+                                        <span>{tip}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
                             </div>
 
                             <div className="pt-3 border-t border-[#e3e8e1] flex items-center justify-between text-xs text-[#55635a]">
@@ -1335,13 +1494,12 @@ export default function DashboardPage() {
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
-                              {comp.avatarUrl ? (
-                                <img src={comp.avatarUrl} alt={comp.handle} className="w-10 h-10 rounded-full object-cover border border-[#d8e0d5]" />
-                              ) : (
-                                <div className="w-10 h-10 rounded-full bg-[#f0f4ee] border border-[#d8e0d5] flex items-center justify-center font-bold text-[#1b3026] text-sm">
-                                  {comp.handle.slice(0, 2).toUpperCase()}
-                                </div>
-                              )}
+                              <ProfileAvatar
+                                url={comp.avatarUrl}
+                                name={comp.fullName}
+                                handle={comp.handle}
+                                className="w-10 h-10 text-sm"
+                              />
                               <div>
                                 <h4 className="text-sm font-bold text-[#1b3026]">@{comp.handle}</h4>
                                 <span className="text-[11px] text-[#748379] truncate block max-w-[150px]">{comp.fullName}</span>

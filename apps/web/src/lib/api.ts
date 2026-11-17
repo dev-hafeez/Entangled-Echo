@@ -1,4 +1,16 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+export function getMediaImageUrl(path?: string | null): string | null {
+  if (!path) return null;
+  return `${API_BASE}/api/media/image?path=${encodeURIComponent(path)}`;
+}
+
+export function getMediaAvatarUrl(handle?: string | null): string | null {
+  if (!handle) return null;
+  const clean = handle.toLowerCase().replace(/^@/, '').trim();
+  if (!clean) return null;
+  return `${API_BASE}/api/media/avatar?handle=${encodeURIComponent(clean)}`;
+}
 
 export async function fetchFromApi(endpoint: string, options: RequestInit = {}) {
   const res = await fetch(`${API_BASE}${endpoint}`, {
