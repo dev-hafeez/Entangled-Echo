@@ -12,90 +12,72 @@ function NavigationHeader() {
   // If on admin routes, render clean admin header matching original simple design
   if (isAdmin) {
     return (
-      <header className="border-b bg-white px-6 py-4 shadow-sm flex items-center justify-between">
+      <header className="h-12 min-h-[48px] border-b border-[#e5e9e2] bg-white px-4 sm:px-6 lg:px-8 shadow-[0_1px_2px_rgba(27,48,38,0.03)] flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <span className="font-bold text-xl tracking-tight text-slate-800">EntangledEcho</span>
-          <span className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-mono">Admin</span>
+          <span className="font-bold text-base sm:text-lg tracking-tight text-[#1b3026]">EntangledEcho</span>
+          <span className="text-[10px] font-mono font-semibold uppercase px-1.5 py-0.5 rounded bg-[#f0f4ee] text-[#285a49] border border-[#d8e2d4] tracking-wider">
+            Admin
+          </span>
         </div>
-        <nav className="flex items-center space-x-4 text-sm font-medium">
-          <span className="text-xs font-mono text-slate-400">Control Panel</span>
+        <nav className="flex items-center space-x-4 text-xs font-mono text-[#748379]">
+          <span>Control Panel</span>
         </nav>
       </header>
     );
   }
 
+  const navLinks = [
+    { href: '/dashboard', label: 'Dashboard' },
+    { href: '/recommendations', label: 'AI Recommendations' },
+    { href: '/calendar', label: 'Calendar' },
+    { href: '/notifications', label: 'Notifications' },
+    { href: '/settings', label: 'Settings' },
+  ];
+
   // Regular user app header with Clerk Auth
   return (
-    <header className="border-b bg-white px-6 py-4 shadow-sm flex items-center justify-between">
+    <header className="h-12 min-h-[48px] border-b border-[#e5e9e2] bg-white px-4 sm:px-6 lg:px-8 shadow-[0_1px_2px_rgba(27,48,38,0.03)] flex items-center justify-between sticky top-0 z-30">
       <div className="flex items-center space-x-6">
-        <div className="flex items-center space-x-3">
-          <a href="/" className="font-bold text-xl tracking-tight text-slate-800">EntangledEcho</a>
-          <span className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-mono">Platform</span>
+        <div className="flex items-center space-x-2.5">
+          <a
+            href="/"
+            className="font-bold text-base sm:text-lg tracking-tight text-[#1b3026] hover:text-[#285a49] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] rounded"
+          >
+            EntangledEcho
+          </a>
+          <span className="text-[10px] font-mono font-semibold uppercase px-1.5 py-0.5 rounded bg-[#f0f4ee] text-[#285a49] border border-[#d8e2d4] tracking-wider">
+            Platform
+          </span>
         </div>
-        <nav className="hidden md:flex items-center space-x-4 text-xs font-semibold">
-          <a
-            href="/dashboard"
-            className={`transition px-2.5 py-1 rounded-md ${
-              pathname === '/dashboard'
-                ? 'bg-slate-100 text-slate-900 font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Dashboard
-          </a>
-          <a
-            href="/recommendations"
-            className={`transition px-2.5 py-1 rounded-md flex items-center gap-1.5 ${
-              pathname === '/recommendations'
-                ? 'bg-purple-50 text-purple-700 border border-purple-200 font-bold'
-                : 'text-slate-600 hover:text-purple-600'
-            }`}
-          >
-            <span>AI Recommendations</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-          </a>
-          <a
-            href="/calendar"
-            className={`transition px-2.5 py-1 rounded-md flex items-center gap-1.5 ${
-              pathname === '/calendar'
-                ? 'bg-slate-100 text-slate-900 font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <span>Calendar</span>
-          </a>
-          <a
-            href="/notifications"
-            className={`transition px-2.5 py-1 rounded-md flex items-center gap-1.5 ${
-              pathname === '/notifications'
-                ? 'bg-slate-100 text-slate-900 font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <span>Notifications</span>
-          </a>
-          <a
-            href="/settings"
-            className={`transition px-2.5 py-1 rounded-md flex items-center gap-1.5 ${
-              pathname === '/settings'
-                ? 'bg-slate-100 text-slate-900 font-bold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <span>Settings</span>
-          </a>
+        <nav className="hidden md:flex items-center space-x-1.5 text-xs">
+          {navLinks.map((link) => {
+            const isSelected = pathname === link.href;
+            return (
+              <a
+                key={link.href}
+                href={link.href}
+                className={`transition-colors px-2.5 py-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] ${
+                  isSelected
+                    ? 'bg-[#eef6eb] text-[#1b3026] font-semibold border border-[#cbe2c5]'
+                    : 'text-[#55635a] hover:text-[#1b3026] hover:bg-[#f5f8f3] border border-transparent'
+                }`}
+              >
+                {link.label}
+              </a>
+            );
+          })}
         </nav>
       </div>
-      <nav className="flex items-center space-x-4 text-sm font-medium">
-        <Suspense fallback={<div className="w-8 h-8 rounded-full bg-slate-200 animate-pulse" />}>
+      <nav className="flex items-center space-x-3 text-sm font-medium">
+        <Suspense fallback={<div className="w-7 h-7 rounded-full bg-[#eef3ec] animate-pulse" />}>
           <Show when="signed-out">
             <SignInButton mode="modal">
-              <button className="px-3 py-1.5 text-sm font-medium rounded-md border border-slate-300 hover:bg-slate-100 transition">
+              <button className="px-2.5 py-1 text-xs font-medium rounded-md border border-[#d8e0d5] text-[#1b3026] bg-white hover:bg-[#f5f8f3] hover:border-[#1b3026] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]">
                 Sign In
               </button>
             </SignInButton>
             <SignUpButton mode="modal">
-              <button className="px-3 py-1.5 text-sm font-medium rounded-md bg-slate-900 text-white hover:bg-slate-800 transition">
+              <button className="px-2.5 py-1 text-xs font-semibold rounded-md bg-[#20372d] text-white border border-[#20372d] hover:bg-white hover:text-[#20372d] hover:border-[#20372d] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]">
                 Sign Up
               </button>
             </SignUpButton>
@@ -117,12 +99,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className="min-h-screen bg-white text-slate-900 antialiased">
+        <body className="min-h-screen bg-[#fbfaf8] text-[#1b3026] antialiased">
           {!isLandingPage && !isAuthPage && <NavigationHeader />}
           {isLandingPage || isAuthPage ? (
             <main className="min-h-screen w-full">{children}</main>
           ) : (
-            <main className="p-6 max-w-7xl mx-auto">{children}</main>
+            <main className="w-full">{children}</main>
           )}
         </body>
       </html>

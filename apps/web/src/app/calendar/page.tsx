@@ -21,7 +21,6 @@ import {
   Loader2,
   RefreshCw,
   X,
-  ExternalLink,
 } from 'lucide-react';
 
 interface ScheduledPost {
@@ -350,22 +349,22 @@ export default function CalendarPage() {
     switch (status) {
       case 'PUBLISHED':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#285a49] bg-[#eef6eb] border border-[#cbe2c5] px-1.5 py-0.5 rounded">
+            <CheckCircle2 className="w-3 h-3 text-[#285a49]" />
             Published
           </span>
         );
       case 'PUBLISHING':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded animate-pulse">
-            <Loader2 className="w-3 h-3 text-blue-600 animate-spin" />
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#285a49] bg-[#eef6eb] border border-[#cbe2c5] px-1.5 py-0.5 rounded animate-pulse">
+            <Loader2 className="w-3 h-3 text-[#285a49] animate-spin" />
             Publishing...
           </span>
         );
       case 'SCHEDULED':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded">
-            <Clock className="w-3 h-3 text-purple-600" />
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#20372d] bg-[#f0f4ee] border border-[#d8e0d5] px-1.5 py-0.5 rounded">
+            <Clock className="w-3 h-3 text-[#285a49]" />
             Scheduled
           </span>
         );
@@ -378,15 +377,15 @@ export default function CalendarPage() {
         );
       case 'CANCELLED':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
-            <XCircle className="w-3 h-3 text-slate-500" />
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#55635a] bg-[#f0f4ee] border border-[#e3e8e1] px-1.5 py-0.5 rounded">
+            <XCircle className="w-3 h-3 text-[#748379]" />
             Cancelled
           </span>
         );
       case 'DRAFT':
       default:
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#55635a] bg-[#f0f4ee] border border-[#d8e0d5] px-1.5 py-0.5 rounded">
             Draft
           </span>
         );
@@ -396,27 +395,27 @@ export default function CalendarPage() {
   const getMediaIcon = (type: ScheduledPost['mediaType']) => {
     switch (type) {
       case 'video':
-        return <Video className="w-3 h-3 text-blue-500" />;
+        return <Video className="w-3 h-3 text-[#285a49]" />;
       case 'carousel':
-        return <Layers className="w-3 h-3 text-purple-500" />;
+        return <Layers className="w-3 h-3 text-[#347761]" />;
       case 'image':
       default:
-        return <ImageIcon className="w-3 h-3 text-emerald-500" />;
+        return <ImageIcon className="w-3 h-3 text-[#20372d]" />;
     }
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-[1150px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-16">
       {/* Top Header & Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#e3e8e1] pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">Content Calendar</h1>
-            <span className="text-[10px] bg-slate-100 text-slate-600 border border-slate-200 font-mono px-2 py-0.5 rounded">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1b3026]">Content Calendar</h1>
+            <span className="text-[10px] bg-[#f0f4ee] text-[#285a49] border border-[#d8e0d5] font-mono px-2 py-0.5 rounded">
               FR-25 / FR-26
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-[#55635a] mt-1">
             Weekly & monthly visual scheduling with native drag-and-drop and AI recommended optimal windows.
           </p>
         </div>
@@ -427,7 +426,7 @@ export default function CalendarPage() {
             onClick={handleTriggerTick}
             disabled={ticking}
             title="Evaluate and publish due posts right now (Tick runner)"
-            className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+            className="px-3 py-1.5 text-xs font-semibold text-white bg-[#20372d] border border-[#20372d] hover:bg-white hover:text-[#20372d] hover:border-[#20372d] rounded-lg transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${ticking ? 'animate-spin' : ''}`} />
             <span>Check Queue</span>
@@ -436,7 +435,7 @@ export default function CalendarPage() {
           {/* New Post Button */}
           <button
             onClick={() => handleOpenScheduleForSlot(new Date(), 18)}
-            className="px-4 py-1.5 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition flex items-center gap-1.5 shadow-sm"
+            className="px-4 py-1.5 text-xs font-semibold text-white bg-[#20372d] border border-[#20372d] hover:bg-white hover:text-[#20372d] hover:border-[#20372d] rounded-lg transition-colors flex items-center gap-1.5 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Schedule Post</span>
@@ -445,56 +444,58 @@ export default function CalendarPage() {
       </div>
 
       {tickMessage && (
-        <div className="text-xs bg-slate-900 text-white px-3 py-2 rounded-lg flex items-center justify-between animate-in fade-in">
+        <div className="text-xs bg-[#20372d] text-white px-3 py-2 rounded-lg flex items-center justify-between animate-in fade-in">
           <span>✓ {tickMessage}</span>
-          <button onClick={() => setTickMessage(null)} className="text-slate-400 hover:text-white">
+          <button onClick={() => setTickMessage(null)} className="text-[#cbe2c5] hover:text-white">
             <X className="w-3 h-3" />
           </button>
         </div>
       )}
 
       {/* Calendar Navigation Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white border border-[#e3e8e1] rounded-xl shadow-sm">
         <div className="flex items-center gap-2">
           <button
             onClick={prevPeriod}
-            className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
+            className="p-1.5 text-[#55635a] hover:text-[#1b3026] hover:bg-[#f0f4ee] rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
+            title="Previous period"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             onClick={jumpToToday}
-            className="px-2.5 py-1 text-xs font-semibold text-slate-700 border border-slate-200 rounded-md hover:bg-slate-50 transition"
+            className="px-2.5 py-1 text-xs font-semibold text-[#20372d] border border-[#d8e0d5] bg-white rounded-md hover:bg-[#f0f4ee] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
           >
             Today
           </button>
           <button
             onClick={nextPeriod}
-            className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
+            className="p-1.5 text-[#55635a] hover:text-[#1b3026] hover:bg-[#f0f4ee] rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
+            title="Next period"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
 
-          <span className="text-sm font-bold text-slate-900 ml-2">
+          <span className="text-sm font-bold text-[#1b3026] ml-2">
             {currentDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
           </span>
         </div>
 
         {/* View Mode Toggle */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+          <div className="flex items-center bg-[#f0f4ee] p-0.5 rounded-lg border border-[#e3e8e1] text-xs">
             <button
               onClick={() => setViewMode('week')}
-              className={`px-3 py-1 rounded-md font-semibold transition ${
-                viewMode === 'week' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              className={`px-3 py-1 rounded-md font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] ${
+                viewMode === 'week' ? 'bg-white text-[#1b3026] shadow-sm' : 'text-[#55635a] hover:text-[#1b3026]'
               }`}
             >
               Week View
             </button>
             <button
               onClick={() => setViewMode('month')}
-              className={`px-3 py-1 rounded-md font-semibold transition ${
-                viewMode === 'month' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              className={`px-3 py-1 rounded-md font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] ${
+                viewMode === 'month' ? 'bg-white text-[#1b3026] shadow-sm' : 'text-[#55635a] hover:text-[#1b3026]'
               }`}
             >
               Month View
@@ -505,16 +506,16 @@ export default function CalendarPage() {
 
       {/* AI Optimal Posting Slots Banner */}
       {recommendedSlots.length > 0 && (
-        <div className="p-4 rounded-xl border border-purple-200 bg-purple-50/40 space-y-2">
+        <div className="p-4 rounded-xl border border-[#cbe2c5] bg-[#eef6eb]/50 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-purple-600" />
-              <h3 className="text-xs font-bold text-slate-900">AI-Calibrated Optimal Slots</h3>
-              <span className="text-[10px] text-purple-700 bg-purple-100 font-mono px-1.5 py-0.5 rounded">
+              <Sparkles className="w-4 h-4 text-[#285a49]" />
+              <h3 className="text-xs font-bold text-[#1b3026]">AI-Calibrated Optimal Slots</h3>
+              <span className="text-[10px] text-[#285a49] bg-[#eef6eb] border border-[#cbe2c5] font-mono px-1.5 py-0.5 rounded">
                 FR-25 Overlay
               </span>
             </div>
-            <span className="text-[11px] text-slate-500">Click any slot to schedule directly</span>
+            <span className="text-[11px] text-[#748379]">Click any slot to schedule directly</span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
@@ -526,16 +527,16 @@ export default function CalendarPage() {
                   const targetDay = weekDays.find((d) => d.getDay() === slot.dayIndex) || currentDate;
                   handleOpenScheduleForSlot(targetDay, slot.hour);
                 }}
-                className="p-2.5 bg-white border border-purple-200 hover:border-purple-400 rounded-lg text-left transition shadow-2xs hover:shadow-xs group"
+                className="p-2.5 bg-white border border-[#d8e0d5] hover:border-[#285a49] rounded-lg text-left transition-colors shadow-xs hover:shadow-sm group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
               >
-                <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+                <div className="flex items-center justify-between text-xs font-bold text-[#1b3026]">
                   <span>{slot.dayOfWeek}</span>
-                  <span className="text-[10px] text-purple-600 font-mono">{slot.confidenceScore}% conf</span>
+                  <span className="text-[10px] text-[#285a49] font-mono">{slot.confidenceScore}% conf</span>
                 </div>
-                <div className="text-xs font-semibold text-purple-700 mt-0.5 group-hover:underline">
+                <div className="text-xs font-semibold text-[#285a49] mt-0.5 group-hover:underline">
                   {slot.timeFormatted}
                 </div>
-                <p className="text-[10px] text-slate-400 truncate mt-1">{slot.rationale}</p>
+                <p className="text-[10px] text-[#748379] truncate mt-1">{slot.rationale}</p>
               </button>
             ))}
           </div>
@@ -544,23 +545,23 @@ export default function CalendarPage() {
 
       {/* VIEW 1: WEEK VIEW */}
       {viewMode === 'week' && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/70 text-center text-xs font-semibold">
+        <div className="bg-white border border-[#e3e8e1] rounded-xl shadow-sm overflow-hidden">
+          <div className="grid grid-cols-7 border-b border-[#e3e8e1] bg-[#fbfaf8] text-center text-xs font-semibold">
             {weekDays.map((date, idx) => {
               const isToday = isSameDay(date, new Date());
               return (
                 <div
                   key={idx}
-                  className={`py-3 px-2 border-r border-slate-100 last:border-r-0 ${
-                    isToday ? 'bg-purple-50/50 text-purple-900' : 'text-slate-700'
+                  className={`py-3 px-2 border-r border-[#e3e8e1] last:border-r-0 ${
+                    isToday ? 'bg-[#eef6eb] text-[#1b3026]' : 'text-[#55635a]'
                   }`}
                 >
-                  <div className="text-[11px] text-slate-400 uppercase tracking-wider">
+                  <div className="text-[11px] text-[#748379] uppercase tracking-wider">
                     {date.toLocaleDateString(undefined, { weekday: 'short' })}
                   </div>
                   <div
                     className={`inline-flex items-center justify-center w-7 h-7 mt-1 rounded-full text-sm font-bold ${
-                      isToday ? 'bg-slate-900 text-white' : 'text-slate-800'
+                      isToday ? 'bg-[#20372d] text-white' : 'text-[#1b3026]'
                     }`}
                   >
                     {date.getDate()}
@@ -571,7 +572,7 @@ export default function CalendarPage() {
           </div>
 
           {/* Week Grid Slots */}
-          <div className="grid grid-cols-7 min-h-[500px] divide-x divide-slate-100">
+          <div className="grid grid-cols-7 min-h-[500px] divide-x divide-[#e3e8e1]">
             {weekDays.map((date, colIdx) => {
               const dayPosts = posts.filter((p) => isSameDay(new Date(p.scheduledTime), date));
               const dateKey = date.toISOString().slice(0, 10);
@@ -585,8 +586,8 @@ export default function CalendarPage() {
                   key={colIdx}
                   onDragOver={(e) => handleDragOver(e, dateKey)}
                   onDrop={(e) => handleDrop(e, date, daySlot ? daySlot.hour : 18)}
-                  className={`p-2 space-y-2 transition flex flex-col justify-between ${
-                    isDragTarget ? 'bg-purple-50/60 ring-2 ring-purple-400 ring-inset' : 'bg-white'
+                  className={`p-2 space-y-2 transition-colors flex flex-col justify-between ${
+                    isDragTarget ? 'bg-[#eef6eb]/70 ring-2 ring-[#285a49] ring-inset' : 'bg-white'
                   }`}
                 >
                   <div className="space-y-2">
@@ -603,23 +604,23 @@ export default function CalendarPage() {
                           draggable={post.status !== 'PUBLISHED'}
                           onDragStart={(e) => handleDragStart(e, post.id)}
                           onClick={() => setSelectedPost(post)}
-                          className="p-2.5 rounded-lg border border-slate-200 bg-white hover:border-slate-400 shadow-2xs hover:shadow-xs cursor-pointer transition space-y-1.5 group select-none"
+                          className="p-2.5 rounded-lg border border-[#e3e8e1] bg-white hover:border-[#285a49] shadow-xs hover:shadow-sm cursor-pointer transition-all space-y-1.5 group select-none"
                         >
                           <div className="flex items-center justify-between text-[11px]">
-                            <span className="font-semibold text-slate-700 flex items-center gap-1">
+                            <span className="font-semibold text-[#1b3026] flex items-center gap-1">
                               {getMediaIcon(post.mediaType)}
                               <span>{postTime}</span>
                             </span>
                             {getStatusBadge(post.status)}
                           </div>
 
-                          <p className="text-xs text-slate-800 line-clamp-2 leading-snug">
+                          <p className="text-xs text-[#1b3026] line-clamp-2 leading-snug">
                             {post.caption || 'No caption'}
                           </p>
 
-                          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
+                          <div className="flex items-center justify-between text-[10px] text-[#748379] pt-0.5">
                             <span className="font-mono">@{post.accountHandle}</span>
-                            <span className="uppercase text-[9px] font-bold text-slate-500">
+                            <span className="uppercase text-[9px] font-bold text-[#55635a]">
                               {post.platform}
                             </span>
                           </div>
@@ -631,13 +632,13 @@ export default function CalendarPage() {
                     {daySlot && (
                       <div
                         onClick={() => handleOpenScheduleForSlot(date, daySlot.hour)}
-                        className="p-2 border border-dashed border-purple-200 hover:border-purple-400 rounded-lg bg-purple-50/20 hover:bg-purple-50/50 cursor-pointer transition text-left space-y-1 group"
+                        className="p-2 border border-dashed border-[#cbe2c5] hover:border-[#285a49] rounded-lg bg-[#eef6eb]/30 hover:bg-[#eef6eb]/70 cursor-pointer transition-colors text-left space-y-1 group"
                       >
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-purple-700">
-                          <Sparkles className="w-3 h-3 text-purple-500" />
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-[#285a49]">
+                          <Sparkles className="w-3 h-3 text-[#285a49]" />
                           <span>Optimal Slot ({daySlot.timeFormatted})</span>
                         </div>
-                        <p className="text-[10px] text-slate-400 leading-tight">
+                        <p className="text-[10px] text-[#748379] leading-tight">
                           Click to place post at peak window
                         </p>
                       </div>
@@ -648,7 +649,7 @@ export default function CalendarPage() {
                   <button
                     type="button"
                     onClick={() => handleOpenScheduleForSlot(date, 18)}
-                    className="w-full py-1.5 text-[11px] font-medium text-slate-400 hover:text-slate-800 hover:bg-slate-50 rounded border border-transparent hover:border-slate-200 transition text-center flex items-center justify-center gap-1"
+                    className="w-full py-1.5 text-[11px] font-medium text-[#748379] hover:text-[#1b3026] hover:bg-[#f0f4ee] rounded border border-transparent hover:border-[#e3e8e1] transition-colors text-center flex items-center justify-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
                   >
                     <Plus className="w-3 h-3" />
                     <span>Schedule</span>
@@ -662,17 +663,17 @@ export default function CalendarPage() {
 
       {/* VIEW 2: MONTH VIEW */}
       {viewMode === 'month' && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/70 text-center text-xs font-semibold py-2.5 text-slate-700">
+        <div className="bg-white border border-[#e3e8e1] rounded-xl shadow-sm overflow-hidden">
+          <div className="grid grid-cols-7 border-b border-[#e3e8e1] bg-[#fbfaf8] text-center text-xs font-semibold py-2.5 text-[#1b3026]">
             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => (
               <div key={i}>{d}</div>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 divide-x divide-y divide-slate-100">
+          <div className="grid grid-cols-7 divide-x divide-y divide-[#e3e8e1]">
             {monthDays.map((date, idx) => {
               if (!date) {
-                return <div key={idx} className="min-h-[100px] bg-slate-50/30" />;
+                return <div key={idx} className="min-h-[100px] bg-[#fbfaf8]/40" />;
               }
 
               const isToday = isSameDay(date, new Date());
@@ -685,20 +686,20 @@ export default function CalendarPage() {
                   key={idx}
                   onDragOver={(e) => handleDragOver(e, dateKey)}
                   onDrop={(e) => handleDrop(e, date, 18)}
-                  className={`min-h-[100px] p-2 space-y-1.5 transition ${
-                    isDragTarget ? 'bg-purple-50/60 ring-2 ring-purple-400 ring-inset' : 'bg-white'
+                  className={`min-h-[100px] p-2 space-y-1.5 transition-colors ${
+                    isDragTarget ? 'bg-[#eef6eb]/70 ring-2 ring-[#285a49] ring-inset' : 'bg-white'
                   }`}
                 >
                   <div className="flex items-center justify-between text-xs">
                     <span
                       className={`inline-flex items-center justify-center w-5 h-5 rounded-full font-bold ${
-                        isToday ? 'bg-slate-900 text-white' : 'text-slate-700'
+                        isToday ? 'bg-[#20372d] text-white' : 'text-[#1b3026]'
                       }`}
                     >
                       {date.getDate()}
                     </span>
                     {dayPosts.length > 0 && (
-                      <span className="text-[10px] font-mono text-slate-400">
+                      <span className="text-[10px] font-mono text-[#748379]">
                         {dayPosts.length} post{dayPosts.length > 1 ? 's' : ''}
                       </span>
                     )}
@@ -711,22 +712,22 @@ export default function CalendarPage() {
                         draggable={post.status !== 'PUBLISHED'}
                         onDragStart={(e) => handleDragStart(e, post.id)}
                         onClick={() => setSelectedPost(post)}
-                        className="px-1.5 py-1 rounded bg-slate-50 border border-slate-200 hover:border-slate-400 text-[10px] truncate cursor-pointer transition font-medium text-slate-800 flex items-center justify-between gap-1"
+                        className="px-1.5 py-1 rounded bg-[#f0f4ee] border border-[#e3e8e1] hover:border-[#285a49] text-[10px] truncate cursor-pointer transition-colors font-medium text-[#1b3026] flex items-center justify-between gap-1"
                       >
                         <span className="truncate">{post.caption || 'Post'}</span>
                         <span
                           className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                             post.status === 'PUBLISHED'
-                              ? 'bg-emerald-500'
+                              ? 'bg-[#285a49]'
                               : post.status === 'FAILED'
                               ? 'bg-rose-500'
-                              : 'bg-purple-500'
+                              : 'bg-[#20372d]'
                           }`}
                         />
                       </div>
                     ))}
                     {dayPosts.length > 2 && (
-                      <div className="text-[9px] text-slate-400 text-center font-medium">
+                      <div className="text-[9px] text-[#748379] text-center font-medium">
                         +{dayPosts.length - 2} more
                       </div>
                     )}
@@ -740,23 +741,23 @@ export default function CalendarPage() {
 
       {/* SCHEDULE POST MODAL */}
       {showScheduleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1b3026]/40 backdrop-blur-xs p-4 animate-in fade-in">
+          <div className="bg-white border border-[#e3e8e1] rounded-2xl shadow-xl max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-[#e3e8e1] pb-3">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Schedule Post</h3>
-                <p className="text-xs text-slate-500">Add to calendar for automated publishing (FR-26)</p>
+                <h3 className="text-sm font-bold text-[#1b3026]">Schedule Post</h3>
+                <p className="text-xs text-[#748379]">Add to calendar for automated publishing (FR-26)</p>
               </div>
               <button
                 onClick={() => setShowScheduleModal(false)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
+                className="text-[#748379] hover:text-[#1b3026] p-1 rounded-lg"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {formError && (
-              <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2.5">
+              <div className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2.5">
                 {formError}
               </div>
             )}
@@ -764,7 +765,7 @@ export default function CalendarPage() {
             <form onSubmit={handleCreatePost} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                  <label className="text-[11px] font-semibold text-[#1b3026] block mb-1">
                     Creator Account Handle
                   </label>
                   <input
@@ -773,18 +774,18 @@ export default function CalendarPage() {
                     value={formHandle}
                     onChange={(e) => setFormHandle(e.target.value)}
                     placeholder="e.g. cristiano"
-                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-1.5 text-xs border border-[#d8e0d5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#285a49] bg-white text-[#1b3026]"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                  <label className="text-[11px] font-semibold text-[#1b3026] block mb-1">
                     Target Platform
                   </label>
                   <select
                     value={formPlatform}
                     onChange={(e: any) => setFormPlatform(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white"
+                    className="w-full px-3 py-1.5 text-xs border border-[#d8e0d5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#285a49] bg-white text-[#1b3026]"
                   >
                     <option value="instagram">Instagram</option>
                     <option value="facebook">Facebook</option>
@@ -793,7 +794,7 @@ export default function CalendarPage() {
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                <label className="text-[11px] font-semibold text-[#1b3026] block mb-1">
                   Scheduled Date & Time
                 </label>
                 <input
@@ -801,12 +802,12 @@ export default function CalendarPage() {
                   required
                   value={formDateTime}
                   onChange={(e) => setFormDateTime(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-1.5 text-xs border border-[#d8e0d5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#285a49] bg-white text-[#1b3026]"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                <label className="text-[11px] font-semibold text-[#1b3026] block mb-1">
                   Media Type & URL (optional)
                 </label>
                 <div className="grid grid-cols-3 gap-2 mb-2">
@@ -815,10 +816,10 @@ export default function CalendarPage() {
                       key={t}
                       type="button"
                       onClick={() => setFormMediaType(t)}
-                      className={`py-1 text-xs font-semibold rounded border capitalize transition ${
+                      className={`py-1 text-xs font-semibold rounded border capitalize transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] ${
                         formMediaType === t
-                          ? 'bg-slate-900 text-white border-slate-900'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                          ? 'bg-[#20372d] text-white border-[#20372d]'
+                          : 'bg-white text-[#55635a] border-[#e3e8e1] hover:bg-[#f0f4ee] hover:text-[#1b3026]'
                       }`}
                     >
                       {t}
@@ -830,26 +831,26 @@ export default function CalendarPage() {
                   value={formMediaUrl}
                   onChange={(e) => setFormMediaUrl(e.target.value)}
                   placeholder="https://images.unsplash.com/... or public image URL"
-                  className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-1.5 text-xs border border-[#d8e0d5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#285a49] bg-white text-[#1b3026]"
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-[11px] font-semibold text-slate-700">Caption</label>
-                  <span className="text-[10px] text-slate-400 font-mono">{formCaption.length}/2200</span>
+                  <label className="text-[11px] font-semibold text-[#1b3026]">Caption</label>
+                  <span className="text-[10px] text-[#748379] font-mono">{formCaption.length}/2200</span>
                 </div>
                 <textarea
                   rows={3}
                   value={formCaption}
                   onChange={(e) => setFormCaption(e.target.value)}
                   placeholder="Write your post caption here..."
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 resize-none"
+                  className="w-full px-3 py-2 text-xs border border-[#d8e0d5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#285a49] bg-white text-[#1b3026] resize-none"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                <label className="text-[11px] font-semibold text-[#1b3026] block mb-1">
                   Hashtags (space or comma separated)
                 </label>
                 <input
@@ -857,18 +858,18 @@ export default function CalendarPage() {
                   value={formHashtags}
                   onChange={(e) => setFormHashtags(e.target.value)}
                   placeholder="marketing socialgrowth creator"
-                  className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-1.5 text-xs border border-[#d8e0d5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#285a49] bg-white text-[#1b3026]"
                 />
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between pt-2 border-t border-[#e3e8e1]">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setFormStatus(formStatus === 'SCHEDULED' ? 'DRAFT' : 'SCHEDULED')}
-                    className="text-xs text-slate-600 hover:underline"
+                    className="text-xs text-[#55635a] hover:underline"
                   >
-                    Mode: <span className="font-semibold">{formStatus}</span>
+                    Mode: <span className="font-semibold text-[#1b3026]">{formStatus}</span>
                   </button>
                 </div>
 
@@ -876,14 +877,14 @@ export default function CalendarPage() {
                   <button
                     type="button"
                     onClick={() => setShowScheduleModal(false)}
-                    className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900"
+                    className="px-3 py-1.5 text-xs font-medium text-[#55635a] hover:text-[#1b3026] border border-[#e3e8e1] rounded-lg hover:bg-[#f0f4ee] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={formSubmitting}
-                    className="px-4 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition flex items-center gap-1.5 disabled:opacity-50"
+                    className="px-4 py-1.5 text-xs font-semibold bg-[#20372d] border border-[#20372d] text-white rounded-lg hover:bg-white hover:text-[#20372d] hover:border-[#20372d] transition-colors flex items-center gap-1.5 disabled:opacity-50 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
                   >
                     {formSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                     <span>{formStatus === 'SCHEDULED' ? 'Schedule Post' : 'Save as Draft'}</span>
@@ -897,23 +898,23 @@ export default function CalendarPage() {
 
       {/* POST DETAILS INSPECTOR MODAL */}
       {selectedPost && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1b3026]/40 backdrop-blur-xs p-4 animate-in fade-in">
+          <div className="bg-white border border-[#e3e8e1] rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-[#e3e8e1] pb-3">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-slate-900">Post Details</h3>
+                <h3 className="text-sm font-bold text-[#1b3026]">Post Details</h3>
                 {getStatusBadge(selectedPost.status)}
               </div>
               <button
                 onClick={() => setSelectedPost(null)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
+                className="text-[#748379] hover:text-[#1b3026] p-1 rounded-lg"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {selectedPost.mediaUrl && (
-              <div className="w-full h-44 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
+              <div className="w-full h-44 rounded-lg overflow-hidden bg-[#f0f4ee] border border-[#e3e8e1]">
                 <img
                   src={selectedPost.mediaUrl}
                   alt="Post preview"
@@ -923,15 +924,15 @@ export default function CalendarPage() {
             )}
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>Account: <strong className="text-slate-800 font-mono">@{selectedPost.accountHandle}</strong></span>
-                <span className="capitalize">Platform: <strong className="text-slate-800">{selectedPost.platform}</strong></span>
+              <div className="flex items-center justify-between text-xs text-[#55635a]">
+                <span>Account: <strong className="text-[#1b3026] font-mono">@{selectedPost.accountHandle}</strong></span>
+                <span className="capitalize">Platform: <strong className="text-[#1b3026]">{selectedPost.platform}</strong></span>
               </div>
 
-              <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                <Clock className="w-3.5 h-3.5 text-purple-600" />
+              <div className="flex items-center gap-1.5 text-xs text-[#55635a]">
+                <Clock className="w-3.5 h-3.5 text-[#285a49]" />
                 <span>
-                  Scheduled for: <strong className="text-slate-900">{new Date(selectedPost.scheduledTime).toLocaleString()}</strong>
+                  Scheduled for: <strong className="text-[#1b3026]">{new Date(selectedPost.scheduledTime).toLocaleString()}</strong>
                 </span>
               </div>
 
@@ -943,19 +944,19 @@ export default function CalendarPage() {
               )}
 
               {selectedPost.publishedPostId && (
-                <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 p-2 rounded">
+                <div className="text-xs text-[#285a49] bg-[#eef6eb] border border-[#cbe2c5] p-2 rounded">
                   Published ID: <code className="font-mono">{selectedPost.publishedPostId}</code>
                 </div>
               )}
 
-              <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
-                <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
-                  {selectedPost.caption || <span className="text-slate-400 italic">No caption</span>}
+              <div className="p-3 bg-[#f0f4ee] border border-[#e3e8e1] rounded-lg">
+                <p className="text-xs text-[#1b3026] whitespace-pre-wrap leading-relaxed">
+                  {selectedPost.caption || <span className="text-[#748379] italic">No caption</span>}
                 </p>
                 {selectedPost.hashtags?.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {selectedPost.hashtags.map((h, i) => (
-                      <span key={i} className="text-[10px] text-purple-600 font-mono">
+                      <span key={i} className="text-[10px] text-[#285a49] font-mono">
                         #{h}
                       </span>
                     ))}
@@ -965,11 +966,11 @@ export default function CalendarPage() {
             </div>
 
             {/* Actions Toolbar */}
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-between pt-3 border-t border-[#e3e8e1]">
               <button
                 type="button"
                 onClick={() => handleDeletePost(selectedPost.id)}
-                className="text-xs font-semibold text-rose-600 hover:text-rose-800 transition flex items-center gap-1"
+                className="text-xs font-semibold text-rose-600 hover:text-rose-800 transition-colors flex items-center gap-1"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Delete</span>
@@ -981,7 +982,7 @@ export default function CalendarPage() {
                     type="button"
                     disabled={publishingId === selectedPost.id}
                     onClick={() => handlePublishNow(selectedPost.id)}
-                    className="px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                    className="px-3 py-1.5 text-xs font-semibold text-white bg-[#20372d] border border-[#20372d] hover:bg-white hover:text-[#20372d] hover:border-[#20372d] rounded-lg transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
                   >
                     {publishingId === selectedPost.id ? (
                       <>

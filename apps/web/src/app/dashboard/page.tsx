@@ -27,7 +27,6 @@ import {
   Layers,
   ArrowUpRight,
   RefreshCw,
-  Calendar,
   Heart,
   MessageCircle,
   Users,
@@ -35,11 +34,72 @@ import {
   Download,
   Key,
   Swords,
-  PieChart as PieIcon,
   Globe,
   Plus,
   Trash2,
+  Camera,
+  Video,
+  Target,
+  Clock,
 } from 'lucide-react';
+
+function ProfileAvatar({
+  url,
+  name,
+  handle,
+}: {
+  url?: string | null;
+  name?: string;
+  handle?: string;
+}) {
+  const [imgError, setImgError] = useState(false);
+  const initial = (name || handle || 'E')[0]?.toUpperCase() || 'E';
+
+  if (url && !imgError) {
+    return (
+      <img
+        src={url}
+        alt={name || handle || 'Creator profile picture'}
+        onError={() => setImgError(true)}
+        className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-[#d8e0d5] shadow-sm shrink-0"
+      />
+    );
+  }
+
+  return (
+    <div
+      aria-label={name || handle || 'Creator avatar'}
+      className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#f0f4ee] border-2 border-[#d8e0d5] flex items-center justify-center font-bold text-xl sm:text-2xl text-[#1b3026] shrink-0"
+    >
+      {initial}
+    </div>
+  );
+}
+
+function PostThumbnail({ url, caption }: { url?: string | null; caption?: string }) {
+  const [imgError, setImgError] = useState(false);
+
+  if (url && !imgError) {
+    return (
+      <div className="w-full aspect-square bg-[#f0f4ee] border-b border-[#e3e8e1] overflow-hidden relative">
+        <img
+          src={url}
+          alt={caption ? caption.slice(0, 30) : 'Post preview'}
+          onError={() => setImgError(true)}
+          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full aspect-square bg-[#f0f4ee] border-b border-[#e3e8e1] flex flex-col items-center justify-center text-[#748379] gap-1.5 p-4 text-center">
+      <Instagram className="w-8 h-8 opacity-30 text-[#285a49]" />
+      <span className="text-[11px] font-mono opacity-60">No image preview</span>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const { user, isLoaded } = useUser();
@@ -469,18 +529,18 @@ export default function DashboardPage() {
   const totalPosts = posts.length;
   const totalLikes = posts.reduce((acc, p) => acc + (p.likes_count || 0), 0);
   const totalComments = posts.reduce((acc, p) => acc + (p.comments_count || 0), 0);
-  const followersCount = profile?.followers_count || profile?.followersCount || 150000;
+  const followersCount = profile?.followers_count ?? profile?.followersCount ?? 0;
   const avgLikes = totalPosts > 0 ? Math.round(totalLikes / totalPosts) : 0;
   const avgComments = totalPosts > 0 ? Math.round(totalComments / totalPosts) : 0;
   const avgER =
     followersCount > 0 && totalPosts > 0
       ? (((totalLikes + totalComments) / (followersCount * totalPosts)) * 100).toFixed(2)
-      : '3.42';
+      : '0.00';
 
   // Analytics Graph View Modes: 'absolute' (raw numbers) vs 'rate' (ER % of audience) vs 'reach'
   const [metricMode, setMetricMode] = useState<'engagement_rate' | 'absolute' | 'reach'>('engagement_rate');
 
-  // Format chart data dynamically tailored for any profile size (from 100 followers to 500M+)
+  // Format chart data dynamically tailored for any profile size
   const chartData = [...posts]
     .filter((p) => p.posted_at || p.shortcode)
     .sort((a, b) => new Date(a.posted_at || 0).getTime() - new Date(b.posted_at || 0).getTime())
@@ -525,72 +585,72 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 pb-16">
-      {/* Top Bar with Profile Info */}
-      <div className="border-b border-slate-100 bg-white sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">EntangledEcho</h1>
+    <div className="min-h-screen bg-[#fbfaf8] text-[#1b3026] pb-16">
+      {/* Top Bar with Profile Info & Quick Actions */}
+      <div className="border-b border-[#e3e8e1] bg-white sticky top-12 z-20 shadow-[0_1px_2px_rgba(27,48,38,0.03)]">
+        <div className="max-w-[1150px] mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-3 flex-wrap min-h-[48px]">
+          <div className="flex items-center space-x-3 flex-wrap gap-y-2">
+            <span className="font-bold text-base tracking-tight text-[#1b3026]">EntangledEcho</span>
             {activeHandle && (
-              <div className="flex items-center space-x-2 bg-slate-50 border border-slate-200 px-3 py-1 rounded-full text-xs font-medium text-slate-700">
-                <Instagram className="w-3.5 h-3.5 text-pink-500" />
+              <div className="flex items-center space-x-1.5 bg-[#f0f4ee] border border-[#d8e0d5] px-2.5 py-0.5 rounded-full text-xs font-medium text-[#20372d]">
+                <Instagram className="w-3.5 h-3.5 text-[#285a49]" />
                 <span>@{activeHandle}</span>
               </div>
             )}
             {nicheData?.niche && (
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <Sparkles className="w-3 h-3" />
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#eef6eb] text-[#285a49] border border-[#cbe2c5]">
+                <Sparkles className="w-3 h-3 text-[#285a49]" />
                 {nicheData.niche}
               </span>
             )}
             {profile?.data_source === 'official_graph_api' && (
-              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                <CheckCircle2 className="w-3 h-3 text-blue-600" />
+              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#eef6eb] text-[#285a49] border border-[#cbe2c5]">
+                <CheckCircle2 className="w-3 h-3 text-[#285a49]" />
                 Meta Graph API Verified
               </span>
             )}
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2.5 flex-wrap gap-y-2">
             {activeHandle && (
               <a
                 href={api.getCsvExportUrl(activeHandle)}
                 download={`${activeHandle}_metrics_export.csv`}
-                className="text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm"
+                className="text-xs font-semibold text-white bg-[#20372d] border border-[#20372d] hover:bg-white hover:text-[#20372d] hover:border-[#20372d] px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
                 title="Export posts and metrics to CSV (FR-31)"
               >
-                <Download className="w-3.5 h-3.5 text-slate-600" />
+                <Download className="w-3.5 h-3.5" />
                 <span>Export CSV</span>
               </a>
             )}
             <Link
               href="/recommendations"
-              className="text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm"
+              className="text-xs font-semibold text-white bg-[#20372d] border border-[#20372d] hover:bg-white hover:text-[#20372d] hover:border-[#20372d] px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
             >
-              <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+              <Sparkles className="w-3.5 h-3.5" />
               <span>AI Recommendations</span>
             </Link>
             {isBackgroundScraping && (
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-mono animate-pulse border border-slate-200">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" />
-                <span>Live Scraping: {posts.length} posts ({backgroundCount} detailed)...</span>
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#f0f4ee] text-[#20372d] text-xs font-mono border border-[#d8e0d5]">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#285a49]" />
+                <span>Live Ingestion: {posts.length} posts ({backgroundCount} detailed)...</span>
               </div>
             )}
             <Link
               href="/notifications"
-              className="relative p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition border border-slate-200"
+              className="relative p-2 rounded-lg text-[#55635a] hover:text-[#1b3026] hover:bg-[#f0f4ee] transition-colors border border-[#e3e8e1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
               title="Notifications & Alerts (FR-33)"
             >
               <Bell className="w-4 h-4" />
               {unreadNotifCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white shadow">
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#20372d] text-[10px] font-bold text-white shadow">
                   {unreadNotifCount}
                 </span>
               )}
             </Link>
             <button
               onClick={() => setShowModal(true)}
-              className="text-xs font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded border border-slate-200 hover:bg-slate-50 transition flex items-center gap-1.5"
+              className="text-xs font-semibold text-white bg-[#20372d] border border-[#20372d] hover:bg-white hover:text-[#20372d] hover:border-[#20372d] px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               Switch Account
@@ -599,113 +659,154 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 pt-8 space-y-8">
+      <div className="max-w-[1150px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Loading Skeleton */}
         {loadingDashboard ? (
           <div className="py-24 flex flex-col items-center justify-center space-y-4">
-            <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-            <p className="text-sm text-slate-500">Loading creator analytics & models...</p>
+            <Loader2 className="w-8 h-8 animate-spin text-[#285a49]" />
+            <p className="text-sm text-[#55635a]">Loading creator analytics & models...</p>
           </div>
         ) : (
           <>
             {/* Header Niche & Bio Card */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-                    {profile?.full_name || profile?.fullName || `@${activeHandle}`}
-                  </h2>
-                  <span className="text-xs bg-slate-100 text-slate-600 font-mono px-2 py-0.5 rounded">
-                    {profile?.data_source === 'official_graph_api' ? 'Official Graph API Data' : 'Verified Public Analytics'}
-                  </span>
-                  {nicheData?.language_preference && (
-                    <span className="text-xs bg-indigo-50 text-indigo-700 font-medium px-2.5 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
-                      🌐 Preferred Language: <strong>{nicheData.language_preference}</strong>
+            <div className="p-6 rounded-xl border border-[#e3e8e1] bg-white shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6">
+              <div className="flex items-start gap-4 sm:gap-5 flex-1">
+                <ProfileAvatar
+                  url={profile?.avatar_url || profile?.avatarUrl || profile?.profile_pic_url}
+                  name={profile?.full_name || profile?.fullName}
+                  handle={activeHandle}
+                />
+                <div className="space-y-2 flex-1 min-w-0">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#1b3026]">
+                      {profile?.full_name || profile?.fullName || (activeHandle ? `@${activeHandle}` : 'Creator')}
+                    </h2>
+                    {activeHandle && (
+                      <span className="text-xs text-[#55635a] font-mono">@{activeHandle}</span>
+                    )}
+                    <span className="text-[11px] bg-[#f0f4ee] text-[#285a49] border border-[#d8e0d5] font-mono px-2 py-0.5 rounded">
+                      {profile?.data_source === 'official_graph_api' ? 'Official Graph API Data' : 'Verified Public Analytics'}
                     </span>
+                    {nicheData?.language_preference && (
+                      <span className="text-xs bg-[#eef6eb] text-[#285a49] font-medium px-2.5 py-0.5 rounded-full border border-[#cbe2c5] flex items-center gap-1">
+                        <Globe className="w-3 h-3 text-[#285a49]" />
+                        Preferred Language: <strong>{nicheData.language_preference}</strong>
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-sm text-[#55635a] max-w-2xl leading-relaxed">
+                    {profile?.biography ||
+                      profile?.bio ||
+                      nicheData?.summary ||
+                      'No bio yet'}
+                  </p>
+
+                  {/* Followers, Following, Posts Count row */}
+                  <div className="flex items-center gap-6 pt-2 text-xs text-[#55635a] flex-wrap">
+                    <span className="flex items-center gap-1.5">
+                      <strong className="font-bold text-base text-[#1b3026]">
+                        {formatCompactNumber(followersCount)}
+                      </strong>{' '}
+                      followers
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <strong className="font-bold text-base text-[#1b3026]">
+                        {formatCompactNumber(profile?.following_count ?? profile?.followingCount ?? 0)}
+                      </strong>{' '}
+                      following
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <strong className="font-bold text-base text-[#1b3026]">
+                        {formatCompactNumber(totalPosts)}
+                      </strong>{' '}
+                      posts
+                    </span>
+                  </div>
+
+                  {nicheData?.content_pillars && (
+                    <div className="flex flex-wrap gap-1.5 pt-2">
+                      {nicheData.content_pillars.map((pillar: string, i: number) => (
+                        <span
+                          key={i}
+                          className="text-xs px-2.5 py-0.5 rounded-md bg-[#f0f4ee] text-[#20372d] border border-[#d8e0d5] font-medium"
+                        >
+                          #{pillar}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {nicheData?.evidence_quotes && nicheData.evidence_quotes.length > 0 && (
+                    <div className="pt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-[#748379]">
+                      <span className="font-medium text-[#55635a]">Evidence from posts:</span>
+                      {nicheData.evidence_quotes.slice(0, 3).map((q: string, i: number) => (
+                        <span
+                          key={i}
+                          className="italic bg-[#f7f9f6] border border-[#e3e8e1] px-2 py-0.5 rounded text-[#55635a] truncate max-w-xs"
+                        >
+                          &ldquo;{q}&rdquo;
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Signals row without emoji */}
+                  {(nicheData?.dominant_format || nicheData?.engagement_level || nicheData?.posting_pattern || nicheData?.follower_tier) && (
+                    <div className="pt-2 flex flex-wrap gap-2 text-xs">
+                      {nicheData?.dominant_format && nicheData.dominant_format !== 'Insufficient data' && (
+                        <span className="bg-[#eef6eb] text-[#285a49] border border-[#cbe2c5] px-2.5 py-1 rounded-full font-medium flex items-center gap-1">
+                          <Video className="w-3 h-3 text-[#285a49]" />
+                          {nicheData.dominant_format}
+                        </span>
+                      )}
+                      {nicheData?.engagement_level && nicheData.engagement_level !== 'Insufficient data' && (
+                        <span className="bg-[#f0f4ee] text-[#20372d] border border-[#d8e0d5] px-2.5 py-1 rounded-full font-medium flex items-center gap-1">
+                          <TrendingUp className="w-3 h-3 text-[#285a49]" />
+                          {nicheData.engagement_level} Engagement
+                        </span>
+                      )}
+                      {nicheData?.confidence && (
+                        <span className="bg-[#eef6eb] text-[#285a49] border border-[#cbe2c5] px-2.5 py-1 rounded-full font-medium flex items-center gap-1">
+                          <Target className="w-3 h-3 text-[#285a49]" />
+                          {nicheData.confidence === 'high' ? 'High' : nicheData.confidence === 'medium' ? 'Medium' : nicheData.confidence === 'low' ? 'Low' : 'Calibrated'} Confidence
+                        </span>
+                      )}
+                      {nicheData?.posting_pattern && nicheData.posting_pattern !== 'Insufficient data' && (
+                        <span className="bg-[#f0f4ee] text-[#55635a] border border-[#e3e8e1] px-2.5 py-1 rounded-full font-medium flex items-center gap-1 truncate max-w-xs" title={nicheData.posting_pattern}>
+                          <Clock className="w-3 h-3 text-[#748379]" />
+                          {nicheData.posting_pattern.slice(0, 60)}{nicheData.posting_pattern.length > 60 ? '…' : ''}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
-                <p className="text-sm text-slate-600 max-w-2xl leading-relaxed">
-                  {nicheData?.summary ||
-                    profile?.biography ||
-                    profile?.bio ||
-                    'AI-powered creator insights and historical reach analysis.'}
-                </p>
-                {nicheData?.content_pillars && (
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {nicheData.content_pillars.map((pillar: string, i: number) => (
-                      <span
-                        key={i}
-                        className="text-xs px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-medium"
-                      >
-                        #{pillar}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {nicheData?.evidence_quotes && nicheData.evidence_quotes.length > 0 && (
-                  <div className="pt-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-                    <span className="font-medium text-slate-600">Evidence from posts:</span>
-                    {nicheData.evidence_quotes.slice(0, 3).map((q: string, i: number) => (
-                      <span
-                        key={i}
-                        className="italic bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-slate-600 truncate max-w-xs"
-                      >
-                        &ldquo;{q}&rdquo;
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {/* NicheIQ extra signals row */}
-                {(nicheData?.dominant_format || nicheData?.engagement_level || nicheData?.posting_pattern || nicheData?.follower_tier) && (
-                  <div className="pt-2 flex flex-wrap gap-2 text-xs">
-                    {nicheData?.dominant_format && nicheData.dominant_format !== 'Insufficient data' && (
-                      <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-medium">
-                        📹 {nicheData.dominant_format}
-                      </span>
-                    )}
-                    {nicheData?.engagement_level && nicheData.engagement_level !== 'Insufficient data' && (
-                      <span className={`border px-2.5 py-1 rounded-full font-medium ${nicheData.engagement_level === 'High' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : nicheData.engagement_level === 'Medium' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                        📊 {nicheData.engagement_level} Engagement
-                      </span>
-                    )}
-                    {nicheData?.confidence && (
-                      <span className="bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full font-medium">
-                        🎯 {nicheData.confidence === 'high' ? 'High' : nicheData.confidence === 'medium' ? 'Medium' : nicheData.confidence === 'low' ? 'Low' : 'No'} Confidence
-                      </span>
-                    )}
-                    {nicheData?.posting_pattern && nicheData.posting_pattern !== 'Insufficient data' && (
-                      <span className="bg-slate-50 text-slate-600 border border-slate-200 px-2.5 py-1 rounded-full font-medium truncate max-w-xs" title={nicheData.posting_pattern}>
-                        🕐 {nicheData.posting_pattern.slice(0, 60)}{nicheData.posting_pattern.length > 60 ? '…' : ''}
-                      </span>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Personal Smart Predictor Badge */}
-              <div className="flex flex-col items-start md:items-end justify-center border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6 min-w-[200px]">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-800">
-                  <Brain className="w-4 h-4 text-emerald-600" />
-                  Smart Post Predictor
+              <div className="flex flex-col items-start md:items-end justify-center border-t md:border-t-0 md:border-l border-[#e3e8e1] pt-4 md:pt-0 md:pl-6 min-w-[200px]">
+                <div className="flex items-center gap-2 text-xs font-semibold text-[#1b3026]">
+                  <Brain className="w-4 h-4 text-[#285a49]" />
+                  <span>Smart Post Predictor</span>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-[#748379] mt-1">
                   Learned from your past posts
                 </p>
-                <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full font-medium border border-emerald-200">
+                <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-[#285a49] bg-[#eef6eb] px-2.5 py-1 rounded-full font-medium border border-[#cbe2c5]">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  Ready to optimize timing
+                  <span>Ready to optimize timing</span>
                 </div>
               </div>
             </div>
 
-            {/* Navigation Tabs (Performance Overview, FR-30 Audience Demographics, FR-32 Competitive Analysis) */}
-            <div className="flex items-center border-b border-slate-200 space-x-6 text-sm font-semibold">
+            {/* Navigation Tabs */}
+            <div className="flex items-center border-b border-[#e3e8e1] space-x-6 text-sm font-semibold overflow-x-auto">
               <button
                 onClick={() => setActiveTab('overview')}
-                className={`pb-3 flex items-center gap-2 transition border-b-2 ${
+                className={`pb-3 flex items-center gap-2 transition-colors border-b-2 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] ${
                   activeTab === 'overview'
-                    ? 'border-slate-900 text-slate-900'
-                    : 'border-transparent text-slate-400 hover:text-slate-700'
+                    ? 'border-[#20372d] text-[#1b3026]'
+                    : 'border-transparent text-[#748379] hover:text-[#1b3026]'
                 }`}
               >
                 <TrendingUp className="w-4 h-4" />
@@ -713,10 +814,10 @@ export default function DashboardPage() {
               </button>
               <button
                 onClick={() => setActiveTab('audience')}
-                className={`pb-3 flex items-center gap-2 transition border-b-2 ${
+                className={`pb-3 flex items-center gap-2 transition-colors border-b-2 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] ${
                   activeTab === 'audience'
-                    ? 'border-slate-900 text-slate-900'
-                    : 'border-transparent text-slate-400 hover:text-slate-700'
+                    ? 'border-[#20372d] text-[#1b3026]'
+                    : 'border-transparent text-[#748379] hover:text-[#1b3026]'
                 }`}
               >
                 <Users className="w-4 h-4" />
@@ -724,10 +825,10 @@ export default function DashboardPage() {
               </button>
               <button
                 onClick={() => setActiveTab('competitors')}
-                className={`pb-3 flex items-center gap-2 transition border-b-2 ${
+                className={`pb-3 flex items-center gap-2 transition-colors border-b-2 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] ${
                   activeTab === 'competitors'
-                    ? 'border-slate-900 text-slate-900'
-                    : 'border-transparent text-slate-400 hover:text-slate-700'
+                    ? 'border-[#20372d] text-[#1b3026]'
+                    : 'border-transparent text-[#748379] hover:text-[#1b3026]'
                 }`}
               >
                 <Swords className="w-4 h-4" />
@@ -738,319 +839,326 @@ export default function DashboardPage() {
             {/* TAB 1: Performance Overview */}
             {activeTab === 'overview' && (
               <>
-
-            {/* KPI Cards Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
-                  <span>Audience (Followers)</span>
-                  <Users className="w-4 h-4 text-slate-400" />
-                </div>
-                <div className="mt-2 text-2xl font-bold text-slate-900">
-                  {formatCompactNumber(followersCount)}
-                </div>
-                <div className="mt-1 text-xs text-slate-400">Total people following</div>
-              </div>
-
-              <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
-                  <span>Audience Interaction</span>
-                  <TrendingUp className="w-4 h-4 text-emerald-500" />
-                </div>
-                <div className="mt-2 text-2xl font-bold text-slate-900">{avgER}%</div>
-                <div className="mt-1 text-xs text-emerald-600 font-medium flex items-center gap-1">
-                  <span>High audience interest</span>
-                </div>
-              </div>
-
-              <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
-                  <span>Average Likes</span>
-                  <Heart className="w-4 h-4 text-rose-500" />
-                </div>
-                <div className="mt-2 text-2xl font-bold text-slate-900">
-                  {formatCompactNumber(avgLikes)}
-                </div>
-                <div className="mt-1 text-xs text-slate-400">per post across {formatCompactNumber(totalPosts)} posts</div>
-              </div>
-
-              <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
-                  <span>Average Comments</span>
-                  <MessageCircle className="w-4 h-4 text-blue-500" />
-                </div>
-                <div className="mt-2 text-2xl font-bold text-slate-900">
-                  {formatCompactNumber(avgComments)}
-                </div>
-                <div className="mt-1 text-xs text-slate-400">active conversations per post</div>
-              </div>
-            </div>
-
-            {/* Engagement Timeline Chart - Plain numbers and lines for laymen */}
-            <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-semibold text-slate-900">Post Performance Over Time</h3>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    See how your posts performed chronologically from your first post to your latest
-                  </p>
-                </div>
-
-                {/* Plain-English View Selectors */}
-                <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg text-xs font-medium self-start sm:self-auto">
-                  <button
-                    onClick={() => setMetricMode('absolute')}
-                    className={`px-3 py-1.5 rounded-md transition ${
-                      metricMode === 'absolute'
-                        ? 'bg-white text-slate-900 shadow-sm font-semibold'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    Likes & Comments
-                  </button>
-                  <button
-                    onClick={() => setMetricMode('engagement_rate')}
-                    className={`px-3 py-1.5 rounded-md transition ${
-                      metricMode === 'engagement_rate'
-                        ? 'bg-white text-slate-900 shadow-sm font-semibold'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    Interaction Rate (%)
-                  </button>
-                  <button
-                    onClick={() => setMetricMode('reach')}
-                    className={`px-3 py-1.5 rounded-md transition ${
-                      metricMode === 'reach'
-                        ? 'bg-white text-slate-900 shadow-sm font-semibold'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    People Reached
-                  </button>
-                </div>
-              </div>
-
-              <div className="h-72 w-full">
-                {chartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    {metricMode === 'engagement_rate' ? (
-                      <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="erGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                        <YAxis
-                          stroke="#94a3b8"
-                          fontSize={11}
-                          tickLine={false}
-                          tickFormatter={(val) => `${val}%`}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: '#ffffff',
-                            borderRadius: '8px',
-                            border: '1px solid #e2e8f0',
-                            fontSize: '12px',
-                          }}
-                          formatter={(value: any) => [`${value}% ER`, 'Post Engagement']}
-                          labelFormatter={(label, items) => {
-                            const item = items?.[0]?.payload;
-                            return item ? `${label} - ${item.caption}` : label;
-                          }}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="erRate"
-                          name="Engagement Rate"
-                          stroke="#10b981"
-                          strokeWidth={2.5}
-                          fillOpacity={1}
-                          fill="url(#erGrad)"
-                        />
-                      </AreaChart>
-                    ) : metricMode === 'absolute' ? (
-                      <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="likeGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#0f172a" stopOpacity={0.15} />
-                            <stop offset="95%" stopColor="#0f172a" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                        <YAxis
-                          stroke="#94a3b8"
-                          fontSize={11}
-                          tickLine={false}
-                          tickFormatter={formatCompactNumber}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: '#ffffff',
-                            borderRadius: '8px',
-                            border: '1px solid #e2e8f0',
-                            fontSize: '12px',
-                          }}
-                          formatter={(value: any, name: any) => [
-                            formatCompactNumber(Number(value)),
-                            name === 'likes' ? 'Likes' : 'Comments',
-                          ]}
-                          labelFormatter={(label, items) => {
-                            const item = items?.[0]?.payload;
-                            return item ? `${label} - ${item.caption}` : label;
-                          }}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="likes"
-                          name="likes"
-                          stroke="#0f172a"
-                          strokeWidth={2}
-                          fillOpacity={1}
-                          fill="url(#likeGrad)"
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="comments"
-                          name="comments"
-                          stroke="#3b82f6"
-                          strokeWidth={1.5}
-                          fill="none"
-                        />
-                      </AreaChart>
-                    ) : (
-                      <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="reachGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
-                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                        <YAxis
-                          stroke="#94a3b8"
-                          fontSize={11}
-                          tickLine={false}
-                          tickFormatter={formatCompactNumber}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: '#ffffff',
-                            borderRadius: '8px',
-                            border: '1px solid #e2e8f0',
-                            fontSize: '12px',
-                          }}
-                          formatter={(value: any) => [formatCompactNumber(Number(value)), 'Estimated Reach']}
-                          labelFormatter={(label, items) => {
-                            const item = items?.[0]?.payload;
-                            return item ? `${label} - ${item.caption}` : label;
-                          }}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="reach"
-                          name="Reach"
-                          stroke="#6366f1"
-                          strokeWidth={2.5}
-                          fillOpacity={1}
-                          fill="url(#reachGrad)"
-                        />
-                      </AreaChart>
-                    )}
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-sm text-slate-400">
-                    No historical posts available to plot yet.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Post Feed & Analytics Grid */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-semibold text-slate-900">Your Recent Posts</h3>
-                  <p className="text-xs text-slate-500">
-                    Review your latest {posts.length} posts and their like and comment counts
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {posts.map((post, i) => {
-                  const pDate = post.posted_at ? new Date(post.posted_at).toLocaleDateString() : 'N/A';
-                  return (
-                    <div
-                      key={post.id || i}
-                      className="p-5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition shadow-sm flex flex-col justify-between space-y-4"
-                    >
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs text-slate-400">
-                          <span className="font-mono">{pDate}</span>
-                          <span className="capitalize px-2 py-0.5 bg-slate-100 rounded text-slate-600 font-medium">
-                            {post.media_type || 'image'}
-                          </span>
-                        </div>
-                        <p className="text-sm text-slate-800 line-clamp-3 leading-relaxed">
-                          {post.caption || <span className="text-slate-400 italic">No caption</span>}
-                        </p>
-                      </div>
-
-                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
-                        <div className="flex items-center gap-3">
-                          <span className="flex items-center gap-1 font-medium">
-                            <Heart className="w-3.5 h-3.5 text-rose-500" />
-                            {formatCompactNumber(post.likes_count ?? 0)}
-                          </span>
-                          <span className="flex items-center gap-1 font-medium">
-                            <MessageCircle className="w-3.5 h-3.5 text-blue-500" />
-                            {formatCompactNumber(post.comments_count ?? 0)}
-                          </span>
-                        </div>
-                        {post.url && (
-                          <a
-                            href={post.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-slate-400 hover:text-slate-800 flex items-center gap-0.5"
-                          >
-                            <span>View</span>
-                            <ArrowUpRight className="w-3 h-3" />
-                          </a>
-                        )}
-                      </div>
+                {/* KPI Cards Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-5 rounded-xl border border-[#e3e8e1] bg-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                    <div className="flex items-center justify-between text-[#748379] text-xs font-medium">
+                      <span>Audience (Followers)</span>
+                      <Users className="w-4 h-4 text-[#285a49]" />
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-            </>
+                    <div className="mt-2 text-2xl font-bold text-[#1b3026]">
+                      {formatCompactNumber(followersCount)}
+                    </div>
+                    <div className="mt-1 text-xs text-[#748379]">Total people following</div>
+                  </div>
+
+                  <div className="p-5 rounded-xl border border-[#e3e8e1] bg-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                    <div className="flex items-center justify-between text-[#748379] text-xs font-medium">
+                      <span>Audience Interaction</span>
+                      <TrendingUp className="w-4 h-4 text-[#285a49]" />
+                    </div>
+                    <div className="mt-2 text-2xl font-bold text-[#1b3026]">{avgER}%</div>
+                    <div className="mt-1 text-xs text-[#285a49] font-medium flex items-center gap-1">
+                      <span>High audience interest</span>
+                    </div>
+                  </div>
+
+                  <div className="p-5 rounded-xl border border-[#e3e8e1] bg-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                    <div className="flex items-center justify-between text-[#748379] text-xs font-medium">
+                      <span>Average Likes</span>
+                      <Heart className="w-4 h-4 text-[#285a49]" />
+                    </div>
+                    <div className="mt-2 text-2xl font-bold text-[#1b3026]">
+                      {formatCompactNumber(avgLikes)}
+                    </div>
+                    <div className="mt-1 text-xs text-[#748379]">per post across {formatCompactNumber(totalPosts)} posts</div>
+                  </div>
+
+                  <div className="p-5 rounded-xl border border-[#e3e8e1] bg-white shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                    <div className="flex items-center justify-between text-[#748379] text-xs font-medium">
+                      <span>Average Comments</span>
+                      <MessageCircle className="w-4 h-4 text-[#347761]" />
+                    </div>
+                    <div className="mt-2 text-2xl font-bold text-[#1b3026]">
+                      {formatCompactNumber(avgComments)}
+                    </div>
+                    <div className="mt-1 text-xs text-[#748379]">active conversations per post</div>
+                  </div>
+                </div>
+
+                {/* Engagement Timeline Chart */}
+                <div className="p-6 rounded-xl border border-[#e3e8e1] bg-white shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-semibold text-[#1b3026]">Post Performance Over Time</h3>
+                      </div>
+                      <p className="text-xs text-[#748379] mt-0.5">
+                        Chronological performance from your first post to your latest
+                      </p>
+                    </div>
+
+                    {/* Plain-English View Selectors */}
+                    <div className="flex items-center gap-1.5 p-1 bg-[#f0f4ee] border border-[#e3e8e1] rounded-lg text-xs font-medium self-start sm:self-auto">
+                      <button
+                        onClick={() => setMetricMode('absolute')}
+                        className={`px-3 py-1.5 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] ${
+                          metricMode === 'absolute'
+                            ? 'bg-white text-[#1b3026] shadow-sm font-semibold'
+                            : 'text-[#55635a] hover:text-[#1b3026]'
+                        }`}
+                      >
+                        Likes & Comments
+                      </button>
+                      <button
+                        onClick={() => setMetricMode('engagement_rate')}
+                        className={`px-3 py-1.5 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] ${
+                          metricMode === 'engagement_rate'
+                            ? 'bg-white text-[#1b3026] shadow-sm font-semibold'
+                            : 'text-[#55635a] hover:text-[#1b3026]'
+                        }`}
+                      >
+                        Interaction Rate (%)
+                      </button>
+                      <button
+                        onClick={() => setMetricMode('reach')}
+                        className={`px-3 py-1.5 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] ${
+                          metricMode === 'reach'
+                            ? 'bg-white text-[#1b3026] shadow-sm font-semibold'
+                            : 'text-[#55635a] hover:text-[#1b3026]'
+                        }`}
+                      >
+                        People Reached
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="h-72 w-full">
+                    {chartData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        {metricMode === 'engagement_rate' ? (
+                          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="erGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#285a49" stopOpacity={0.25} />
+                                <stop offset="95%" stopColor="#285a49" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef3ec" />
+                            <XAxis dataKey="date" stroke="#748379" fontSize={11} tickLine={false} />
+                            <YAxis
+                              stroke="#748379"
+                              fontSize={11}
+                              tickLine={false}
+                              tickFormatter={(val) => `${val}%`}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: '#ffffff',
+                                borderRadius: '8px',
+                                border: '1px solid #e3e8e1',
+                                fontSize: '12px',
+                                color: '#1b3026',
+                              }}
+                              formatter={(value: any) => [`${value}% ER`, 'Post Engagement']}
+                              labelFormatter={(label, items) => {
+                                const item = items?.[0]?.payload;
+                                return item ? `${label} - ${item.caption}` : label;
+                              }}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="erRate"
+                              name="Engagement Rate"
+                              stroke="#285a49"
+                              strokeWidth={2.5}
+                              fillOpacity={1}
+                              fill="url(#erGrad)"
+                            />
+                          </AreaChart>
+                        ) : metricMode === 'absolute' ? (
+                          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="likeGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#20372d" stopOpacity={0.2} />
+                                <stop offset="95%" stopColor="#20372d" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef3ec" />
+                            <XAxis dataKey="date" stroke="#748379" fontSize={11} tickLine={false} />
+                            <YAxis
+                              stroke="#748379"
+                              fontSize={11}
+                              tickLine={false}
+                              tickFormatter={formatCompactNumber}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: '#ffffff',
+                                borderRadius: '8px',
+                                border: '1px solid #e3e8e1',
+                                fontSize: '12px',
+                                color: '#1b3026',
+                              }}
+                              formatter={(value: any, name: any) => [
+                                formatCompactNumber(Number(value)),
+                                name === 'likes' ? 'Likes' : 'Comments',
+                              ]}
+                              labelFormatter={(label, items) => {
+                                const item = items?.[0]?.payload;
+                                return item ? `${label} - ${item.caption}` : label;
+                              }}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="likes"
+                              name="likes"
+                              stroke="#20372d"
+                              strokeWidth={2}
+                              fillOpacity={1}
+                              fill="url(#likeGrad)"
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="comments"
+                              name="comments"
+                              stroke="#347761"
+                              strokeWidth={1.5}
+                              fill="none"
+                            />
+                          </AreaChart>
+                        ) : (
+                          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="reachGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#285a49" stopOpacity={0.25} />
+                                <stop offset="95%" stopColor="#285a49" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef3ec" />
+                            <XAxis dataKey="date" stroke="#748379" fontSize={11} tickLine={false} />
+                            <YAxis
+                              stroke="#748379"
+                              fontSize={11}
+                              tickLine={false}
+                              tickFormatter={formatCompactNumber}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: '#ffffff',
+                                borderRadius: '8px',
+                                border: '1px solid #e3e8e1',
+                                fontSize: '12px',
+                                color: '#1b3026',
+                              }}
+                              formatter={(value: any) => [formatCompactNumber(Number(value)), 'Estimated Reach']}
+                              labelFormatter={(label, items) => {
+                                const item = items?.[0]?.payload;
+                                return item ? `${label} - ${item.caption}` : label;
+                              }}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="reach"
+                              name="Reach"
+                              stroke="#285a49"
+                              strokeWidth={2.5}
+                              fillOpacity={1}
+                              fill="url(#reachGrad)"
+                            />
+                          </AreaChart>
+                        )}
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-sm text-[#748379]">
+                        No historical posts available to plot yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Post Feed & Analytics Grid */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-semibold text-[#1b3026]">Your Recent Posts</h3>
+                      <p className="text-xs text-[#748379]">
+                        Review your latest {posts.length} posts and their engagement metrics
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {posts.map((post, i) => {
+                      const pDate = post.posted_at ? new Date(post.posted_at).toLocaleDateString() : 'N/A';
+                      const postImageUrl = post.media_urls?.[0] || post.mediaUrls?.[0] || null;
+                      return (
+                        <div
+                          key={post.id || i}
+                          className="rounded-xl border border-[#e3e8e1] bg-white hover:border-[#d8e0d5] transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 duration-200 flex flex-col justify-between overflow-hidden group"
+                        >
+                          <PostThumbnail url={postImageUrl} caption={post.caption} />
+
+                          <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-xs text-[#748379]">
+                                <span className="font-mono">{pDate}</span>
+                                <span className="capitalize px-2 py-0.5 bg-[#f0f4ee] border border-[#d8e0d5] rounded text-[#20372d] font-medium">
+                                  {post.media_type || 'image'}
+                                </span>
+                              </div>
+                              <p className="text-sm text-[#1b3026] line-clamp-3 leading-relaxed">
+                                {post.caption || <span className="text-[#748379] italic">No caption</span>}
+                              </p>
+                            </div>
+
+                            <div className="pt-3 border-t border-[#e3e8e1] flex items-center justify-between text-xs text-[#55635a]">
+                              <div className="flex items-center gap-3">
+                                <span className="flex items-center gap-1 font-medium">
+                                  <Heart className="w-3.5 h-3.5 text-[#285a49]" />
+                                  {formatCompactNumber(post.likes_count ?? 0)}
+                                </span>
+                                <span className="flex items-center gap-1 font-medium">
+                                  <MessageCircle className="w-3.5 h-3.5 text-[#347761]" />
+                                  {formatCompactNumber(post.comments_count ?? 0)}
+                                </span>
+                              </div>
+                              {post.url && (
+                                <a
+                                  href={post.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[#285a49] hover:text-[#1b3026] flex items-center gap-0.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] rounded"
+                                >
+                                  <span>View</span>
+                                  <ArrowUpRight className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
             )}
 
             {/* TAB 2: FR-30 Audience Breakdown */}
             {activeTab === 'audience' && (
               <div className="space-y-6">
-                <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm space-y-2">
+                <div className="p-6 rounded-xl border border-[#e3e8e1] bg-white shadow-sm space-y-2">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900">Audience Demographics (FR-30)</h3>
-                      <p className="text-xs text-slate-500">
+                      <h3 className="text-lg font-bold text-[#1b3026]">Audience Demographics (FR-30)</h3>
+                      <p className="text-xs text-[#748379]">
                         {audience?.source === 'graph_api'
                           ? 'Directly retrieved from Meta Graph API lifetime insights'
                           : 'Requires an official Meta Graph API connection with >100 followers'}
                       </p>
                     </div>
                     {audience?.source === 'graph_api' && (
-                      <span className="text-xs px-2.5 py-1 rounded bg-slate-100 font-mono text-slate-600">
+                      <span className="text-xs px-2.5 py-1 rounded bg-[#f0f4ee] border border-[#d8e0d5] font-mono text-[#20372d]">
                         Official Graph API Insights
                       </span>
                     )}
@@ -1060,67 +1168,67 @@ export default function DashboardPage() {
                 {audience?.source === 'graph_api' && audience?.ageGender ? (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Age & Gender Distribution Chart */}
-                    <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm space-y-4">
+                    <div className="p-6 rounded-xl border border-[#e3e8e1] bg-white shadow-sm space-y-4">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-slate-900">Age & Gender Distribution</h4>
+                        <h4 className="text-sm font-semibold text-[#1b3026]">Age & Gender Distribution</h4>
                         <div className="flex items-center gap-4 text-xs">
-                          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-blue-500" /> Male</span>
-                          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-pink-500" /> Female</span>
+                          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#285a49]" /> Male</span>
+                          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#66927d]" /> Female</span>
                         </div>
                       </div>
                       <div className="h-64 w-full pt-2">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={audience.ageGender} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis dataKey="ageRange" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                            <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef3ec" />
+                            <XAxis dataKey="ageRange" stroke="#748379" fontSize={11} tickLine={false} />
+                            <YAxis stroke="#748379" fontSize={11} tickLine={false} tickFormatter={(v) => `${v}%`} />
                             <Tooltip
-                              contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                              contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e3e8e1', fontSize: '12px', color: '#1b3026' }}
                               formatter={(val: any, name: any) => [`${val}%`, name === 'male' ? 'Male' : name === 'female' ? 'Female' : 'Other']}
                             />
-                            <Bar dataKey="male" name="male" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                            <Bar dataKey="female" name="female" fill="#ec4899" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="male" name="male" fill="#285a49" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="female" name="female" fill="#66927d" radius={[4, 4, 0, 0]} />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
                     </div>
 
                     {/* Top Countries & Cities Geography */}
-                    <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm space-y-4">
+                    <div className="p-6 rounded-xl border border-[#e3e8e1] bg-white shadow-sm space-y-4">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-slate-900">Follower Geography</h4>
-                        <Globe className="w-4 h-4 text-slate-400" />
+                        <h4 className="text-sm font-semibold text-[#1b3026]">Follower Geography</h4>
+                        <Globe className="w-4 h-4 text-[#285a49]" />
                       </div>
 
                       <div className="space-y-4 pt-1">
                         <div>
-                          <span className="text-xs font-semibold text-slate-700 block mb-2">Top Countries</span>
+                          <span className="text-xs font-semibold text-[#1b3026] block mb-2">Top Countries</span>
                           <div className="space-y-2">
                             {(audience?.countries || []).map((c: any, i: number) => (
                               <div key={i} className="flex items-center justify-between text-xs">
-                                <span className="text-slate-600">{c.country}</span>
+                                <span className="text-[#55635a]">{c.country}</span>
                                 <div className="flex items-center gap-2">
-                                  <div className="w-28 bg-slate-100 rounded-full h-2 overflow-hidden">
-                                    <div className="bg-slate-900 h-2 rounded-full" style={{ width: `${c.percentage}%` }} />
+                                  <div className="w-28 bg-[#f0f4ee] rounded-full h-2 overflow-hidden border border-[#e3e8e1]">
+                                    <div className="bg-[#20372d] h-2 rounded-full" style={{ width: `${c.percentage}%` }} />
                                   </div>
-                                  <span className="font-mono text-slate-700 w-8 text-right font-medium">{c.percentage}%</span>
+                                  <span className="font-mono text-[#1b3026] w-8 text-right font-medium">{c.percentage}%</span>
                                 </div>
                               </div>
                             ))}
                           </div>
                         </div>
 
-                        <div className="pt-3 border-t border-slate-100">
-                          <span className="text-xs font-semibold text-slate-700 block mb-2">Top Cities</span>
+                        <div className="pt-3 border-t border-[#e3e8e1]">
+                          <span className="text-xs font-semibold text-[#1b3026] block mb-2">Top Cities</span>
                           <div className="space-y-2">
                             {(audience?.cities || []).map((ct: any, i: number) => (
                               <div key={i} className="flex items-center justify-between text-xs">
-                                <span className="text-slate-600">{ct.city}</span>
+                                <span className="text-[#55635a]">{ct.city}</span>
                                 <div className="flex items-center gap-2">
-                                  <div className="w-28 bg-slate-100 rounded-full h-2 overflow-hidden">
-                                    <div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${ct.percentage}%` }} />
+                                  <div className="w-28 bg-[#f0f4ee] rounded-full h-2 overflow-hidden border border-[#e3e8e1]">
+                                    <div className="bg-[#285a49] h-2 rounded-full" style={{ width: `${ct.percentage}%` }} />
                                   </div>
-                                  <span className="font-mono text-slate-700 w-8 text-right font-medium">{ct.percentage}%</span>
+                                  <span className="font-mono text-[#1b3026] w-8 text-right font-medium">{ct.percentage}%</span>
                                 </div>
                               </div>
                             ))}
@@ -1130,16 +1238,16 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="p-12 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50 space-y-3">
-                    <Globe className="w-10 h-10 text-slate-300 mx-auto" />
-                    <h4 className="text-sm font-semibold text-slate-800">Demographic Insights Unavailable</h4>
-                    <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                  <div className="p-12 text-center border border-dashed border-[#d8e0d5] rounded-xl bg-[#f0f4ee]/40 space-y-3">
+                    <Globe className="w-10 h-10 text-[#748379] mx-auto opacity-50" />
+                    <h4 className="text-sm font-semibold text-[#1b3026]">Demographic Insights Unavailable</h4>
+                    <p className="text-xs text-[#55635a] max-w-md mx-auto leading-relaxed">
                       Age, gender, and follower geography require an official Meta Graph API connection with an Instagram Creator or Business account having at least 100 followers.
                     </p>
                     <div className="pt-2">
                       <button
                         onClick={() => setShowModal(true)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#20372d] border border-[#20372d] rounded-lg hover:bg-white hover:text-[#20372d] hover:border-[#20372d] transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
                       >
                         <span>Connect Meta Graph API</span>
                         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -1153,11 +1261,11 @@ export default function DashboardPage() {
             {/* TAB 3: FR-32 Competitive Analysis */}
             {activeTab === 'competitors' && (
               <div className="space-y-6">
-                <div className="p-6 rounded-xl border border-slate-200 bg-white shadow-sm space-y-4">
+                <div className="p-6 rounded-xl border border-[#e3e8e1] bg-white shadow-sm space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900">Competitive Analysis (FR-32)</h3>
-                      <p className="text-xs text-slate-500">
+                      <h3 className="text-lg font-bold text-[#1b3026]">Competitive Analysis (FR-32)</h3>
+                      <p className="text-xs text-[#748379]">
                         Compare your account side-by-side with industry competitors on key public metrics
                       </p>
                     </div>
@@ -1169,11 +1277,11 @@ export default function DashboardPage() {
                         placeholder="Add handle (e.g. @nike)"
                         value={competitorInput}
                         onChange={(e) => setCompetitorInput(e.target.value)}
-                        className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        className="px-3 py-1.5 text-xs border border-[#d8e0d5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#285a49] bg-white text-[#1b3026]"
                       />
                       <button
                         type="submit"
-                        className="px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition flex items-center gap-1"
+                        className="px-3 py-1.5 text-xs font-semibold bg-[#20372d] border border-[#20372d] text-white rounded-lg hover:bg-white hover:text-[#20372d] hover:border-[#20372d] transition-colors flex items-center gap-1 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         Add
@@ -1183,22 +1291,23 @@ export default function DashboardPage() {
 
                   {/* Competitor Pills */}
                   <div className="flex flex-wrap items-center gap-2 pt-2">
-                    <span className="text-xs text-slate-500 font-medium">Comparing:</span>
+                    <span className="text-xs text-[#748379] font-medium">Comparing:</span>
                     {activeHandle && (
-                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-900 text-white">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-[#20372d] text-white border border-[#20372d]">
                         @{activeHandle} (You)
                       </span>
                     )}
                     {competitorList.map((handle) => (
                       <span
                         key={handle}
-                        className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1.5"
+                        className="px-2.5 py-1 rounded-full text-xs font-medium bg-[#f0f4ee] text-[#20372d] border border-[#d8e0d5] flex items-center gap-1.5"
                       >
                         <span>@{handle}</span>
                         <button
                           type="button"
                           onClick={() => removeCompetitor(handle)}
-                          className="hover:text-red-600 transition"
+                          className="hover:text-red-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] rounded"
+                          title={`Remove @${handle}`}
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -1210,67 +1319,73 @@ export default function DashboardPage() {
                 {/* Side-by-Side Comparison Grid */}
                 {loadingCompetitors ? (
                   <div className="py-16 flex flex-col items-center justify-center space-y-3">
-                    <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-                    <p className="text-xs text-slate-500">Benchmarking competitor profiles...</p>
+                    <Loader2 className="w-6 h-6 animate-spin text-[#285a49]" />
+                    <p className="text-xs text-[#748379]">Benchmarking competitor profiles...</p>
                   </div>
                 ) : competitors.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {competitors.map((comp) => {
-                      const isMe = comp.handle.toLowerCase() === activeHandle.toLowerCase();
+                      const isMe = comp.handle?.toLowerCase() === activeHandle?.toLowerCase();
                       return (
                         <div
                           key={comp.handle}
-                          className={`p-6 rounded-xl border bg-white shadow-sm space-y-4 ${
-                            isMe ? 'border-2 border-slate-900 ring-4 ring-slate-100' : 'border-slate-200'
+                          className={`p-6 rounded-xl border bg-white shadow-sm hover:shadow-md transition-all duration-200 space-y-4 ${
+                            isMe ? 'border-2 border-[#20372d] ring-4 ring-[#eef3ec]' : 'border-[#e3e8e1]'
                           }`}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
                               {comp.avatarUrl ? (
-                                <img src={comp.avatarUrl} alt={comp.handle} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
+                                <img src={comp.avatarUrl} alt={comp.handle} className="w-10 h-10 rounded-full object-cover border border-[#d8e0d5]" />
                               ) : (
-                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700 text-sm">
+                                <div className="w-10 h-10 rounded-full bg-[#f0f4ee] border border-[#d8e0d5] flex items-center justify-center font-bold text-[#1b3026] text-sm">
                                   {comp.handle.slice(0, 2).toUpperCase()}
                                 </div>
                               )}
                               <div>
-                                <h4 className="text-sm font-bold text-slate-900">@{comp.handle}</h4>
-                                <span className="text-[11px] text-slate-500 truncate block max-w-[150px]">{comp.fullName}</span>
+                                <h4 className="text-sm font-bold text-[#1b3026]">@{comp.handle}</h4>
+                                <span className="text-[11px] text-[#748379] truncate block max-w-[150px]">{comp.fullName}</span>
                               </div>
                             </div>
                             {isMe && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-900 text-white uppercase tracking-wider">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#20372d] text-white uppercase tracking-wider">
                                 Active Profile
                               </span>
                             )}
                           </div>
 
-                          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100 text-xs">
-                            <div className="p-2.5 rounded-lg bg-slate-50">
-                              <span className="text-slate-500 block text-[11px]">Followers</span>
-                              <span className="text-sm font-bold text-slate-900">{formatCompactNumber(comp.followers)}</span>
+                          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[#e3e8e1] text-xs">
+                            <div className="p-2.5 rounded-lg bg-[#f0f4ee] border border-[#e3e8e1]">
+                              <span className="text-[#748379] block text-[11px]">Followers</span>
+                              <span className="text-sm font-bold text-[#1b3026]">{formatCompactNumber(comp.followers)}</span>
                             </div>
-                            <div className="p-2.5 rounded-lg bg-slate-50">
-                              <span className="text-slate-500 block text-[11px]">Avg Engagement</span>
-                              <span className="text-sm font-bold text-emerald-600">{comp.avgEngRate}%</span>
+                            <div className="p-2.5 rounded-lg bg-[#f0f4ee] border border-[#e3e8e1]">
+                              <span className="text-[#748379] block text-[11px]">Avg Engagement</span>
+                              <span className="text-sm font-bold text-[#285a49]">{comp.avgEngRate}%</span>
                             </div>
-                            <div className="p-2.5 rounded-lg bg-slate-50">
-                              <span className="text-slate-500 block text-[11px]">Avg Likes / Post</span>
-                              <span className="text-sm font-bold text-slate-900">{formatCompactNumber(comp.avgLikes)}</span>
+                            <div className="p-2.5 rounded-lg bg-[#f0f4ee] border border-[#e3e8e1]">
+                              <span className="text-[#748379] block text-[11px]">Avg Likes / Post</span>
+                              <span className="text-sm font-bold text-[#1b3026]">{formatCompactNumber(comp.avgLikes)}</span>
                             </div>
-                            <div className="p-2.5 rounded-lg bg-slate-50">
-                              <span className="text-slate-500 block text-[11px]">Avg Comments</span>
-                              <span className="text-sm font-bold text-slate-900">{formatCompactNumber(comp.avgComments)}</span>
+                            <div className="p-2.5 rounded-lg bg-[#f0f4ee] border border-[#e3e8e1]">
+                              <span className="text-[#748379] block text-[11px]">Avg Comments</span>
+                              <span className="text-sm font-bold text-[#1b3026]">{formatCompactNumber(comp.avgComments)}</span>
                             </div>
                           </div>
 
                           {/* Content format distribution */}
                           <div className="pt-2">
-                            <span className="text-[11px] font-semibold text-slate-600 block mb-1.5">Format Strategy</span>
-                            <div className="flex items-center gap-1.5 text-[11px]">
-                              <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded font-medium">📷 {comp.formatDistribution?.image || 0} Images</span>
-                              <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded font-medium">📚 {comp.formatDistribution?.carousel || 0} Carousels</span>
-                              <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded font-medium">📹 {comp.formatDistribution?.reel || comp.formatDistribution?.video || 0} Videos</span>
+                            <span className="text-[11px] font-semibold text-[#55635a] block mb-1.5">Format Strategy</span>
+                            <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                              <span className="px-2 py-0.5 bg-[#f0f4ee] text-[#20372d] border border-[#d8e0d5] rounded font-medium flex items-center gap-1">
+                                <Camera className="w-3 h-3 text-[#285a49]" /> {comp.formatDistribution?.image || 0} Images
+                              </span>
+                              <span className="px-2 py-0.5 bg-[#f0f4ee] text-[#20372d] border border-[#d8e0d5] rounded font-medium flex items-center gap-1">
+                                <Layers className="w-3 h-3 text-[#285a49]" /> {comp.formatDistribution?.carousel || 0} Carousels
+                              </span>
+                              <span className="px-2 py-0.5 bg-[#f0f4ee] text-[#20372d] border border-[#d8e0d5] rounded font-medium flex items-center gap-1">
+                                <Video className="w-3 h-3 text-[#285a49]" /> {comp.formatDistribution?.reel || comp.formatDistribution?.video || 0} Videos
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -1278,7 +1393,7 @@ export default function DashboardPage() {
                     })}
                   </div>
                 ) : (
-                  <div className="py-12 text-center text-sm text-slate-400">
+                  <div className="py-12 text-center text-sm text-[#748379]">
                     No competitor data available. Add competitor handles above to compare.
                   </div>
                 )}
@@ -1290,32 +1405,32 @@ export default function DashboardPage() {
 
       {/* Onboarding Popup Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl border border-slate-100 space-y-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1b3026]/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl border border-[#e3e8e1] space-y-6">
             {!isProcessing ? (
               <>
                 <div className="text-center space-y-2">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-900 flex items-center justify-center mx-auto">
-                    <Sparkles className="w-6 h-6" />
+                  <div className="w-12 h-12 rounded-full bg-[#f0f4ee] border border-[#d8e0d5] text-[#1b3026] flex items-center justify-center mx-auto">
+                    <Sparkles className="w-6 h-6 text-[#285a49]" />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900">Connect Your Social Account</h3>
-                  <p className="text-xs text-slate-500">
+                  <h3 className="text-xl font-bold text-[#1b3026]">Connect Your Social Account</h3>
+                  <p className="text-xs text-[#748379]">
                     Choose how you want to ingest your Instagram account data.
                   </p>
                 </div>
 
                 {/* Connection Mode Selector: Handle vs Meta Graph API */}
-                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-lg">
+                <div className="grid grid-cols-2 gap-2 p-1 bg-[#f0f4ee] border border-[#e3e8e1] rounded-lg">
                   <button
                     type="button"
                     onClick={() => {
                       setConnectionMethod('handle');
                       setModalError(null);
                     }}
-                    className={`py-1.5 text-xs font-medium rounded-md transition ${
+                    className={`py-1.5 text-xs font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] ${
                       connectionMethod === 'handle'
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-white text-[#1b3026] shadow-sm font-semibold'
+                        : 'text-[#55635a] hover:text-[#1b3026]'
                     }`}
                   >
                     Standard Handle / Link
@@ -1326,10 +1441,10 @@ export default function DashboardPage() {
                       setConnectionMethod('graph_api');
                       setModalError(null);
                     }}
-                    className={`py-1.5 text-xs font-medium rounded-md transition flex items-center justify-center gap-1 ${
+                    className={`py-1.5 text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] ${
                       connectionMethod === 'graph_api'
-                        ? 'bg-white text-blue-700 shadow-sm font-semibold'
-                        : 'text-slate-500 hover:text-slate-800'
+                        ? 'bg-white text-[#285a49] shadow-sm font-semibold'
+                        : 'text-[#55635a] hover:text-[#1b3026]'
                     }`}
                   >
                     <Key className="w-3.5 h-3.5" />
@@ -1340,35 +1455,35 @@ export default function DashboardPage() {
                 {connectionMethod === 'handle' ? (
                   <form onSubmit={handleStartOnboarding} className="space-y-4">
                     {/* Platform toggle */}
-                    <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-lg">
+                    <div className="grid grid-cols-2 gap-2 p-1 bg-[#f0f4ee] border border-[#e3e8e1] rounded-lg">
                       <button
                         type="button"
                         onClick={() => setPlatform('instagram')}
-                        className={`flex items-center justify-center gap-2 py-1.5 text-xs font-medium rounded-md transition ${
+                        className={`flex items-center justify-center gap-2 py-1.5 text-xs font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] ${
                           platform === 'instagram'
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-800'
+                            ? 'bg-white text-[#1b3026] shadow-sm font-semibold'
+                            : 'text-[#55635a] hover:text-[#1b3026]'
                         }`}
                       >
-                        <Instagram className="w-3.5 h-3.5 text-pink-500" />
+                        <Instagram className="w-3.5 h-3.5 text-[#285a49]" />
                         Instagram
                       </button>
                       <button
                         type="button"
                         onClick={() => setPlatform('facebook')}
-                        className={`flex items-center justify-center gap-2 py-1.5 text-xs font-medium rounded-md transition ${
+                        className={`flex items-center justify-center gap-2 py-1.5 text-xs font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49] ${
                           platform === 'facebook'
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-800'
+                            ? 'bg-white text-[#1b3026] shadow-sm font-semibold'
+                            : 'text-[#55635a] hover:text-[#1b3026]'
                         }`}
                       >
-                        <Facebook className="w-3.5 h-3.5 text-blue-600" />
+                        <Facebook className="w-3.5 h-3.5 text-[#347761]" />
                         Facebook
                       </button>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      <label className="block text-xs font-semibold text-[#1b3026] mb-1">
                         {platform === 'instagram' ? 'Instagram Handle or Link' : 'Facebook Page or Link'}
                       </label>
                       <input
@@ -1376,13 +1491,13 @@ export default function DashboardPage() {
                         placeholder={platform === 'instagram' ? 'e.g. @natgeo or profile link' : 'e.g. page name or link'}
                         value={accountInput}
                         onChange={(e) => setAccountInput(e.target.value)}
-                        className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        className="w-full px-3.5 py-2.5 text-sm border border-[#d8e0d5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#285a49] bg-white text-[#1b3026]"
                         autoFocus
                       />
                     </div>
 
                     {modalError && (
-                      <div className="p-3 text-xs rounded-lg bg-red-50 text-red-600 border border-red-200 flex items-center gap-2">
+                      <div className="p-3 text-xs rounded-lg bg-red-50 text-red-700 border border-red-200 flex items-center gap-2">
                         <AlertCircle className="w-4 h-4 shrink-0" />
                         <span>{modalError}</span>
                       </div>
@@ -1393,14 +1508,14 @@ export default function DashboardPage() {
                         <button
                           type="button"
                           onClick={() => setShowModal(false)}
-                          className="flex-1 py-2 text-xs font-medium border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+                          className="flex-1 py-2 text-xs font-medium border border-[#e3e8e1] rounded-lg hover:bg-[#f0f4ee] text-[#55635a] hover:text-[#1b3026] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
                         >
                           Cancel
                         </button>
                       )}
                       <button
                         type="submit"
-                        className="flex-1 py-2.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition shadow-sm"
+                        className="flex-1 py-2.5 text-xs font-semibold bg-[#20372d] border border-[#20372d] text-white rounded-lg hover:bg-white hover:text-[#20372d] hover:border-[#20372d] transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
                       >
                         Fetch & Analyze Data
                       </button>
@@ -1408,15 +1523,15 @@ export default function DashboardPage() {
                   </form>
                 ) : (
                   <form onSubmit={handleConnectGraphApi} className="space-y-4">
-                    <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-800 space-y-1">
-                      <span className="font-semibold block">Official Meta Graph API Ingestion</span>
-                      <p className="text-[11px] text-blue-700">
-                        Enter your Meta User / Page Access Token with <code className="bg-blue-100 px-1 rounded">instagram_basic</code> and <code className="bg-blue-100 px-1 rounded">pages_show_list</code> permissions. Data will be fetched directly from official Meta endpoints instead of web scraping.
+                    <div className="p-3 rounded-lg bg-[#eef6eb] border border-[#cbe2c5] text-xs text-[#20372d] space-y-1">
+                      <span className="font-semibold block text-[#1b3026]">Official Meta Graph API Ingestion</span>
+                      <p className="text-[11px] text-[#55635a]">
+                        Enter your Meta User / Page Access Token with <code className="bg-[#f0f4ee] px-1 rounded border border-[#d8e0d5]">instagram_basic</code> and <code className="bg-[#f0f4ee] px-1 rounded border border-[#d8e0d5]">pages_show_list</code> permissions. Data will be fetched directly from official Meta endpoints instead of web scraping.
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      <label className="block text-xs font-semibold text-[#1b3026] mb-1">
                         Meta Graph API Access Token *
                       </label>
                       <textarea
@@ -1424,13 +1539,13 @@ export default function DashboardPage() {
                         placeholder="EAABw..."
                         value={graphTokenInput}
                         onChange={(e) => setGraphTokenInput(e.target.value)}
-                        className="w-full px-3.5 py-2 text-xs font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        className="w-full px-3.5 py-2 text-xs font-mono border border-[#d8e0d5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#285a49] bg-white text-[#1b3026]"
                         autoFocus
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      <label className="block text-xs font-semibold text-[#1b3026] mb-1">
                         Instagram Business Account ID (Optional)
                       </label>
                       <input
@@ -1438,12 +1553,12 @@ export default function DashboardPage() {
                         placeholder="Leave blank to auto-detect from linked Facebook page"
                         value={graphAccountIdInput}
                         onChange={(e) => setGraphAccountIdInput(e.target.value)}
-                        className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        className="w-full px-3.5 py-2 text-xs border border-[#d8e0d5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#285a49] bg-white text-[#1b3026]"
                       />
                     </div>
 
                     {modalError && (
-                      <div className="p-3 text-xs rounded-lg bg-red-50 text-red-600 border border-red-200 flex items-center gap-2">
+                      <div className="p-3 text-xs rounded-lg bg-red-50 text-red-700 border border-red-200 flex items-center gap-2">
                         <AlertCircle className="w-4 h-4 shrink-0" />
                         <span>{modalError}</span>
                       </div>
@@ -1454,14 +1569,14 @@ export default function DashboardPage() {
                         <button
                           type="button"
                           onClick={() => setShowModal(false)}
-                          className="flex-1 py-2 text-xs font-medium border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+                          className="flex-1 py-2 text-xs font-medium border border-[#e3e8e1] rounded-lg hover:bg-[#f0f4ee] text-[#55635a] hover:text-[#1b3026] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
                         >
                           Cancel
                         </button>
                       )}
                       <button
                         type="submit"
-                        className="flex-1 py-2.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm flex items-center justify-center gap-1.5"
+                        className="flex-1 py-2.5 text-xs font-semibold bg-[#20372d] border border-[#20372d] text-white rounded-lg hover:bg-white hover:text-[#20372d] hover:border-[#20372d] transition-colors shadow-sm flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#285a49]"
                       >
                         <Key className="w-3.5 h-3.5" />
                         <span>Connect Official API</span>
@@ -1474,20 +1589,20 @@ export default function DashboardPage() {
               /* Minimalistic Animated Loading State */
               <div className="py-6 flex flex-col items-center justify-center space-y-6 text-center">
                 <div className="relative">
-                  <div className="w-16 h-16 rounded-full border-4 border-slate-100 border-t-slate-900 animate-spin" />
+                  <div className="w-16 h-16 rounded-full border-4 border-[#e3e8e1] border-t-[#20372d] animate-spin" />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <Sparkles className="w-6 h-6 text-slate-900 animate-pulse" />
+                    <Sparkles className="w-6 h-6 text-[#285a49] animate-pulse" />
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <h4 className="text-base font-bold text-slate-900">
+                  <h4 className="text-base font-bold text-[#1b3026]">
                     {processStep === 'scraping' && 'Fetching Your Posts...'}
                     {processStep === 'analyzing_niche' && 'Detecting Content Style & Niche...'}
                     {processStep === 'training_model' && 'Personalizing Your Recommendations...'}
                     {processStep === 'completed' && 'Dashboard Ready!'}
                   </h4>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-[#748379]">
                     {processStep === 'scraping' && 'Getting your photos, captions, likes & comments'}
                     {processStep === 'analyzing_niche' && 'Understanding your topic, language, and audience'}
                     {processStep === 'training_model' && 'Learning when your followers interact most'}
@@ -1496,10 +1611,10 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Progress Logs */}
-                <div className="w-full bg-slate-50 border border-slate-100 rounded-lg p-3 text-left font-mono text-[11px] text-slate-600 max-h-36 overflow-y-auto space-y-1">
+                <div className="w-full bg-[#f0f4ee] border border-[#e3e8e1] rounded-lg p-3 text-left font-mono text-[11px] text-[#55635a] max-h-36 overflow-y-auto space-y-1">
                   {processLogs.map((log, i) => (
                     <div key={i} className="flex items-center gap-1.5">
-                      <span className="text-emerald-500 font-bold">✓</span>
+                      <span className="text-[#285a49] font-bold">✓</span>
                       <span>{log}</span>
                     </div>
                   ))}
