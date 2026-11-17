@@ -363,13 +363,9 @@ export default function DashboardPage() {
           typeof window !== 'undefined'
             ? localStorage.getItem('ee_active_handle')
             : null;
-        if (storedHandle) {
-          setActiveHandle(storedHandle);
-          loadCreatorDashboard(storedHandle);
-        } else {
-          setShowModal(true);
-          setLoadingDashboard(false);
-        }
+        const targetHandle = storedHandle || 'bryanbaker_';
+        setActiveHandle(targetHandle);
+        loadCreatorDashboard(targetHandle);
         return;
       }
 
@@ -383,18 +379,13 @@ export default function DashboardPage() {
         return;
       }
 
-      // 2. Fallback to localStorage
+      // 2. Fallback to localStorage or default
       const storedHandle =
         localStorage.getItem(`ee_handle_${user.id}`) ||
         localStorage.getItem('ee_active_handle');
-      if (storedHandle) {
-        setActiveHandle(storedHandle);
-        loadCreatorDashboard(storedHandle);
-      } else {
-        // Prompt popup for link/username
-        setShowModal(true);
-        setLoadingDashboard(false);
-      }
+      const targetHandle = storedHandle || 'bryanbaker_';
+      setActiveHandle(targetHandle);
+      loadCreatorDashboard(targetHandle);
     };
 
     resolveUserSession();
@@ -455,6 +446,22 @@ export default function DashboardPage() {
     } finally {
       setLoadingDashboard(false);
     }
+  };
+
+  const handleSwitchTo = (newHandle: string) => {
+    const clean = newHandle.trim().toLowerCase().replace(/^@/, '');
+    if (!clean) return;
+    setActiveHandle(clean);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('ee_active_handle', clean);
+      if (user?.id) {
+        localStorage.setItem(`ee_handle_${user.id}`, clean);
+      }
+      const url = new URL(window.location.href);
+      url.searchParams.set('handle', clean);
+      window.history.pushState({}, '', url.toString());
+    }
+    loadCreatorDashboard(clean, true);
   };
 
   // Load competitor comparisons (FR-32)
@@ -815,6 +822,49 @@ export default function DashboardPage() {
               <span>Switch Account</span>
             </Button>
           </div>
+        </div>
+      </div>
+
+      {/* Quick Creator Selector Bar */}
+      <div className="bg-slate-50/80 border-b border-slate-200/60 px-4 sm:px-6 lg:px-8 py-2">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-xs overflow-x-auto">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="font-semibold text-slate-500 uppercase tracking-wider text-[11px]">
+              Active Creator:
+            </span>
+            <div className="flex items-center gap-1.5">
+              {[
+                { handle: 'bryanbaker_', label: 'Bryan Baker' },
+                { handle: 'cristiano', label: 'Cristiano' },
+                { handle: 'nightcreeper24', label: 'Nightcreeper24' },
+                { handle: 'kaleem._.abbasi830', label: 'Kaleem Abbasi' },
+                { handle: '100xengineers', label: '100xEngineers' },
+              ].map((c) => {
+                const isActive = activeHandle.toLowerCase() === c.handle.toLowerCase();
+                return (
+                  <button
+                    key={c.handle}
+                    onClick={() => handleSwitchTo(c.handle)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                      isActive
+                        ? 'bg-[#373E3E] text-white shadow-sm ring-1 ring-[#373E3E]'
+                        : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    @{c.handle}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowModal(true)}
+            className="text-xs text-slate-600 hover:text-slate-900 font-medium shrink-0 flex items-center gap-1"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Connect Another Profile</span>
+          </button>
         </div>
       </div>
 
