@@ -28,25 +28,62 @@ mkdir -p storage/profiles storage/posts storage/post-media storage/models storag
 # 2. Cleanup stale processes on ports 3000, 4000, and 8001
 cleanup_ports() {
     for port in 3000 4000 8001; do
-        pid=$(lsof -ti :$port 2>/dev/null || true)
-        if [ -n "$pid" ]; then
-            echo -e "${YELLOW}Freeing port :$port (terminating PID: $pid)...${NC}"
-            kill -9 $pid 2>/dev/null || true
+        # Method A: fuser directly frees bound TCP sockets (both IPv4 & IPv6)
+        if command -v fuser >/dev/null 2>&1; then
+            pids=$(fuser "${port}/tcp" 2>/dev/null || true)
+            if [ -n "$pids" ]; then
+                echo -e "${YELLOW}Freeing port :$port (terminating PIDs:$pids)...${NC}"
+                fuser -k -9 "${port}/tcp" 2>/dev/null || true
+            fi
+        fi
+
+        # Method B: ss / lsof fallback specifically for LISTEN sockets
+        if command -v ss >/dev/null 2>&1; then
+            ss_pids=$(ss -lptn "sport = :${port}" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u || true)
+            if [ -n "$ss_pids" ]; then
+                for p in $ss_pids; do
+                    echo -e "${YELLOW}Freeing port :$port (terminating PID: $p)...${NC}"
+                    kill -9 "$p" 2>/dev/null || true
+                done
+            fi
+        elif command -v lsof >/dev/null 2>&1; then
+            lsof_pids=$(lsof -ti "tcp:${port}" -sTCP:LISTEN 2>/dev/null || true)
+            if [ -n "$lsof_pids" ]; then
+                for p in $lsof_pids; do
+                    echo -e "${YELLOW}Freeing port :$port (terminating PID: $p)...${NC}"
+                    kill -9 "$p" 2>/dev/null || true
+                done
+            fi
         fi
     done
+    sleep 0.5
 }
 
 cleanup_ports
 
 # 3. Trap exit signals to gracefully terminate all child background processes
 cleanup_processes() {
+    # Unset trap to prevent recursive calls on exit
+    trap - SIGINT SIGTERM EXIT
     echo ""
     echo -e "${YELLOW}🛑 Shutting down EntangledEcho services cleanly...${NC}"
-    if [ -n "$PID_ML" ]; then kill -SIGTERM "$PID_ML" 2>/dev/null || true; fi
-    if [ -n "$PID_API" ]; then kill -SIGTERM "$PID_API" 2>/dev/null || true; fi
-    if [ -n "$PID_WEB" ]; then kill -SIGTERM "$PID_WEB" 2>/dev/null || true; fi
-    sleep 1
-    # Force kill if any linger
+
+    # Terminate process trees of child jobs to avoid orphaned server processes
+    for pid in "$PID_WEB" "$PID_API" "$PID_ML"; do
+        if [ -n "$pid" ]; then
+            pkill -P "$pid" 2>/dev/null || true
+            kill -SIGTERM "$pid" 2>/dev/null || true
+        fi
+    done
+
+    sleep 0.3
+
+    for pid in "$PID_WEB" "$PID_API" "$PID_ML"; do
+        if [ -n "$pid" ]; then
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+    done
+
     cleanup_ports
     echo -e "${GREEN}✓ All services stopped.${NC}"
     exit 0
@@ -92,8 +129,28 @@ else
 fi
 PID_WEB=$!
 
-# Wait 2 seconds for initial bindings
-sleep 2
+# Wait 3 seconds for initial bindings
+sleep 3
+
+# Verify background processes are actually alive
+FAILED=0
+if ! kill -0 "$PID_ML" 2>/dev/null; then
+    echo -e "${RED}✗ Python ML Service failed to start on port 8001!${NC}"
+    FAILED=1
+fi
+if ! kill -0 "$PID_API" 2>/dev/null; then
+    echo -e "${RED}✗ API & Local Scraper Worker failed to start on port 4000!${NC}"
+    FAILED=1
+fi
+if ! kill -0 "$PID_WEB" 2>/dev/null; then
+    echo -e "${RED}✗ Web Frontend failed to start on port 3000!${NC}"
+    FAILED=1
+fi
+
+if [ "$FAILED" -eq 1 ]; then
+    echo -e "${RED}Startup aborted: one or more services crashed. Check logs above.${NC}"
+    exit 1
+fi
 
 echo ""
 echo -e "${CYAN}==================================================================${NC}"
