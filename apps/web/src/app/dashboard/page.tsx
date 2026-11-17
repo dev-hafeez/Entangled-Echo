@@ -24,14 +24,18 @@ import {
   Instagram,
   Facebook,
   Brain,
+  Layers,
   ArrowUpRight,
   RefreshCw,
+  Calendar,
   Heart,
   MessageCircle,
   Users,
+  Bell,
   Download,
   Key,
   Swords,
+  PieChart as PieIcon,
   Globe,
   Plus,
   Trash2,
@@ -47,10 +51,15 @@ function ProfileAvatar({ handle, displayName }: { handle: string; displayName: s
   const [imageError, setImageError] = useState(false);
   const initial = (displayName || handle || '?').trim().replace(/^@/, '')[0]?.toUpperCase() || '?';
 
+  useEffect(() => {
+    setImageError(false);
+  }, [handle]);
+
   return (
     <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-slate-200 bg-[#373E3E] text-white flex items-center justify-center shrink-0 shadow-sm">
       {!imageError && handle ? (
         <img
+          key={handle}
           src={`${API_BASE}/api/media/avatar?handle=${encodeURIComponent(handle)}`}
           alt={displayName || handle}
           onError={() => setImageError(true)}
@@ -85,6 +94,136 @@ function PostImage({ src, alt }: { src: string; alt: string }) {
       className="w-full h-full object-cover"
     />
   );
+}
+
+function getPostDiagnostics(post: any, allPosts: any[], followersCount: number) {
+  if (post.perf_score != null && post.score_why && post.improvements) {
+    return {
+      score: post.perf_score,
+      tier:
+        post.perf_tier ||
+        (post.perf_score >= 85
+          ? 'Top Performing'
+          : post.perf_score >= 70
+          ? 'Above Average'
+          : post.perf_score >= 50
+          ? 'Average'
+          : 'Needs Improvement'),
+      why: post.score_why,
+      improvements: post.improvements,
+    };
+  }
+
+  const validFollowers = Math.max(followersCount || 1000, 50);
+  const likes = post.likes_count ?? post.likesCount ?? 0;
+  const comments = post.comments_count ?? post.commentsCount ?? 0;
+  const views = post.views_count ?? post.viewsCount ?? 0;
+  const effectiveReach = views > 0 ? views : validFollowers;
+
+  const rawEngagement = likes * 1.0 + comments * 3.0;
+  const erRate = rawEngagement / effectiveReach;
+
+  const total = allPosts.length || 1;
+  const avgLikes = Math.round(
+    allPosts.reduce((acc, p) => acc + (p.likes_count ?? p.likesCount ?? 0), 0) / total
+  );
+  const avgER =
+    allPosts.reduce((acc, p) => {
+      const l = p.likes_count ?? p.likesCount ?? 0;
+      const c = p.comments_count ?? p.commentsCount ?? 0;
+      const v = p.views_count ?? p.viewsCount ?? 0;
+      return acc + (l * 1.0 + c * 3.0) / (v > 0 ? v : validFollowers);
+    }, 0) / total;
+
+  const sorted = [...allPosts].sort((a, b) => {
+    const ea = (a.likes_count ?? a.likesCount ?? 0) * 1 + (a.comments_count ?? a.commentsCount ?? 0) * 3;
+    const eb = (b.likes_count ?? b.likesCount ?? 0) * 1 + (b.comments_count ?? b.commentsCount ?? 0) * 3;
+    return ea - eb;
+  });
+
+  const currentKey = post.id || post.shortcode;
+  const rank = Math.max(0, sorted.findIndex((p) => (p.id || p.shortcode) === currentKey));
+  const percentile = total > 1 ? rank / (total - 1) : 0.5;
+  const ratioVsAvg = avgER > 0 ? erRate / avgER : 1.0;
+
+  let score = Math.round(30 + percentile * 45 + Math.min(ratioVsAvg, 2.5) * 10);
+  score = Math.max(25, Math.min(98, score));
+
+  let tier = 'Average';
+  if (score >= 85) tier = 'Top Performing';
+  else if (score >= 70) tier = 'Above Average';
+  else if (score < 50) tier = 'Needs Improvement';
+
+  const likesDiffPercent = avgLikes > 0 ? Math.round(((likes - avgLikes) / avgLikes) * 100) : 0;
+  const commentRatio = likes > 0 ? comments / likes : 0;
+
+  let likesAnalysis = '';
+  if (likesDiffPercent >= 15) {
+    likesAnalysis = `Generated +${likesDiffPercent}% more likes than your account average (${avgLikes.toLocaleString()}).`;
+  } else if (likesDiffPercent <= -15) {
+    likesAnalysis = `Received ${Math.abs(likesDiffPercent)}% fewer likes than your account average (${avgLikes.toLocaleString()}).`;
+  } else {
+    likesAnalysis = `Achieved consistent like volume on par with your account benchmark (${avgLikes.toLocaleString()}).`;
+  }
+
+  let commentAnalysis = '';
+  if (commentRatio >= 0.15) {
+    commentAnalysis = ` High comment ratio (${(commentRatio * 100).toFixed(1)}%) shows deep audience discussion.`;
+  } else if (commentRatio >= 0.05) {
+    commentAnalysis = ` Balanced discussion response from followers.`;
+  } else {
+    commentAnalysis = ` Low comment conversation depth; audience engaged mostly passively.`;
+  }
+
+  const mediaType = (post.media_type || post.mediaType || 'image').toLowerCase();
+  let formatAnalysis = '';
+  if (mediaType.includes('carousel')) {
+    formatAnalysis = ` Carousel slides increased viewer dwell time.`;
+  } else if (mediaType.includes('video') || mediaType.includes('reel')) {
+    formatAnalysis = ` Video format helped drive dynamic viewing retention.`;
+  } else {
+    formatAnalysis = ` Static photo format had quicker viewing cycles.`;
+  }
+
+  const why = `${likesAnalysis}${commentAnalysis}${formatAnalysis}`;
+
+  const improvements: string[] = [];
+  const hashtags = post.hashtags || [];
+  if (hashtags.length === 0) {
+    improvements.push('Discovery: Add 3–5 targeted niche hashtags to increase non-follower reach in search and explore feeds.');
+  } else if (hashtags.length > 15) {
+    improvements.push('Tag Hygiene: Reduce hashtags to 5–8 focused tags to avoid looking spammy to platform algorithms.');
+  }
+
+  if (commentRatio < 0.08) {
+    improvements.push('Conversation Hook: Conclude your caption with a direct, opinion-based question to prompt follower replies.');
+  }
+
+  const captionTrimmed = (post.caption || '').trim();
+  if (!captionTrimmed || captionTrimmed.length < 25) {
+    improvements.push('Storytelling: Add 2–3 sentences of narrative context; posts with descriptive captions see +25% higher bookmark rates.');
+  } else if (captionTrimmed.length > 400 && !captionTrimmed.includes('\n')) {
+    improvements.push('Readability: Break dense text into shorter 2-line paragraphs with spacing for easier mobile scanning.');
+  }
+
+  if (mediaType === 'image') {
+    improvements.push('Format Upgrade: Convert single-photo posts into multi-slide carousels or short reels to boost save rate.');
+  }
+
+  if (score >= 85) {
+    improvements.push('Content Repurposing: High-resonance post! Pin this post to your profile or adapt key takeaways into a video reel.');
+  }
+
+  if (improvements.length < 2) {
+    improvements.push('Engagement: Respond to comments within the first 60 minutes to trigger algorithm boost and higher feed ranking.');
+  }
+
+  return {
+    score,
+    tier,
+    why,
+    improvements: improvements.slice(0, 3),
+  };
 }
 
 export default function DashboardPage() {
@@ -129,6 +268,9 @@ export default function DashboardPage() {
   const [graphTokenInput, setGraphTokenInput] = useState('');
   const [graphAccountIdInput, setGraphAccountIdInput] = useState('');
   const [isValidatingToken, setIsValidatingToken] = useState(false);
+
+  // Notification unread count (FR-33)
+  const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0);
 
   // Background auto-refresher when scraping is ongoing
   useEffect(() => {
@@ -301,6 +443,13 @@ export default function DashboardPage() {
       api.getAudience(clean).then((res) => {
         if (res?.audience) setAudience(res.audience);
       }).catch(() => {});
+
+      // Fetch unread notifications count (FR-33)
+      if (user?.id) {
+        api.getNotifications(user.id).then((nRes) => {
+          if (nRes?.unreadCount !== undefined) setUnreadNotifCount(nRes.unreadCount);
+        }).catch(() => {});
+      }
     } catch (e) {
       console.error('Error loading creator dashboard:', e);
     } finally {
@@ -595,10 +744,11 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 pb-16">
-      {/* Creator Context Bar */}
+      {/* Top Bar with Profile Info */}
       <div className="border-b border-slate-100 bg-white sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">EntangledEcho</h1>
             {activeHandle && (
               <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 px-2.5 py-0.5 rounded-full text-xs font-medium text-slate-700">
                 <Instagram className="w-3.5 h-3.5 text-pink-500" />
@@ -617,12 +767,6 @@ export default function DashboardPage() {
                 Meta Graph API Verified
               </span>
             )}
-            {isBackgroundScraping && (
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-mono animate-pulse border border-slate-200">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" />
-                <span>Live Scraping: {posts.length} posts ({backgroundCount} detailed)...</span>
-              </div>
-            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -638,6 +782,30 @@ export default function DashboardPage() {
                 </Button>
               </a>
             )}
+            <Link href="/recommendations">
+              <Button size="sm" className="flex items-center gap-1.5 text-xs">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>AI Recommendations</span>
+              </Button>
+            </Link>
+            {isBackgroundScraping && (
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-mono animate-pulse border border-slate-200">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-600" />
+                <span>Live Scraping: {posts.length} posts ({backgroundCount} detailed)...</span>
+              </div>
+            )}
+            <Link
+              href="/notifications"
+              className="relative p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition border border-slate-200"
+              title="Notifications & Alerts (FR-33)"
+            >
+              <Bell className="w-4 h-4" />
+              {unreadNotifCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white shadow">
+                  {unreadNotifCount}
+                </span>
+              )}
+            </Link>
             <Button
               size="sm"
               onClick={() => setShowModal(true)}
@@ -1042,6 +1210,8 @@ export default function DashboardPage() {
                 {posts.map((post, i) => {
                   const pDate = post.posted_at ? new Date(post.posted_at).toLocaleDateString() : 'N/A';
                   const imagePath = post.image_path || (post.storage_paths && post.storage_paths[0]) || null;
+                  const diagnostic = getPostDiagnostics(post, posts, followersCount);
+                  const { score, tier, why, improvements } = diagnostic;
 
                   return (
                     <Card
@@ -1106,6 +1276,76 @@ export default function DashboardPage() {
                               <ArrowUpRight className="w-3 h-3" />
                             </a>
                           )}
+                        </div>
+
+                        {/* Performance Score & Diagnostic Analysis (FR-16) */}
+                        <div className="pt-3 border-t border-slate-100 space-y-2.5">
+                          {/* Score Header & Gauge */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-semibold text-slate-900">Performance Score</span>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  score >= 85
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : score >= 70
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                    : score >= 50
+                                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                }`}
+                              >
+                                {tier}
+                              </span>
+                            </div>
+                            <div className="flex items-baseline gap-0.5">
+                              <span className="text-base font-extrabold text-slate-900">{score}</span>
+                              <span className="text-[11px] text-slate-400 font-medium">/100</span>
+                            </div>
+                          </div>
+
+                          {/* Progress Bar */}
+                          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                score >= 85
+                                  ? 'bg-emerald-500'
+                                  : score >= 70
+                                  ? 'bg-blue-500'
+                                  : score >= 50
+                                  ? 'bg-amber-500'
+                                  : 'bg-rose-500'
+                              }`}
+                              style={{ width: `${score}%` }}
+                            />
+                          </div>
+
+                          {/* Why this was scored that much */}
+                          <div className="bg-slate-50/90 rounded-lg p-2.5 border border-slate-200/70 space-y-1">
+                            <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-700">
+                              <TrendingUp className="w-3 h-3 text-emerald-600" />
+                              <span>Score Breakdown</span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 leading-relaxed">
+                              {why}
+                            </p>
+                          </div>
+
+                          {/* What improvements are needed */}
+                          <div className="bg-amber-50/70 rounded-lg p-2.5 border border-amber-200/70 space-y-1">
+                            <div className="flex items-center gap-1 text-[11px] font-semibold text-amber-900">
+                              <Sparkles className="w-3 h-3 text-amber-600" />
+                              <span>Improvements Needed</span>
+                            </div>
+                            <ul className="text-[11px] text-amber-900 space-y-1">
+                              {improvements.map((tip: string, idx: number) => (
+                                <li key={idx} className="leading-snug flex items-start gap-1.5">
+                                  <span className="text-amber-500 font-bold shrink-0">•</span>
+                                  <span>{tip}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         </div>
                       </div>
                     </Card>

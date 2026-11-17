@@ -125,6 +125,30 @@ mediaRouter.get('/avatar', async (req: Request, res: Response) => {
     }
   }
 
-  // 3. Fallback: avatar not available
+  // 3. Fallback: check if any stored post media exists for this creator and cache as avatar
+  if (fs.existsSync(avatarDir)) {
+    try {
+      const subEntries = fs.readdirSync(avatarDir, { withFileTypes: true });
+      for (const entry of subEntries) {
+        if (entry.isDirectory()) {
+          const candidatePath = path.join(avatarDir, entry.name, '0.jpg');
+          if (fs.existsSync(candidatePath)) {
+            const stat = fs.statSync(candidatePath);
+            if (stat.isFile() && stat.size > 0) {
+              fs.copyFileSync(candidatePath, localAvatarFile);
+              res.setHeader('Content-Type', 'image/jpeg');
+              res.setHeader('Content-Length', stat.size);
+              res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+              return fs.createReadStream(localAvatarFile).pipe(res);
+            }
+          }
+        }
+      }
+    } catch (e: any) {
+      console.warn(`[media] Fallback post avatar failed for ${cleanHandle}:`, e.message);
+    }
+  }
+
+  // 4. Fallback: avatar not available
   return res.status(404).send('Avatar not available');
 });

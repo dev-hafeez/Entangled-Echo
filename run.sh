@@ -28,11 +28,25 @@ mkdir -p storage/profiles storage/posts storage/post-media storage/models storag
 # 2. Cleanup stale processes on ports 3000, 4000, and 8001
 cleanup_ports() {
     for port in 3000 4000 8001; do
-        pid=$(lsof -ti :$port 2>/dev/null || true)
-        if [ -n "$pid" ]; then
-            echo -e "${YELLOW}Freeing port :$port (terminating PID: $pid)...${NC}"
-            kill -9 $pid 2>/dev/null || true
+        if command -v fuser >/dev/null 2>&1; then
+            if fuser $port/tcp >/dev/null 2>&1; then
+                echo -e "${YELLOW}Freeing port :$port...${NC}"
+                fuser -k -9 $port/tcp >/dev/null 2>&1 || true
+            fi
         fi
+        local pids
+        pids=$(lsof -ti :$port 2>/dev/null || true)
+        if [ -n "$pids" ]; then
+            for p in $pids; do
+                kill -9 "$p" 2>/dev/null || true
+            done
+        fi
+        # Wait up to 3 seconds for port to actually be released by the kernel
+        local count=0
+        while (fuser $port/tcp >/dev/null 2>&1 || lsof -ti :$port >/dev/null 2>&1) && [ $count -lt 30 ]; do
+            sleep 0.1
+            count=$((count + 1))
+        done
     done
 }
 
@@ -45,7 +59,7 @@ cleanup_processes() {
     if [ -n "$PID_ML" ]; then kill -SIGTERM "$PID_ML" 2>/dev/null || true; fi
     if [ -n "$PID_API" ]; then kill -SIGTERM "$PID_API" 2>/dev/null || true; fi
     if [ -n "$PID_WEB" ]; then kill -SIGTERM "$PID_WEB" 2>/dev/null || true; fi
-    sleep 1
+    sleep 0.5
     # Force kill if any linger
     cleanup_ports
     echo -e "${GREEN}✓ All services stopped.${NC}"
@@ -92,8 +106,21 @@ else
 fi
 PID_WEB=$!
 
-# Wait 2 seconds for initial bindings
+# Wait 2 seconds and check process liveness
 sleep 2
+
+FAILED_SERVICE=0
+for pid in "$PID_ML" "$PID_API" "$PID_WEB"; do
+    if ! kill -0 "$pid" 2>/dev/null; then
+        FAILED_SERVICE=1
+    fi
+done
+
+if [ "$FAILED_SERVICE" -eq 1 ]; then
+    echo ""
+    echo -e "${RED}⚠️  One or more services failed to start! Check the error logs above.${NC}"
+    exit 1
+fi
 
 echo ""
 echo -e "${CYAN}==================================================================${NC}"

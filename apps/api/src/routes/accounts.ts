@@ -4,6 +4,7 @@ import path from 'path';
 import { config } from '../config.js';
 import { getSupabaseAdmin } from '../lib/supabase.js';
 import { sanitizeAndValidateHandle } from '../lib/security.js';
+import { computePostDiagnostics } from '../lib/postDiagnostics.js';
 
 export const accountsRouter = Router();
 
@@ -162,7 +163,13 @@ accountsRouter.get('/:handle/posts', async (req: Request, res: Response) => {
         } catch {}
       }
 
-      const formattedPosts = (postsRaw || []).map((p: any) => {
+      const followersCount =
+        (account as any)?.followers_count ??
+        (account as any)?.followersCount ??
+        1000;
+      const diagnosticsMap = computePostDiagnostics(postsRaw || [], followersCount);
+
+      const formattedPosts = (postsRaw || []).map((p: any, idx: number) => {
         const shortcode = p.shortcode || '';
         const storagePaths = p.storagePaths || p.storage_paths || [
           `${cleanHandle}/${shortcode}/0.jpg`,
@@ -178,8 +185,23 @@ accountsRouter.get('/:handle/posts', async (req: Request, res: Response) => {
         const views_source = p.viewsSource ?? p.views_source ?? null;
         const views_raw_str = p.viewsRawStr ?? p.views_raw_str ?? null;
 
+        const postId = p.id || `local-${cleanHandle}-${shortcode}`;
+        const diagnostic =
+          diagnosticsMap.get(p.id) ||
+          diagnosticsMap.get(shortcode) ||
+          diagnosticsMap.get(postId) ||
+          diagnosticsMap.get(`post-${idx}`) || {
+            score: 75,
+            tier: 'Average',
+            why: 'Interaction volume aligns with baseline expectations for your audience tier.',
+            improvements: [
+              'Discovery: Add 3-5 niche hashtags to expand explore reach.',
+              'Conversation: Add an explicit question call-to-action in the caption.',
+            ],
+          };
+
         return {
-          id: p.id || `local-${cleanHandle}-${shortcode}`,
+          id: postId,
           shortcode,
           url: p.url || `https://www.instagram.com/p/${shortcode}/`,
           media_type: p.mediaType || p.media_type || 'image',
@@ -213,6 +235,10 @@ accountsRouter.get('/:handle/posts', async (req: Request, res: Response) => {
           media_urls: p.mediaUrls || p.media_urls || [],
           storage_paths: storagePaths,
           image_path: storagePaths && storagePaths.length > 0 ? storagePaths[0] : null,
+          perf_score: diagnostic.score,
+          perf_tier: diagnostic.tier,
+          score_why: diagnostic.why,
+          improvements: diagnostic.improvements,
           post_snapshots: [
             {
               likes_count,
@@ -280,7 +306,25 @@ accountsRouter.get('/:handle/posts', async (req: Request, res: Response) => {
       .eq('account_id', account.id)
       .order('created_at', { ascending: false });
 
-    return res.json({ account, posts: posts || [] });
+    const rawList = posts || [];
+    const diagnosticsMap = computePostDiagnostics(rawList, (account as any)?.followers_count ?? 1000);
+    const enrichedPosts = rawList.map((p: any, idx: number) => {
+      const diag = diagnosticsMap.get(p.id) || diagnosticsMap.get(p.shortcode) || diagnosticsMap.get(`post-${idx}`) || {
+        score: 75,
+        tier: 'Average',
+        why: 'Interaction volume aligns with baseline expectations.',
+        improvements: ['Discovery: Add 3-5 niche hashtags.', 'Conversation: Ask an engaging CTA question.'],
+      };
+      return {
+        ...p,
+        perf_score: diag.score,
+        perf_tier: diag.tier,
+        score_why: diag.why,
+        improvements: diag.improvements,
+      };
+    });
+
+    return res.json({ account, posts: enrichedPosts });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
