@@ -888,7 +888,7 @@ recommendationsRouter.post('/generate', async (req: Request, res: Response) => {
       const cacheAgeMs = Date.now() - new Date(cached.generated_at || 0).getTime();
       const isNicheMatching = cached.user_niche && cached.user_niche.toLowerCase() === userNiche.toLowerCase();
       
-      // Ensure cached recommendations do not contain conflicting off-niche terms
+      // Ensure cached recommendations do not contain conflicting off-niche terms or stale static templates
       const areRecsAligned = Array.isArray(cached.recommendations) && cached.recommendations.length > 0 &&
         cached.recommendations.every((r: any) => {
           const t = (r.trend_topic || r.title || '').toLowerCase();
@@ -896,6 +896,18 @@ recommendationsRouter.post('/generate', async (req: Request, res: Response) => {
           if (domainId === 'art_popculture' && (t.includes('geomagnetic') || t.includes('malware') || t.includes('football') || t.includes('healthcare'))) return false;
           if (domainId === 'scenic_motorcycle' && (t.includes('healthcare access') || t.includes('geomagnetic') || t.includes('policy') || t.includes('malware'))) return false;
           if (domainId.startsWith('tech_') && (t.includes('slovenia') || t.includes('north macedonia') || t.includes('mayci neeley') || t.includes('geomagnetic'))) return false;
+          const c = r.caption_draft || '';
+          if (
+            c.includes('Aaj hum baat kar rahe hain') ||
+            c.includes('Bohat se log') ||
+            c.includes('Weekly reflection:') ||
+            c.includes('Em foco hoje:') ||
+            c.includes('O verdadeiro foco por trás') ||
+            c.includes('¡Analizando a fondo') ||
+            c.includes('Breaking down the real dynamics behind') ||
+            c.includes('The biggest overlooked reality about') ||
+            c.includes('Perspective on')
+          ) return false;
           return true;
         });
 
@@ -909,13 +921,18 @@ recommendationsRouter.post('/generate', async (req: Request, res: Response) => {
     } catch {}
   }
 
-  // 6. Generate AI Recommendations using Gemini with strict niche relevance
-  const llmProvider = process.env.LLM_PROVIDER || 'mock';
+  // 6. Generate Dynamic AI Recommendations using Gemini with strict niche relevance
   const geminiApiKey = process.env.GEMINI_API_KEY || '';
-  const canUseGemini = llmProvider === 'gemini' && !!geminiApiKey && geminiApiKey.length > 20;
+  const canUseGemini = !!geminiApiKey && geminiApiKey.length > 20;
 
   if (canUseGemini && nicheMatchedTrends.length > 0) {
-    const candidateModels = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+    const candidateModels = [
+      'gemini-3.1-flash-lite',
+      'gemini-flash-lite-latest',
+      'gemini-3.1-flash-lite-preview',
+      'gemini-3.5-flash-lite',
+    ];
+
     const trendsContext = nicheMatchedTrends.slice(0, 4).map((t) => ({
       title: t.title,
       traffic: t.traffic,
@@ -924,6 +941,11 @@ recommendationsRouter.post('/generate', async (req: Request, res: Response) => {
       news_publisher: t.news_source || 'Google Trends',
       relevance_score: t.relevance,
     }));
+
+    const sampleCaptions = (posts || [])
+      .map((p: any) => p.caption || p.text || '')
+      .filter((c: any) => typeof c === 'string' && c.trim().length > 10)
+      .slice(0, 3);
 
     const aiPrompt = `You are an elite AI Content Strategy & Trend Recommendation Engine.
 Generate 3 highly tailored social media post recommendations strictly for this creator's domain.
@@ -940,6 +962,9 @@ CREATOR PROFILE:
 - Best Day: ${recommendedDayName}
 - Preferred Language: ${userLanguage}
 
+CREATOR'S RECENT CAPTION STYLE EXAMPLES (Adopt this exact authentic voice, tone, and language style):
+${sampleCaptions.length > 0 ? sampleCaptions.map((c, i) => `[Example ${i + 1}]: "${c.replace(/\n+/g, ' ').slice(0, 250)}"`).join('\n') : '(No previous captions available - match declared language, domain standards, and natural phrasing)'}
+
 ACTIVE NICHE-MATCHED TRENDING TOPICS (Pre-filtered for ${userNiche}):
 ${JSON.stringify(trendsContext, null, 2)}
 
@@ -947,7 +972,7 @@ CRITICAL RELEVANCE RULES:
 1. Every recommendation MUST be strictly within the creator's verified niche: "${userNiche}".
 2. Do NOT recommend any topic outside their domain (e.g., NEVER recommend tech/coding to an athlete; NEVER recommend sports to a software engineer; NEVER recommend healthcare policy to an artist).
 3. Combine the trending search hook directly with their niche authority, content pillars, and high-converting format.
-4. Language of caption_draft MUST be in ${userLanguage}.
+4. Language of caption_draft MUST be authentically written in ${userLanguage} matching their authentic voice (e.g., if Roman Urdu / Urdu, write natural conversational Urdu/Roman Urdu; if Portuguese, write natural Portuguese; if English, write natural English). Do NOT use generic sentence frames or static templates.
 
 For each of the 3 recommendations, return:
 - "id": "rec_1", "rec_2", "rec_3"
@@ -963,7 +988,7 @@ For each of the 3 recommendations, return:
 - "optimal_posting_time": "${optimalTimeWindow}"
 - "recommended_day": "${recommendedDayName}"
 - "rationale": 2-3 sentences explaining why this active trending search topic specifically connects to their ${userNiche} authority and audience right now.
-- "caption_draft": Ready-to-publish localized caption in ${userLanguage} with strong hook, core value body, discussion question, and call-to-action.
+- "caption_draft": Ready-to-publish, completely unique localized caption in ${userLanguage} with strong hook, core value body, discussion question, and call-to-action.
 - "suggested_hashtags": 5 relevant hashtags including niche and trend topic.
 - "creation_blueprint":
   - "hook": What to do/show in the first 3 seconds (or slide 1)
@@ -979,12 +1004,13 @@ Output ONLY a valid JSON array of 3 objects. No markdown backticks.`;
         const aiResp = await fetch(geminiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(15000),
           body: JSON.stringify({
             contents: [{ parts: [{ text: aiPrompt }] }],
             generationConfig: {
               temperature: 0.2,
               maxOutputTokens: 3500,
+              responseMimeType: 'application/json',
             },
           }),
         });
@@ -995,28 +1021,67 @@ Output ONLY a valid JSON array of 3 objects. No markdown backticks.`;
         const rawText = aiData?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
         const cleanJsonText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
 
-        const parsedRecs = JSON.parse(cleanJsonText);
-        if (Array.isArray(parsedRecs) && parsedRecs.length === 3) {
-          const payload = {
-            success: true,
-            handle: cleanHandle,
-            user_niche: userNiche,
-            sub_niche: subNiche,
-            language_preference: userLanguage,
-            follower_tier: bucket,
-            optimal_time_window: optimalTimeWindow,
-            dominant_format_recommendation: bestFormat,
-            recommendations: parsedRecs,
-            live_trend_signals: nicheMatchedTrends.slice(0, 4),
-            generated_at: new Date().toISOString(),
-          };
+        let parsedRecs: any[] = [];
+        try {
+          parsedRecs = JSON.parse(cleanJsonText);
+        } catch {
+          const match = cleanJsonText.match(/\[\s*\{[\s\S]*\}\s*\]/);
+          if (match) {
+            try { parsedRecs = JSON.parse(match[0]); } catch {}
+          }
+        }
 
-          // Save to persistent cache
-          try {
-            fs.writeFileSync(recsCacheFile, JSON.stringify(payload, null, 2));
-          } catch {}
+        if (Array.isArray(parsedRecs) && parsedRecs.length > 0) {
+          const validatedRecs = parsedRecs.slice(0, 3).map((r: any, idx: number) => ({
+            id: r.id || `rec_${idx + 1}`,
+            title: r.title || `Trending Strategy: ${r.trend_topic || 'Opportunity'}`,
+            trend_topic: r.trend_topic || nicheMatchedTrends[idx]?.title || 'Trending Opportunity',
+            trend_source: r.trend_source || 'Google Trends (Niche Intelligence)',
+            trend_traffic: r.trend_traffic || 'High Search Interest',
+            trend_news_context: r.trend_news_context || undefined,
+            niche_match_score: typeof r.niche_match_score === 'number' ? r.niche_match_score : 95,
+            pillar: r.pillar || contentPillars[idx] || contentPillars[0],
+            recommended_format: r.recommended_format || (idx === 0 ? bestFormat : idx === 1 ? 'carousel' : 'reel'),
+            format_lift: r.format_lift || `+${(bestLift * 100).toFixed(1)}% reach lift`,
+            optimal_posting_time: r.optimal_posting_time || optimalTimeWindow,
+            recommended_day: r.recommended_day || recommendedDayName,
+            rationale: r.rationale || '',
+            caption_draft: r.caption_draft || '',
+            suggested_hashtags: Array.isArray(r.suggested_hashtags) ? r.suggested_hashtags : [],
+            creation_blueprint: r.creation_blueprint || {
+              hook: 'First 3 seconds / Slide 1: Engaging hook',
+              body: 'Middle 15-25 seconds: 3 core insights',
+              call_to_action: 'Final 5 seconds: Direct audience prompt',
+              production_tips: [],
+            },
+          }));
 
-          return res.json(payload);
+          const hasValidCaptions = validatedRecs.every(
+            (r: any) => typeof r.caption_draft === 'string' && r.caption_draft.trim().length > 15
+          );
+
+          if (hasValidCaptions) {
+            const payload = {
+              success: true,
+              handle: cleanHandle,
+              user_niche: userNiche,
+              sub_niche: subNiche,
+              language_preference: userLanguage,
+              follower_tier: bucket,
+              optimal_time_window: optimalTimeWindow,
+              dominant_format_recommendation: bestFormat,
+              recommendations: validatedRecs,
+              live_trend_signals: nicheMatchedTrends.slice(0, 4),
+              generated_at: new Date().toISOString(),
+            };
+
+            // Save to persistent cache
+            try {
+              fs.writeFileSync(recsCacheFile, JSON.stringify(payload, null, 2));
+            } catch {}
+
+            return res.json(payload);
+          }
         }
       } catch (err: any) {
         console.warn(`[recommendations] ${model} error: ${err.message}`);
@@ -1024,120 +1089,14 @@ Output ONLY a valid JSON array of 3 objects. No markdown backticks.`;
     }
   }
 
-  // 7. Deterministic Niche-Grounded Fallback with Pre-filtered Niche Trends
-  const topTrends = nicheMatchedTrends.slice(0, 3);
-
-  const recommendations = topTrends.map((trend, idx) => {
-    const isReel = idx === 0 ? bestFormat : idx === 1 ? (bestFormat === 'reel' ? 'carousel' : 'reel') : 'image';
-    const liftStr = isReel === 'reel' ? `+${(bestLift * 100).toFixed(1)}% reach lift` : isReel === 'carousel' ? '+24.5% saves & shares' : '+15.0% comment rate';
-    const dayStr = idx === 0 ? `${recommendedDayName} (Peak Activity)` : idx === 1 ? 'Wednesday / Thursday' : 'Sunday Evening';
-
-    return {
-      id: `rec_${idx + 1}`,
-      title: `Trending: ${trend.title}`,
-      trend_topic: trend.title,
-      trend_source: trend.source || 'Google Trends (Niche Intelligence)',
-      trend_traffic: trend.traffic || 'High Search Interest',
-      trend_news_context: trend.news_title ? `${trend.news_title} (${trend.news_source || 'Google Trends'})` : undefined,
-      niche_match_score: Math.max(88, trend.relevance - idx * 2),
-      pillar: contentPillars[idx] || contentPillars[0],
-      recommended_format: isReel,
-      format_lift: liftStr,
-      optimal_posting_time: optimalTimeWindow,
-      recommended_day: dayStr,
-      rationale: `${liftExplanation} Capitalizes on the active Google search trend for "${trend.title}" while directly grounding the discussion in your ${userNiche} authority.`,
-      caption_draft: generateLocalizedCaption(userLanguage, trend.title, userNiche, idx + 1),
-      suggested_hashtags: generateHashtags(userNiche, subNiche, trend.title),
-      creation_blueprint: {
-        hook: `First 3 seconds / Slide 1: High-impact opening hook regarding "${trend.title}" tailored for ${userNiche} enthusiasts.`,
-        body: `Next 15-25 seconds: 3 evidence-backed insights tying the trend to real actionable takeaways.`,
-        call_to_action: `Final 5 seconds: Direct audience prompt asking for their perspectives in the comments.`,
-        production_tips: [
-          `Format: 9:16 vertical ratio with high-contrast text overlays in the top third of the frame.`,
-          `Pacing: Cut or visual transition every 2.5 seconds to maximize completion rate.`,
-          `Engagement: Pin your own comment posing a specific discussion question within 15 minutes of posting.`,
-        ],
-      },
-    };
-  });
-
-  const payload = {
-    success: true,
+  // If AI generation was unavailable or failed across all models, fail explicitly.
+  // Static templates have been permanently removed per specification.
+  console.error(`[recommendations] Dynamic AI generation failed for @${cleanHandle}`);
+  return res.status(503).json({
+    error: 'AI recommendation engine temporarily unavailable. Please retry shortly.',
+    details: 'All recommendations are dynamically generated via AI. Static sentence frames have been disabled.',
     handle: cleanHandle,
     user_niche: userNiche,
-    sub_niche: subNiche,
     language_preference: userLanguage,
-    follower_tier: bucket,
-    optimal_time_window: optimalTimeWindow,
-    dominant_format_recommendation: bestFormat,
-    recommendations,
-    live_trend_signals: nicheMatchedTrends.slice(0, 4),
-    generated_at: new Date().toISOString(),
-  };
-
-  try {
-    fs.writeFileSync(recsCacheFile, JSON.stringify(payload, null, 2));
-  } catch {}
-
-  return res.json(payload);
+  });
 });
-
-// Helper: Localized caption generator
-function generateLocalizedCaption(lang: string, topic: string, niche: string, index: number): string {
-  const l = (lang || 'English').toLowerCase();
-
-  if (l.includes('urdu') || l.includes('hindi')) {
-    if (l.includes('roman') || l.includes('bilingual')) {
-      if (index === 1) {
-        return `Aaj hum baat kar rahe hain ${topic} ke baare mein! 🔥 Yeh topic is waqt search trends mein top par hai aur hamari community ke liye nihayat ahem hai. Is par aapka kya khayal hai? Comments mein zaroor batayein! 👇`;
-      } else if (index === 2) {
-        return `Bohat se log ${topic} ke baray mein ahem pehlu miss kar dete hain. Is post mein ahem facts aur practical insights share kiye hain jo har kisi ko janne chahiyen. Save karlein baad ke liye! 📌`;
-      } else {
-        return `Weekly reflection: ${topic} se hum ne kya seekha? Apni raye share karein, aain mil kar discuss karte hain. 💬✨`;
-      }
-    } else {
-      return `${topic} کے حوالے سے سب سے اہم نکات جو آپ کو معلوم ہونے چاہئیں۔ اس پوسٹ کو محفوظ کر لیں اور اپنی رائے کمنٹس میں بتائیں! 👇`;
-    }
-  } else if (l.includes('portuguese')) {
-    if (index === 1) {
-      return `Em foco hoje: ${topic}. Uma análise direta e necessária sobre como isso impacta a nossa performance e dedicação diária. Deixe sua opinião nos comentários abaixo! 👇⚽️`;
-    } else {
-      return `O verdadeiro foco por trás de ${topic} que muitos não percebem. Trabalho duro e consistência sempre vencem. O que vocês acham? Deixem suas opiniões! 💪`;
-    }
-  } else if (l.includes('spanish')) {
-    return `¡Analizando a fondo ${topic}! Puntos clave sobre esta tendencia y su impacto directo en nuestra disciplina. ¿Cuál es tu experiencia? ¡Comenta abajo! 👇`;
-  }
-
-  // English default
-  if (index === 1) {
-    return `Breaking down the real dynamics behind ${topic}. While search interest is surging, the underlying conversation that matters most is how this shapes our work in ${niche}. Here are the 3 key takeaways you need to know. What’s your take? Drop your thoughts below 👇`;
-  } else if (index === 2) {
-    return `The biggest overlooked reality about ${topic}—and why standard headlines are missing the point. Swipe through for the full evidence breakdown. Make sure to save this post for reference! 📌`;
-  } else {
-    return `Perspective on ${topic}: Breakthroughs happen when we pay attention to the details and hold high standards. How are you approaching this in your own work? Let’s discuss in the comments 💬`;
-  }
-}
-
-// Helper: Hashtag generator
-function generateHashtags(niche: string, subNiche: string, topic: string): string[] {
-  const cleanNiche = niche.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const cleanTopic = topic.toLowerCase().split(/\s+/).slice(0, 2).join('');
-  const domain = identifyDomain(niche, subNiche);
-
-  const domainTags: Record<string, string[]> = {
-    sports_football: ['#football', '#cr7', '#soccer', '#matchday', '#athlete'],
-    art_popculture: ['#art', '#anime', '#popculture', '#aesthetic', '#photography'],
-    scenic_motorcycle: ['#scenic', '#naturephotography', '#motorcycle', '#travelpakistan', '#landscape'],
-    tech_ai_edtech: ['#ai', '#appliedai', '#softwareengineering', '#developer', '#buildinpublic'],
-    tech_software: ['#softwareengineering', '#developer', '#coding', '#typescript', '#webdev'],
-    sports_cricket: ['#cricket', '#t20', '#ipl', '#cricketer', '#matchday'],
-    public_health_civic: ['#publichealth', '#healthcare', '#civic', '#advocacy', '#community'],
-    comedy_satire: ['#comedy', '#standup', '#satire', '#jokes', '#humor'],
-    adventure_travel: ['#travel', '#adventure', '#overland', '#motorcycle', '#vlog'],
-    culinary_food: ['#culinary', '#baking', '#food', '#chef', '#delicious'],
-  };
-
-  const specificTags = domainTags[domain] || ['#contentstrategy', '#trending', '#socialmedia'];
-  const base = [`#${cleanNiche}`, `#${cleanTopic}`, ...specificTags];
-  return [...new Set(base)].slice(0, 5);
-}
