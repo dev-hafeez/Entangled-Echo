@@ -9,6 +9,8 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config(); // fallback to local directory
 
+const projectRoot = path.resolve(__dirname, '../../..');
+
 export const config = {
   supabaseUrl: process.env.SUPABASE_URL || 'https://pndypqsppmgumamaeuef.supabase.co',
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
@@ -18,11 +20,14 @@ export const config = {
   apiUrl: process.env.API_URL || 'http://localhost:4000',
   adminPassword: process.env.ADMIN_PASSWORD || 'admin123',
   mlServiceUrl: process.env.ML_SERVICE_URL || 'http://localhost:8001',
-  projectRoot: path.resolve(__dirname, '../../..'),
-  localStorageDir: process.env.LOCAL_STORAGE_DIR || path.resolve(__dirname, '../../../storage'),
+  projectRoot,
+  localStorageDir: process.env.LOCAL_STORAGE_DIR
+    ? path.resolve(projectRoot, process.env.LOCAL_STORAGE_DIR)
+    : path.resolve(projectRoot, 'storage'),
   playwrightHeadless: process.env.PLAYWRIGHT_HEADLESS !== 'false',
   playwrightProfileDir: path.resolve(
-    process.env.PLAYWRIGHT_PROFILE_DIR || path.resolve(__dirname, '../../../.chromium-profile')
+    projectRoot,
+    process.env.PLAYWRIGHT_PROFILE_DIR || '.chromium-profile'
   ),
 };
 

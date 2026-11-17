@@ -1,18 +1,26 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { getSupabaseAdmin } from '../lib/supabase.js';
+import { localJobQueue } from '../lib/local-queue.js';
 
 export const jobsRouter = Router();
 
 // GET /api/jobs - List jobs with filtering, pagination, and status summaries
 jobsRouter.get('/', async (req: Request, res: Response) => {
-  const supabase = getSupabaseAdmin();
-
   const status = (req.query.status as string) || 'all';
   const search = ((req.query.search as string) || '').trim();
   const page = Math.max(1, parseInt((req.query.page as string) || '1', 10));
   const limit = Math.min(500, Math.max(10, parseInt((req.query.limit as string) || '100', 10)));
   const offset = (page - 1) * limit;
+
+  // 1. Serve from localJobQueue if it contains jobs (primary local queue)
+  const localResult = localJobQueue.queryJobs({ status, search, page, limit });
+  if (localResult.summary.total > 0) {
+    return res.json(localResult);
+  }
+
+  // 2. Fall back to Supabase query if local queue is empty
+  const supabase = getSupabaseAdmin();
 
   // 1. Fetch live queue summary counts across all statuses
   const [totalRes, queuedRes, runningRes, doneRes, failedRes, cancelledRes] = await Promise.all([
@@ -75,8 +83,14 @@ jobsRouter.get('/', async (req: Request, res: Response) => {
 // POST /api/jobs/:id/retry - Retry a failed or cancelled job
 jobsRouter.post('/:id/retry', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const supabase = getSupabaseAdmin();
 
+  const localRetried = localJobQueue.retryJob(id);
+  if (localRetried) {
+    const job = localJobQueue.queryJobs({ limit: 500 }).jobs.find((j) => j.id === id);
+    return res.json({ success: true, job });
+  }
+
+  const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from('jobs')
     .update({
@@ -102,8 +116,14 @@ jobsRouter.post('/:id/retry', async (req: Request, res: Response) => {
 // POST /api/jobs/:id/cancel - Cancel a queued or running job
 jobsRouter.post('/:id/cancel', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const supabase = getSupabaseAdmin();
 
+  const localCancelled = localJobQueue.cancelJob(id);
+  if (localCancelled) {
+    const job = localJobQueue.queryJobs({ limit: 500 }).jobs.find((j) => j.id === id);
+    return res.json({ success: true, job });
+  }
+
+  const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from('jobs')
     .update({
@@ -124,57 +144,35 @@ jobsRouter.post('/:id/cancel', async (req: Request, res: Response) => {
 // DELETE /api/jobs/:id - Delete a single job from the queue
 jobsRouter.delete('/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const supabase = getSupabaseAdmin();
 
-  const { error } = await supabase
-    .from('jobs')
-    .delete()
-    .eq('id', id);
-
-  if (error) {
-    return res.status(500).json({ error: error.message });
-  }
+  localJobQueue.deleteJob(id);
+  try {
+    const supabase = getSupabaseAdmin();
+    await supabase.from('jobs').delete().eq('id', id);
+  } catch {}
 
   return res.json({ success: true, message: `Job ${id} deleted.` });
 });
 
 // DELETE /api/jobs - Clear jobs (supports type=completed | queued | all)
 jobsRouter.delete('/', async (req: Request, res: Response) => {
-  const type = ((req.query.type as string) || 'completed').toLowerCase();
-  const supabase = getSupabaseAdmin();
-
-  let statuses: string[] = ['done', 'failed', 'cancelled'];
-  if (type === 'queued') {
-    statuses = ['queued'];
-  } else if (type === 'all') {
-    statuses = ['queued', 'running', 'done', 'failed', 'partial', 'cancelled'];
-  }
+  const type = ((req.query.type as string) || 'completed').toLowerCase() as 'completed' | 'queued' | 'all';
+  const deletedCount = localJobQueue.clearJobs(type);
 
   try {
-    let deletedCount = 0;
-    while (true) {
-      const { data, error } = await supabase
-        .from('jobs')
-        .delete()
-        .in('status', statuses)
-        .select('id')
-        .limit(1000);
-
-      if (error) {
-        return res.status(500).json({ error: error.message });
-      }
-
-      const count = data?.length || 0;
-      deletedCount += count;
-      if (count === 0 || count < 1000) break;
+    const supabase = getSupabaseAdmin();
+    let statuses: string[] = ['done', 'failed', 'cancelled'];
+    if (type === 'queued') {
+      statuses = ['queued'];
+    } else if (type === 'all') {
+      statuses = ['queued', 'running', 'done', 'failed', 'partial', 'cancelled'];
     }
+    await supabase.from('jobs').delete().in('status', statuses);
+  } catch {}
 
-    return res.json({
-      success: true,
-      message: `Cleared ${deletedCount} job(s) (${type}).`,
-      deletedCount,
-    });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
+  return res.json({
+    success: true,
+    message: `Cleared ${deletedCount} job(s) (${type}).`,
+    deletedCount,
+  });
 });

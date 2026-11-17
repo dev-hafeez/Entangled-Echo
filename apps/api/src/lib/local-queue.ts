@@ -126,11 +126,11 @@ class LocalJobQueue {
       return null;
     }
     const now = new Date();
-    // 1. Find oldest queued job
+    // 1. Prioritize newest queued jobs (e.g. active interactive requests from dashboard)
     // Also re-claim jobs stuck in 'running' whose heartbeat is older than 5 minutes
     const staleThreshold = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
 
-    for (let i = this.jobs.length - 1; i >= 0; i--) {
+    for (let i = 0; i < this.jobs.length; i++) {
       const j = this.jobs[i];
       const isQueued = j.status === 'queued';
       const isStale = j.status === 'running' && (!j.heartbeat_at || j.heartbeat_at < staleThreshold);
